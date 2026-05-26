@@ -926,20 +926,44 @@ async function syncFromSupabase(){
 }
 
 async function saveOrdersToSupabase(orders){
+  const normalized=orders.map(o=>({
+    id:o.id, datum:o.datum||'', kanal:o.kanal||'',
+    bestellnr:o.bestellnr||'', artikel:o.artikel||'',
+    umsatzBrutto:o.umsatzBrutto||0, umsatzNetto:o.umsatzNetto||0,
+    waren:o.waren||0, versand:o.versand||0,
+    provision:o.provision||0, retoure:o.retoure||0,
+    isRetoure:o.isRetoure||false, notiz:o.notiz||'',
+  }));
   await sbFetch('orders','DELETE',null,'?id=gt.0');
-  if(orders.length) await sbFetch('orders','POST',orders);
+  if(normalized.length) await sbFetch('orders','POST',normalized);
 }
 async function saveRechnungenToSupabase(r){
+  const normalized=r.map(o=>({
+    id:o.id, datum:o.datum||'', typ:o.typ||'einnahme',
+    nr:o.nr||'', partner:o.partner||'',
+    netto:o.netto||0, mwstRate:o.mwstRate||19,
+    brutto:o.brutto||0, kategorie:o.kategorie||'',
+    notiz:o.notiz||'', pdfName:o.pdfName||'', gewinn:o.gewinn||0,
+  }));
   await sbFetch('rechnungen','DELETE',null,'?id=gt.0');
-  if(r.length) await sbFetch('rechnungen','POST',r);
+  if(normalized.length) await sbFetch('rechnungen','POST',normalized);
 }
 async function saveFkkostenToSupabase(items){
+  const normalized=items.map(o=>({
+    id:o.id, name:o.name||'', betrag:o.betrag||0,
+    intervall:o.intervall||'monatlich', cat:o.cat||'Sonstiges',
+    updatedAt:o.updatedAt||0,
+  }));
   await sbFetch('fixkosten','DELETE',null,'?id=gt.0');
-  if(items.length) await sbFetch('fixkosten','POST',items);
+  if(normalized.length) await sbFetch('fixkosten','POST',normalized);
 }
 async function saveMarketingToSupabase(items){
+  const normalized=items.map(o=>({
+    id:o.id, kanal:o.kanal||'', betrag:o.betrag||0,
+    month:o.month||0, year:o.year||0, updatedAt:o.updatedAt||0,
+  }));
   await sbFetch('marketing','DELETE',null,'?id=gt.0');
-  if(items.length) await sbFetch('marketing','POST',items);
+  if(normalized.length) await sbFetch('marketing','POST',normalized);
 }
 async function saveMpgToSupabase(mpgObj){
   const rows=Object.entries(mpgObj).map(([kanal,v])=>({kanal,betrag:v.betrag||0}));

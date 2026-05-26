@@ -877,6 +877,78 @@ tr:last-child td{border-bottom:none;}
 .imp-dup-badge{font-size:10px;padding:1px 6px;border-radius:99px;background:#FAEEDA;color:#854F0B;margin-left:4px;}
 </style>
 <script>
+/* ── SUPABASE CONFIG ── */
+const SUPABASE_URL='https://byazoaixpovvtfmmphin.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5YXpvYWl4cG92dnRmbW1waGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3OTk0NjEsImV4cCI6MjA5NTM3NTQ2MX0.R0VTjHfJWdxVttqJAT8VMR39QxRhfiG9h04bhkbJ1jo';
+
+async function sbFetch(table, method='GET', body=null, params=''){
+  const url=`${SUPABASE_URL}/rest/v1/${table}${params}`;
+  const res=await fetch(url,{
+    method,
+    headers:{
+      'apikey':SUPABASE_KEY,
+      'Authorization':'Bearer '+SUPABASE_KEY,
+      'Content-Type':'application/json',
+      'Prefer':method==='POST'?'return=representation':'',
+    },
+    body:body?JSON.stringify(body):null,
+  });
+  if(!res.ok){const e=await res.text();console.error('Supabase error:',table,method,e);return null;}
+  const text=await res.text();
+  return text?JSON.parse(text):null;
+}
+
+let dbSynced=false;
+
+async function syncFromSupabase(){
+  try{
+    const [orders,fixkosten,marketing,mpg,rechnungen]=await Promise.all([
+      sbFetch('orders','GET',null,'?select=*&order=id.desc'),
+      sbFetch('fixkosten','GET',null,'?select=*'),
+      sbFetch('marketing','GET',null,'?select=*'),
+      sbFetch('mpg','GET',null,'?select=*'),
+      sbFetch('rechnungen','GET',null,'?select=*&order=id.desc'),
+    ]);
+    if(orders) localStorage.setItem('ec_orders',JSON.stringify(orders));
+    if(fixkosten) localStorage.setItem('ec_fixkosten_v2',JSON.stringify(fixkosten));
+    if(marketing) localStorage.setItem('ec_marketing',JSON.stringify(marketing));
+    if(mpg){
+      const mpgObj={};
+      mpg.forEach(r=>mpgObj[r.kanal]={betrag:r.betrag,updatedAt:r.updated_at});
+      localStorage.setItem('ec_mpg',JSON.stringify(mpgObj));
+    }
+    if(rechnungen) localStorage.setItem('ec_rechnungen',JSON.stringify(rechnungen));
+    dbSynced=true;
+    console.log('✓ Supabase sync complete');
+  }catch(e){
+    console.warn('Supabase sync failed, using localStorage',e);
+  }
+}
+
+async function saveOrdersToSupabase(orders){
+  await sbFetch('orders','DELETE',null,'?id=gt.0');
+  if(orders.length) await sbFetch('orders','POST',orders);
+}
+async function saveRechnungenToSupabase(r){
+  await sbFetch('rechnungen','DELETE',null,'?id=gt.0');
+  if(r.length) await sbFetch('rechnungen','POST',r);
+}
+async function saveFkkostenToSupabase(items){
+  await sbFetch('fixkosten','DELETE',null,'?id=gt.0');
+  if(items.length) await sbFetch('fixkosten','POST',items);
+}
+async function saveMarketingToSupabase(items){
+  await sbFetch('marketing','DELETE',null,'?id=gt.0');
+  if(items.length) await sbFetch('marketing','POST',items);
+}
+async function saveMpgToSupabase(mpgObj){
+  const rows=Object.entries(mpgObj).map(([kanal,v])=>({kanal,betrag:v.betrag||0}));
+  await sbFetch('mpg','DELETE',null,'?id=gt.0');
+  if(rows.length) await sbFetch('mpg','POST',rows);
+}
+</script>
+
+<script>
 /* ── MARKETING ── */
 function getMkItems(){try{return JSON.parse(localStorage.getItem('ec_marketing')||'[]');}catch(e){return[];}}
 function setMkItems(d){

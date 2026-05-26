@@ -935,7 +935,12 @@ async function saveOrdersToSupabase(orders){
     isRetoure:o.isRetoure||false, notiz:o.notiz||'',
   }));
   await sbFetch('orders','DELETE',null,'?id=gt.0');
-  if(normalized.length) await sbFetch('orders','POST',normalized);
+  // Upload in Batches von 50
+  const batchSize=50;
+  for(let i=0;i<normalized.length;i+=batchSize){
+    const batch=normalized.slice(i,i+batchSize);
+    await sbFetch('orders','POST',batch);
+  }
 }
 async function saveRechnungenToSupabase(r){
   const normalized=r.map(o=>({
@@ -946,7 +951,10 @@ async function saveRechnungenToSupabase(r){
     notiz:o.notiz||'', pdfName:o.pdfName||'', gewinn:o.gewinn||0,
   }));
   await sbFetch('rechnungen','DELETE',null,'?id=gt.0');
-  if(normalized.length) await sbFetch('rechnungen','POST',normalized);
+  const batchSize=50;
+  for(let i=0;i<normalized.length;i+=batchSize){
+    await sbFetch('rechnungen','POST',normalized.slice(i,i+batchSize));
+  }
 }
 async function saveFkkostenToSupabase(items){
   const normalized=items.map(o=>({

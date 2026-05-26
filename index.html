@@ -143,6 +143,8 @@ tr:last-child td{border-bottom:none;}
   <div style="display:flex;align-items:center;gap:12px;">
     <span id="sync-indicator" style="font-size:11px;color:#888780;opacity:0;transition:opacity 1s;"></span>
     <button onclick="exportLocalData()" style="font-size:11px;padding:4px 10px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#888780;cursor:pointer;">⬇ Backup</button>
+    <button onclick="document.getElementById('import-json-input').click()" style="font-size:11px;padding:4px 10px;border:0.5px solid #003265;border-radius:6px;background:#003265;color:#fff;cursor:pointer;">⬆ Daten hochladen</button>
+    <input type="file" id="import-json-input" accept=".json" style="display:none;" onchange="importLocalData(event)">
   </div>
   <div style="font-size:12px;color:#888780;" id="header-date"></div>
 </div>
@@ -2775,6 +2777,41 @@ document.addEventListener('keydown', e=>{
 });
 
 
+async function importLocalData(event){
+  const file=event.target.files[0];
+  if(!file) return;
+  const syncEl=document.getElementById('sync-indicator');
+  try{
+    const text=await file.text();
+    const data=JSON.parse(text);
+    if(syncEl){syncEl.style.opacity='1';syncEl.textContent='⟳ Lade Daten hoch...';}
+
+    // In localStorage laden
+    if(data.orders) localStorage.setItem('ec_orders',JSON.stringify(data.orders));
+    if(data.fixkosten) localStorage.setItem('ec_fixkosten_v2',JSON.stringify(data.fixkosten));
+    if(data.marketing) localStorage.setItem('ec_marketing',JSON.stringify(data.marketing));
+    if(data.mpg) localStorage.setItem('ec_mpg',JSON.stringify(data.mpg));
+    if(data.rechnungen) localStorage.setItem('ec_rechnungen',JSON.stringify(data.rechnungen));
+
+    // In Supabase hochladen
+    const uploads=[];
+    if(data.orders?.length) uploads.push(saveOrdersToSupabase(data.orders));
+    if(data.fixkosten?.length) uploads.push(saveFkkostenToSupabase(data.fixkosten));
+    if(data.marketing?.length) uploads.push(saveMarketingToSupabase(data.marketing));
+    if(data.mpg && Object.keys(data.mpg).length) uploads.push(saveMpgToSupabase(data.mpg));
+    if(data.rechnungen?.length) uploads.push(saveRechnungenToSupabase(data.rechnungen));
+    await Promise.all(uploads);
+
+    if(syncEl){syncEl.textContent='✓ Daten erfolgreich hochgeladen!';syncEl.style.color='#1D9E75';setTimeout(()=>{syncEl.style.opacity='0';syncEl.style.color='#888780';},4000);}
+    // Neu rendern
+    renderDashboard();renderDay();renderRechnungen();
+    event.target.value='';
+  }catch(e){
+    console.error('Import error:',e);
+    if(syncEl){syncEl.textContent='✗ Fehler beim Import';syncEl.style.color='#E24B4A';setTimeout(()=>{syncEl.style.opacity='0';syncEl.style.color='#888780';},4000);}
+  }
+}
+
 function exportLocalData(){
   const data={
     orders:getOrders(),
@@ -2792,20 +2829,31 @@ function exportLocalData(){
 }
 
 async function initApp(){
-  populateDateFilters();
-  populateMkFilters();
-  populateCfFilters();
-  populateRechFilters();
   const today=new Date().toISOString().split('T')[0];
   document.getElementById('rech-datum').value=today;
   document.getElementById('f-datum').value=today;
   document.getElementById('day-date').value=today;
-  renderMpgRows();
   onKanalChange();
+  // Sofort rendern mit lokalen Daten (auch wenn leer)
+  populateDateFilters();
+  populateMkFilters();
+  populateCfFilters();
+  populateRechFilters();
+  renderMpgRows();
+  renderDashboard();
+  renderDay();
+  renderRechnungen();
+  // Dann Supabase sync im Hintergrund
   const syncEl=document.getElementById('sync-indicator');
   if(syncEl){syncEl.style.opacity='1';syncEl.textContent='⟳ Synchronisiere...';}
   await syncFromSupabase();
   if(syncEl){syncEl.textContent=dbSynced?'✓ Online':'⚠ Offline-Modus';setTimeout(()=>syncEl.style.opacity='0',3000);}
+  // Nach sync nochmal alles neu rendern mit Cloud-Daten
+  populateDateFilters();
+  populateMkFilters();
+  populateCfFilters();
+  populateRechFilters();
+  renderMpgRows();
   renderDashboard();
   renderDay();
   renderRechnungen();

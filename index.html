@@ -198,7 +198,7 @@ tr:last-child td{border-bottom:none;}
     <div class="chart-wrap" style="height:240px;"><canvas id="lineChart" role="img" aria-label="Gewinn pro Tag im Monat">Balkendiagramm Gewinn pro Tag.</canvas></div>
   </div>
 
-  <!-- EINGABE -->
+    <!-- EINGABE -->
   <div class="page" id="page-eingabe">
     <div class="form-card">
       <div class="section-title">Neue Bestellung erfassen</div>
@@ -297,58 +297,157 @@ tr:last-child td{border-bottom:none;}
 
   <!-- FIXKOSTEN -->
   <div class="page" id="page-fixkosten">
+
+    <!-- HEADER -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+      <div class="section-title" style="margin:0;">Kosten & Gebühren</div>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="text-align:right;">
+          <div style="font-size:11px;color:#888780;">Gesamtkosten pro Monat</div>
+          <div style="font-size:18px;font-weight:600;color:#003265;" id="fk-grand-total">0 €</div>
+        </div>
+        <button class="btn primary" onclick="toggleFkForm()" id="fk-toggle-btn">+ Neue Position</button>
+      </div>
+    </div>
+
+    <!-- EINGABE FORMULAR -->
+    <div id="fk-form-wrap" style="display:none;margin-bottom:1.5rem;">
+      <div class="form-card" style="margin-bottom:0;">
+        <div class="section-title">Neue Position erfassen</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:12px;">
+          <div class="field">
+            <label>Bereich</label>
+            <select id="fk-bereich" onchange="onFkBereichChange()">
+              <option value="fixkosten">Monatliche Fixkosten</option>
+              <option value="variabel">Variable Kosten</option>
+              <option value="gebuehren">Monatliche Gebühren</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Bezeichnung</label>
+            <input type="text" id="fk-name" placeholder="z.B. Lagermiete, Tankkosten..." oninput="autoDetectCat()">
+            <span class="cat-hint" id="cat-hint"></span>
+          </div>
+          <div class="field">
+            <label>Betrag netto (€)</label>
+            <input type="number" id="fk-betrag" min="0" step="0.01" placeholder="0.00">
+          </div>
+          <div class="field" id="fk-intervall-wrap">
+            <label>Intervall</label>
+            <select id="fk-intervall">
+              <option value="monatlich">Monatlich</option>
+              <option value="2wochen">Alle 2 Wochen</option>
+              <option value="woechentlich">Wöchentlich</option>
+              <option value="jaehrlich">Jährlich</option>
+            </select>
+          </div>
+          <div class="field" id="fk-datum-wrap" style="display:none;">
+            <label>Monat</label>
+            <div style="position:relative;">
+              <input type="text" id="fk-datum-var" readonly placeholder="Monat wählen..." style="cursor:pointer;background:#fff;" onclick="toggleMonthPicker('fk-month-picker','fk-datum-var')">
+              <div id="fk-month-picker" style="display:none;position:absolute;top:100%;left:0;z-index:200;background:#fff;border:0.5px solid #ddddd5;border-radius:12px;box-shadow:0 4px 20px rgba(0,50,101,0.12);padding:12px;width:260px;margin-top:4px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                  <button onclick="changePickerYear('fk-month-picker',-1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:#003265;padding:4px 8px;">‹</button>
+                  <span id="fk-month-picker-year" style="font-weight:600;color:#003265;font-size:14px;">2026</span>
+                  <button onclick="changePickerYear('fk-month-picker',1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:#003265;padding:4px 8px;">›</button>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;" id="fk-month-picker-grid"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn primary" onclick="addFkItem()">Speichern</button>
+          <button class="btn" onclick="toggleFkForm()">Abbrechen</button>
+          <span id="fk-save-flash" style="font-size:12px;color:#1D9E75;display:none;">✓ Gespeichert</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- KACHEL 1: MONATLICHE FIXKOSTEN -->
     <div class="form-card">
-      <div class="section-title">Neue Position hinzufügen</div>
-      <div class="fk-add-row">
-        <div class="fk-field">
-          <label>Bezeichnung</label>
-          <input type="text" id="fk-name" placeholder="z.B. Lagermiete, Steuerberater, Billbee Abo..." oninput="autoDetectCat()">
-          <span class="cat-hint" id="cat-hint"></span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <div>
+          <div class="section-title" style="margin:0;">Monatliche Fixkosten</div>
+          <div style="font-size:12px;color:#888780;margin-top:2px;">Wiederkehrende Kosten — Miete, Personal, Software etc.</div>
         </div>
-        <div class="fk-field">
-          <label>Netto (€)</label>
-          <input type="number" id="fk-betrag" min="0" step="0.01" placeholder="0.00">
+        <div style="font-size:18px;font-weight:600;color:#003265;" id="fk-total-fix">0 €</div>
+      </div>
+      <div id="fk-list-fix"></div>
+    </div>
+
+    <!-- KACHEL 2: VARIABLE KOSTEN -->
+    <div class="form-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <div>
+          <div class="section-title" style="margin:0;">Variable Kosten</div>
+          <div style="font-size:12px;color:#888780;margin-top:2px;">Schwankende Kosten — Tankkosten, einmalige Ausgaben etc.</div>
         </div>
-        <div class="fk-field">
-          <label>Intervall</label>
-          <select id="fk-intervall">
+        <div style="font-size:18px;font-weight:600;color:#003265;" id="fk-total-var">0 €</div>
+      </div>
+      <div id="fk-list-var"></div>
+    </div>
+
+    <!-- KACHEL 3: MONATLICHE GEBÜHREN -->
+    <div class="form-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <div>
+          <div class="section-title" style="margin:0;">Monatliche Gebühren</div>
+          <div style="font-size:12px;color:#888780;margin-top:2px;">Marktplatz-Grundgebühren — Amazon, eBay, Otto, Shopify</div>
+        </div>
+        <div style="font-size:18px;font-weight:600;color:#003265;" id="fk-total-mpg">0 €</div>
+      </div>
+      <div id="mpg-rows"></div>
+    </div>
+
+  </div>
+
+  <!-- MPG EDIT MODAL -->
+  <div class="edit-modal-bg" id="mpg-edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeMpgEdit()">
+    <div class="edit-modal" style="max-width:360px;">
+      <div class="edit-modal-title">Grundgebühr — <span id="mpg-edit-name"></span></div>
+      <div class="field" style="margin-bottom:1rem;">
+        <label>Betrag netto (€/Monat)</label>
+        <input type="number" id="mpg-edit-betrag" min="0" step="0.01" placeholder="0.00" onkeydown="if(event.key==='Enter') saveMpgEdit()">
+      </div>
+      <div class="edit-modal-footer">
+        <span></span>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" onclick="closeMpgEdit()">Abbrechen</button>
+          <button class="btn primary" onclick="saveMpgEdit()">Speichern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FK EDIT MODAL -->
+  <div class="edit-modal-bg" id="fk-edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeFkEdit()">
+    <div class="edit-modal" style="max-width:420px;">
+      <div class="edit-modal-title">Position bearbeiten</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;">
+        <div class="field" style="grid-column:1/-1;"><label>Bezeichnung</label><input type="text" id="fke-name"></div>
+        <div class="field"><label>Betrag netto (€)</label><input type="number" id="fke-betrag" min="0" step="0.01" oninput="updateFkePreview()"></div>
+        <div class="field" id="fke-intervall-wrap"><label>Intervall</label>
+          <select id="fke-intervall" onchange="updateFkePreview()">
             <option value="monatlich">Monatlich</option>
             <option value="2wochen">Alle 2 Wochen</option>
             <option value="woechentlich">Wöchentlich</option>
             <option value="jaehrlich">Jährlich</option>
           </select>
         </div>
-        <div class="fk-btn-cell">
-          <div class="fk-btn-spacer"></div>
-          <button class="btn primary" onclick="addFkItem()">+ Hinzufügen</button>
+        <div class="field" style="grid-column:1/-1;"><label>Kategorie</label><select id="fke-cat"></select></div>
+        <div class="field" style="grid-column:1/-1;background:#f5f5f3;border-radius:8px;padding:10px 12px;">
+          <div style="font-size:11px;color:#888780;margin-bottom:3px;">Pro Monat</div>
+          <div style="font-size:18px;font-weight:500;" id="fke-monthly-preview">—</div>
         </div>
       </div>
-      <span id="fk-save-flash" style="font-size:12px;color:#1D9E75;display:none;margin-top:6px;">✓ Gespeichert</span>
-    </div>
-
-    <div id="fk-list-wrap"></div>
-
-    <div class="fk-summary">
-      <span class="fk-summary-label">Gesamte Fixkosten pro Monat</span>
-      <span class="fk-summary-total" id="fk-grand-total">0 €</span>
-    </div>
-    <div style="font-size:11px;color:#888780;margin-top:8px;">Kategorie falsch erkannt? Direkt in der Liste per Dropdown ändern.</div>
-
-    <!-- MARKTPLATZGEBÜHREN -->
-    <div style="margin-top:1.5rem;">
-      <div class="fk-cat-block">
-        <div class="fk-cat-header">
-          <span class="fk-cat-name">🏪 Monatliche Grundgebühren Marktplätze</span>
-          <span class="fk-cat-total" style="font-size:11px;color:#888780;">fließen nicht in Fixkosten — erscheinen im Dashboard pro Kanal</span>
+      <div class="edit-modal-footer">
+        <span></span>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" onclick="closeFkEdit()">Abbrechen</button>
+          <button class="btn primary" onclick="saveFkEdit()">Speichern</button>
         </div>
-        <div class="fk-col-header" style="grid-template-columns:1fr 180px 200px;">
-          <span>Marktplatz</span>
-          <span style="text-align:right;">Betrag netto (€/Monat)</span>
-          <span style="text-align:center;">Zuletzt aktualisiert</span>
-        </div>
-        <div id="mpg-rows"></div>
       </div>
-      <div style="font-size:11px;color:#888780;margin-top:6px;">Betrag direkt eintippen und Enter drücken — wird sofort gespeichert.</div>
     </div>
   </div>
 
@@ -2033,7 +2132,7 @@ function showPage(p){
   document.querySelectorAll('.tab').forEach(el=>{if(el.getAttribute('onclick').includes("'"+p+"'")) el.classList.add('active');});
   if(p==='dashboard') {renderDashboard(); renderDay();}
   if(p==='bestellungen') renderOrders();
-  if(p==='fixkosten') { renderFixkosten(); renderMpgRows(); }
+  if(p==='fixkosten') { renderFixkosten(); }
   if(p==='marketing') { populateMkFilters(); renderMarketing(); }
   if(p==='berichte') { populateBerFilters(); renderBerichte(); }
   if(p==='cashflow') { populateCfFilters(); renderCashflow(); }
@@ -2095,44 +2194,80 @@ function deleteAll(){
 
 function renderFixkosten(){
   const items=getFkItems();
-  const wrap=document.getElementById('fk-list-wrap');
-  if(!items.length){
-    wrap.innerHTML=`<div class="fk-empty">Noch keine Fixkosten eingetragen.<br>Füge deine erste Position oben hinzu.</div>`;
-    document.getElementById('fk-grand-total').textContent='0 €';
-    return;
+  const fix=items.filter(i=>!i.bereich||i.bereich==='fixkosten');
+  const variabel=items.filter(i=>i.bereich==='variabel');
+
+  // ── Monatliche Fixkosten ──
+  const fixEl=document.getElementById('fk-list-fix');
+  const fixTotalEl=document.getElementById('fk-total-fix');
+  if(fixEl){
+    if(!fix.length){
+      fixEl.innerHTML='<div class="fk-empty" style="padding:8px 0;">Noch keine Einträge.</div>';
+      if(fixTotalEl) fixTotalEl.textContent='0 €';
+    } else {
+      const bycat={};
+      fix.forEach(item=>{if(!bycat[item.cat])bycat[item.cat]=[];bycat[item.cat].push(item);});
+      const order=['Miete & Immobilien','Personal','Software & Tools','Marketing','Logistik & Versand','Beratung & Dienstleistungen','Versicherungen','Fahrzeuge & Transport','Kredite & Finanzierung','Sonstiges'];
+      const sortedCats=order.filter(c=>bycat[c]).concat(Object.keys(bycat).filter(c=>!order.includes(c)));
+      let grand=0;
+      fixEl.innerHTML=sortedCats.map(cat=>{
+        const catItems=bycat[cat];
+        const catTotal=catItems.reduce((s,i)=>s+toMonthly(i.betrag,i.intervall),0);
+        grand+=catTotal;
+        const icon=FK_CAT_ICONS[cat]||'📋';
+        const rows=catItems.map(item=>{
+          const monthly=toMonthly(item.betrag,item.intervall);
+          return `<div class="fk-item-row" style="grid-template-columns:1fr 130px 64px;">
+            <span class="fk-item-name">${item.name}</span>
+            <span class="fk-item-monthly" style="text-align:right;">${fmt(monthly)}<span style="font-size:10px;color:#888780;font-weight:400;"> /Monat</span></span>
+            <div style="display:flex;gap:4px;">
+              <button class="btn" style="height:28px;padding:0 8px;font-size:12px;" onclick="editFkItem(${item.id})">✎</button>
+              <button class="fk-del-btn" onclick="deleteFkItem(${item.id})">×</button>
+            </div>
+          </div>`;
+        }).join('');
+        return `<div class="fk-cat-block">
+          <div class="fk-cat-header"><span class="fk-cat-name">${icon} ${cat}</span><span class="fk-cat-total">${fmt(catTotal)} /Monat</span></div>
+          ${rows}
+        </div>`;
+      }).join('');
+      if(fixTotalEl) fixTotalEl.textContent=fmt(grand)+' /Monat';
+    }
   }
-  const bycat={};
-  items.forEach(item=>{if(!bycat[item.cat]) bycat[item.cat]=[];bycat[item.cat].push(item);});
-  const order=['Miete & Immobilien','Personal','Software & Tools','Marketing','Logistik & Versand','Beratung & Dienstleistungen','Versicherungen','Fahrzeuge & Transport','Kredite & Finanzierung','Sonstiges'];
-  const sortedCats=order.filter(c=>bycat[c]).concat(Object.keys(bycat).filter(c=>!order.includes(c)));
-  let grand=0;
-  document.getElementById('fk-list-wrap').innerHTML='<div class="fk-categories">'+sortedCats.map(cat=>{
-    const catItems=bycat[cat];
-    const catTotal=catItems.reduce((s,i)=>s+toMonthly(i.betrag,i.intervall),0);
-    grand+=catTotal;
-    const icon=FK_CAT_ICONS[cat]||'📋';
-    const rows=catItems.map(item=>{
-      const monthly=toMonthly(item.betrag,item.intervall);
-      const selOpts=FK_ALL_CATS.map(c=>`<option value="${c}"${c===item.cat?' selected':''}>${FK_CAT_ICONS[c]||'📋'} ${c}</option>`).join('');
-      return `<div class="fk-item-row">
+
+  // ── Variable Kosten ──
+  const varEl=document.getElementById('fk-list-var');
+  const varTotalEl=document.getElementById('fk-total-var');
+  if(varEl){
+    if(!variabel.length){
+      varEl.innerHTML='<div class="fk-empty" style="padding:8px 0;">Noch keine Einträge.</div>';
+      if(varTotalEl) varTotalEl.textContent='0 €';
+    } else {
+      const varTotal=variabel.reduce((s,i)=>s+i.betrag,0);
+      if(varTotalEl) varTotalEl.textContent=fmt(varTotal);
+      varEl.innerHTML=variabel.map(item=>`<div class="fk-item-row" style="grid-template-columns:1fr 130px 64px;">
         <span class="fk-item-name">${item.name}</span>
-        <span class="fk-item-netto">${fmt(item.betrag)}</span>
-        <span class="fk-item-intervall">${FK_INTERVALL_LABELS[item.intervall]||item.intervall}</span>
-        <span class="fk-item-monthly">${fmt(monthly)}<span style="font-size:10px;color:#888780;font-weight:400;"> /Mo</span></span>
-        <select class="fk-cat-select" onchange="changeFkCat(${item.id},this.value)">${selOpts}</select>
-        <button class="fk-del-btn" onclick="deleteFkItem(${item.id})">×</button>
-      </div>`;
-    }).join('');
-    return `<div class="fk-cat-block">
-      <div class="fk-cat-header">
-        <span class="fk-cat-name">${icon} ${cat}</span>
-        <span class="fk-cat-total">${fmt(catTotal)} / Mo</span>
-      </div>
-      <div class="fk-col-header"><span>Bezeichnung</span><span>Netto</span><span style="text-align:center;">Intervall</span><span>Pro Monat</span><span>Kategorie</span><span></span></div>
-      ${rows}
-    </div>`;
-  }).join('')+'</div>';
-  document.getElementById('fk-grand-total').textContent=fmtS(grand)+' / Monat';
+        <span class="fk-item-monthly" style="text-align:right;">${fmt(item.betrag)}</span>
+        <div style="display:flex;gap:4px;">
+          <button class="btn" style="height:28px;padding:0 8px;font-size:12px;" onclick="editFkItem(${item.id})">✎</button>
+          <button class="fk-del-btn" onclick="deleteFkItem(${item.id})">×</button>
+        </div>
+      </div>`).join('');
+    }
+  }
+
+  // ── Marktplatzgebühren (MPG) ──
+  const mpgData=getMpg();
+  const mpgTotal=MPG_MARKETS.reduce((s,ch)=>s+(mpgData[ch]?.betrag||0),0);
+  const mpgTotalEl=document.getElementById('fk-total-mpg');
+  if(mpgTotalEl) mpgTotalEl.textContent=fmt(mpgTotal)+' /Monat';
+  renderMpgRows();
+
+  // ── Gesamtkosten ──
+  const fixMonthly=fix.reduce((s,i)=>s+toMonthly(i.betrag,i.intervall),0);
+  const varTotal=variabel.reduce((s,i)=>s+i.betrag,0);
+  const grandTotal=document.getElementById('fk-grand-total');
+  if(grandTotal) grandTotal.textContent=fmt(fixMonthly+varTotal+mpgTotal)+' /Monat';
 }
 
 function totalFixkostenMonthly(){
@@ -2453,7 +2588,7 @@ function deleteSelected(){
 }
 
 document.addEventListener('keydown', e=>{
-  if(e.key==='Escape'){ closeBulkEdit(); closeEdit(); closeRechEdit(); }
+  if(e.key==='Escape'){ closeBulkEdit(); closeEdit(); closeRechEdit(); closeFkEdit(); closeMpgEdit(); }
   if(e.key==='Enter'&&editId!==null){
     const tag=document.activeElement.tagName;
     if(tag==='INPUT') saveEdit();
@@ -2762,11 +2897,30 @@ function setMpg(d){
 
 function getMpgForChannel(ch){return getMpg()[ch]||{betrag:0,updatedAt:null};}
 
+let mpgEditChannel=null;
+function editMpg(ch){
+  mpgEditChannel=ch;
+  const entry=getMpg()[ch]||{betrag:0};
+  document.getElementById('mpg-edit-name').textContent=ch;
+  document.getElementById('mpg-edit-betrag').value=entry.betrag||'';
+  document.getElementById('mpg-edit-modal-bg').style.display='flex';
+  setTimeout(()=>{const el=document.getElementById('mpg-edit-betrag');el.focus();el.select();},50);
+}
+function saveMpgEdit(){
+  if(!mpgEditChannel) return;
+  updateMpg(mpgEditChannel,document.getElementById('mpg-edit-betrag').value);
+  closeMpgEdit();
+}
+function closeMpgEdit(){
+  document.getElementById('mpg-edit-modal-bg').style.display='none';
+  mpgEditChannel=null;
+}
+
 function updateMpg(ch,val){
   const d=getMpg();
   d[ch]={betrag:parseFloat(val)||0,updatedAt:Date.now()};
   setMpg(d);
-  renderMpgRows();
+  renderFixkosten();
   renderDashboard();
 }
 
@@ -2775,20 +2929,11 @@ function renderMpgRows(){
   const el=document.getElementById('mpg-rows');
   if(!el) return;
   el.innerHTML=MPG_MARKETS.map(ch=>{
-    const entry=d[ch]||{betrag:0,updatedAt:null};
-    const updatedStr=entry.updatedAt
-      ?new Date(entry.updatedAt).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})
-      :'—';
-    return `<div class="fk-item-row" style="grid-template-columns:1fr 180px 200px;">
+    const entry=d[ch]||{betrag:0};
+    return `<div class="fk-item-row" style="grid-template-columns:1fr 130px 64px;">
       <span class="fk-item-name"><span class="badge badge-${ch.toLowerCase()}" style="margin-right:8px;">${ch}</span>Grundgebühr</span>
-      <div style="display:flex;align-items:center;justify-content:flex-end;">
-        <input type="number" value="${entry.betrag||''}" min="0" step="0.01" placeholder="0.00"
-          style="width:110px;font-size:13px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#1a1a18;text-align:right;outline:none;height:30px;"
-          onchange="updateMpg('${ch}',this.value)"
-          onkeydown="if(event.key==='Enter') this.blur();">
-        <span style="font-size:12px;color:#888780;margin-left:6px;">/Mo</span>
-      </div>
-      <span style="font-size:11px;color:#888780;text-align:center;">🕐 ${updatedStr}</span>
+      <span class="fk-item-monthly" style="text-align:right;">${entry.betrag?fmt(entry.betrag):'—'}<span style="font-size:10px;color:#888780;font-weight:400;"> /Monat</span></span>
+      <button class="btn" style="height:28px;padding:0 8px;font-size:12px;" onclick="editMpg('${ch}')">✎</button>
     </div>`;
   }).join('');
 }
@@ -2831,47 +2976,144 @@ function autoDetectCat(){
   document.getElementById('cat-hint').innerHTML=`Kategorie erkannt: <b>${FK_CAT_ICONS[cat]||'📋'} ${cat}</b>`;
 }
 
+function toggleFkForm(){
+  const wrap=document.getElementById('fk-form-wrap');
+  const btn=document.getElementById('fk-toggle-btn');
+  const isOpen=wrap.style.display!=='none';
+  wrap.style.display=isOpen?'none':'block';
+  btn.textContent=isOpen?'+ Neue Position':'✕ Schließen';
+}
+
+function onFkBereichChange(){
+  const bereich=document.getElementById('fk-bereich').value;
+  document.getElementById('fk-intervall-wrap').style.display=bereich==='variabel'?'none':'block';
+  document.getElementById('fk-datum-wrap').style.display=bereich==='variabel'?'block':'none';
+}
+
+// Month picker
+const monthPickerState={};
+function toggleMonthPicker(pickerId,inputId){
+  const picker=document.getElementById(pickerId);
+  if(picker.style.display==='none'){
+    const curVal=document.getElementById(inputId).dataset.value;
+    const year=curVal?parseInt(curVal.split('-')[0]):new Date().getFullYear();
+    monthPickerState[pickerId]={year,inputId};
+    renderMonthPicker(pickerId);
+    picker.style.display='block';
+    setTimeout(()=>document.addEventListener('click',function h(e){
+      if(!document.getElementById(pickerId).contains(e.target)&&e.target.id!==inputId){
+        document.getElementById(pickerId).style.display='none';
+        document.removeEventListener('click',h);
+      }
+    }),10);
+  } else { picker.style.display='none'; }
+}
+function changePickerYear(pickerId,delta){
+  if(!monthPickerState[pickerId]) return;
+  monthPickerState[pickerId].year+=delta;
+  renderMonthPicker(pickerId);
+}
+function renderMonthPicker(pickerId){
+  const state=monthPickerState[pickerId];
+  document.getElementById(pickerId+'-year').textContent=state.year;
+  const curVal=document.getElementById(state.inputId).dataset.value||'';
+  const short=['Jan.','Feb.','März','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Dez.'];
+  document.getElementById(pickerId+'-grid').innerHTML=short.map((m,i)=>{
+    const val=state.year+'-'+String(i+1).padStart(2,'0');
+    const sel=val===curVal;
+    return `<button onclick="selectMonth('${pickerId}','${val}')" style="padding:8px 4px;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:${sel?'600':'400'};background:${sel?'#003265':'transparent'};color:${sel?'#fff':'#1a1a18'};" onmouseover="if(!${sel})this.style.background='#CCE5FF'" onmouseout="if(!${sel})this.style.background='transparent'">${m}</button>`;
+  }).join('');
+}
+function selectMonth(pickerId,val){
+  const state=monthPickerState[pickerId];
+  const input=document.getElementById(state.inputId);
+  input.dataset.value=val;
+  input.value=formatFkDatum(val);
+  document.getElementById(pickerId).style.display='none';
+}
+function formatFkDatum(datum){
+  if(!datum) return '';
+  if(datum.length===7){const [y,m]=datum.split('-');return (MONTHS[parseInt(m)-1]||m)+' '+y;}
+  return datum;
+}
+
 function addFkItem(){
   const name=document.getElementById('fk-name').value.trim();
   const betrag=parseFloat(document.getElementById('fk-betrag').value)||0;
-  const intervall=document.getElementById('fk-intervall').value;
+  const bereich=document.getElementById('fk-bereich').value;
   if(!name){alert('Bitte eine Bezeichnung eingeben.');return;}
   if(betrag<=0){alert('Bitte einen Betrag eingeben.');return;}
+  const item={
+    id:Date.now(), name, betrag, bereich,
+    intervall:bereich==='variabel'?'einmalig':document.getElementById('fk-intervall').value,
+    datum:bereich==='variabel'?(document.getElementById('fk-datum-var').dataset.value||new Date().toISOString().slice(0,7)):'',
+    cat:detectCat(name), updatedAt:Date.now(),
+  };
   const items=getFkItems();
-  items.push({id:Date.now(),name,betrag,intervall,cat:detectCat(name),updatedAt:Date.now()});
+  items.push(item);
   setFkItems(items);
   document.getElementById('fk-name').value='';
   document.getElementById('fk-betrag').value='';
   document.getElementById('cat-hint').innerHTML='';
-  document.getElementById('fk-intervall').value='monatlich';
+  document.getElementById('fk-datum-var').value='';
+  document.getElementById('fk-datum-var').dataset.value='';
   const fl=document.getElementById('fk-save-flash');
   fl.style.display='inline'; setTimeout(()=>fl.style.display='none',1800);
+  document.getElementById('fk-form-wrap').style.display='none';
+  document.getElementById('fk-toggle-btn').textContent='+ Neue Position';
   renderFixkosten();
 }
 
 function deleteFkItem(id){
   if(!confirm('Position löschen?')) return;
-  setFkItems(getFkItems().filter(i=>i.id!==id)); renderFixkosten();
+  setFkItems(getFkItems().filter(i=>i.id!==id));
+  renderFixkosten();
 }
 
-function changeFkCat(id,val){
-  const items=getFkItems(); const item=items.find(i=>i.id===id);
-  if(item){item.cat=val;setFkItems(items);renderFixkosten();}
+// Edit modal functions
+let fkEditId=null;
+function editFkItem(id){
+  const item=getFkItems().find(i=>i.id===id);
+  if(!item) return;
+  fkEditId=id;
+  document.getElementById('fke-name').value=item.name||'';
+  document.getElementById('fke-betrag').value=item.betrag||'';
+  document.getElementById('fke-intervall').value=item.intervall||'monatlich';
+  const isVar=item.bereich==='variabel';
+  document.getElementById('fke-intervall-wrap').style.display=isVar?'none':'block';
+  const catSel=document.getElementById('fke-cat');
+  catSel.innerHTML=FK_ALL_CATS.map(c=>`<option value="${c}"${c===item.cat?' selected':''}>${FK_CAT_ICONS[c]||'📋'} ${c}</option>`).join('');
+  updateFkePreview();
+  document.getElementById('fk-edit-modal-bg').style.display='flex';
+  setTimeout(()=>{document.getElementById('fke-name').focus();},50);
+}
+function updateFkePreview(){
+  const betrag=parseFloat(document.getElementById('fke-betrag').value)||0;
+  const intervall=document.getElementById('fke-intervall').value;
+  document.getElementById('fke-monthly-preview').textContent=fmt(toMonthly(betrag,intervall))+' /Monat';
+}
+function saveFkEdit(){
+  if(!fkEditId) return;
+  const items=getFkItems();
+  const idx=items.findIndex(i=>i.id===fkEditId);
+  if(idx===-1) return;
+  items[idx]={...items[idx],
+    name:document.getElementById('fke-name').value,
+    betrag:parseFloat(document.getElementById('fke-betrag').value)||0,
+    intervall:document.getElementById('fke-intervall').value,
+    cat:document.getElementById('fke-cat').value,
+    updatedAt:Date.now(),
+  };
+  setFkItems(items);
+  closeFkEdit();
+  renderFixkosten();
+}
+function closeFkEdit(){
+  document.getElementById('fk-edit-modal-bg').style.display='none';
+  fkEditId=null;
 }
 
-function saveFixkosten(){
-  const d={};
-  document.querySelectorAll('#fix-grid input').forEach(inp=>{d[inp.dataset.key]=parseFloat(inp.value)||0;});
-  localStorage.setItem('ec_fixkosten',JSON.stringify(d));
-  updateFixTotal();
-}
 
-function updateFixTotal(){
-  const f=JSON.parse(localStorage.getItem('ec_fixkosten')||'{}');
-  const t=Object.values(f).reduce((a,b)=>a+(parseFloat(b)||0),0);
-  const el=document.getElementById('fix-total');
-  if(el) el.textContent='Gesamt: '+fmtS(t);
-}
 
 document.addEventListener('DOMContentLoaded',()=>{
   const fn=document.getElementById('fk-name');

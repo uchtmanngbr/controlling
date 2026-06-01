@@ -18,7 +18,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .page{display:none;}.page.active{display:block;}
 .section-title{font-size:12px;font-weight:600;color:#003265;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;}
 .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1.5rem;}
-.metric{background:#eeeee8;border-radius:8px;padding:14px 16px;}
+.metric{background:#eeeee8;border-radius:8px;padding:14px 16px;text-align:center;}
 .metric-label{font-size:12px;color:#888780;margin-bottom:5px;}
 .metric-value{font-size:20px;font-weight:500;color:#1a1a18;}
 .pos{color:#1D9E75;}.neg{color:#E24B4A;}.neu{color:#1a1a18;}
@@ -2211,14 +2211,16 @@ function renderDashboard(){
   const rechCount=getRechForMonth(month,year).length;
   const gewinn=totalDB-fix-mkTotal-totalMpg;
   const mkItems=getMkForMonth(month,year);
-  document.getElementById('dash-metrics').innerHTML=[
-    {label:'Umsatz brutto',value:fmtS(totalBrutto),cls:'neu'},
-    {label:'Umsatz netto',value:fmtS(totalNetto),cls:'neu'},
-    {label:'Deckungsbeitrag',value:fmtS(totalDB),cls:totalDB>=0?'pos':'neg'},
-    {label:'Fixkosten',value:fmtS(fix),cls:'neu'},
-    {label:'Marketing',value:fmtS(mkTotal),cls:mkTotal>0?'neg':'neu'},
-    {label:'Gewinn / Verlust',value:fmtS(gewinn),cls:gewinn>=0?'pos':'neg'},
-  ].map(m=>`<div class="metric"><div class="metric-label">${m.label}</div><div class="metric-value ${m.cls}">${m.value}</div></div>`).join('');
+  const gesamtkosten=fix+mkTotal+totalMpg;
+  document.getElementById('dash-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Bruttoumsatz</div><div class="metric-value neu">${fmtS(totalBrutto)}</div></div>
+    <div class="metric"><div class="metric-label">Deckungsbeitrag</div><div class="metric-value ${totalDB>=0?'pos':'neg'}">${fmtS(totalDB)}</div></div>
+    <div class="metric" style="background:#CCE5FF;border:none;transform:scale(1.04);box-shadow:0 4px 16px rgba(0,50,101,0.15);text-align:center;">
+      <div class="metric-label" style="color:#003265;">Gewinn / Verlust</div>
+      <div style="font-size:28px;font-weight:400;color:${gewinn>=0?'#1a7a4a':'#c0392b'};">${fmtS(gewinn)}</div>
+    </div>
+    <div class="metric"><div class="metric-label">Monatskosten</div><div class="metric-value neg">−${fmtS(gesamtkosten)}</div></div>
+    <div class="metric"><div class="metric-label">Bestellungen</div><div class="metric-value neu">${orders.length}</div></div>`;
   document.getElementById('dash-channels').innerHTML=Object.entries(byChannel).map(([ch,d])=>{
     const mpgBetrag=mpgData[ch]?.betrag||0;
     const chMkItems=getMkForChannel(mkItems,ch);

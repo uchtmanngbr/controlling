@@ -159,6 +159,7 @@ tr:last-child td{border-bottom:none;}
     <button class="tab" onclick="showPage('rechnungen')">Rechnungen</button>
     <button class="tab" onclick="showPage('berichte')">Berichte</button>
     <button class="tab" onclick="showPage('cashflow')">Cashflow & ROI</button>
+    <button class="tab" onclick="showPage('versand')">Versand</button>
     <button class="tab" onclick="showPage('import')">CSV Import</button>
   </div>
 
@@ -220,7 +221,12 @@ tr:last-child td{border-bottom:none;}
           <span class="fee-hint" id="hint-netto"></span>
         </div>
         <div class="field"><label>Warenkosten netto (€)</label><input type="number" id="f-waren" min="0" step="0.01" placeholder="0.00" oninput="updatePreview()"></div>
-        <div class="field"><label>Versandkosten (€)</label><input type="number" id="f-versand" min="0" step="0.01" placeholder="0.00" oninput="updatePreview()"></div>
+        <div class="field"><label>Versandprofil</label>
+          <select id="f-versand-profil" onchange="onVersandProfilChange()" style="height:36px;">
+            <option value="">— Profil auswählen —</option>
+          </select>
+          <input type="hidden" id="f-versand" value="0">
+        </div>
         <div class="field">
           <label>Marktplatzgebühr (€) <span style="color:#378ADD;">vom Brutto</span></label>
           <input type="number" id="f-provision" min="0" step="0.01" placeholder="0.00" oninput="onManualFee()">
@@ -402,6 +408,65 @@ tr:last-child td{border-bottom:none;}
 
   </div>
 
+  <!-- VERSAND EDIT MODAL -->
+  <div class="edit-modal-bg" id="versand-edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeVersandEdit()">
+    <div class="edit-modal" style="max-width:480px;">
+      <input type="hidden" id="vp-edit-id">
+      <div class="edit-modal-title">Versandprofil bearbeiten</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;">
+        <div class="field"><label>Dienstleister</label>
+          <select id="vpe-carrier">
+            <option value="DHL">DHL</option>
+            <option value="Deutsche Post">Deutsche Post</option>
+            <option value="DPD">DPD</option>
+            <option value="UPS">UPS</option>
+            <option value="Hermes">Hermes</option>
+            <option value="GLS">GLS</option>
+            <option value="FedEx">FedEx</option>
+            <option value="Amazon Logistics">Amazon Logistics</option>
+          </select>
+        </div>
+        <div class="field"><label>Paketart</label>
+          <select id="vpe-paketart">
+            <option value="Päckchen S">Päckchen S</option>
+            <option value="Päckchen M">Päckchen M</option>
+            <option value="Kleinpaket">Kleinpaket</option>
+            <option value="Paket">Paket</option>
+            <option value="Großpaket">Großpaket</option>
+            <option value="Sperrgut">Sperrgut</option>
+            <option value="Brief">Brief</option>
+            <option value="Warensendung">Warensendung</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column:1/-1;"><label>Gewicht</label>
+          <div style="display:flex;gap:6px;">
+            <input type="number" id="vpe-gewicht" min="0" step="1" placeholder="0" style="flex:1;">
+            <select id="vpe-gewicht-einheit" style="width:70px;"><option value="g">g</option><option value="kg" selected>kg</option></select>
+          </div>
+        </div>
+        <div class="field"><label>Versandkosten (€)</label><input type="number" id="vpe-versandkosten" min="0" step="0.01" oninput="updateVpeSumme()"></div>
+        <div class="field"><label>Materialkosten (€)</label><input type="number" id="vpe-materialkosten" min="0" step="0.01" oninput="updateVpeSumme()"></div>
+        <div class="field"><label>Verpackungskosten (€)</label><input type="number" id="vpe-verpackungskosten" min="0" step="0.01" oninput="updateVpeSumme()"></div>
+        <div class="field"><label>Lagerkosten (€)</label><input type="number" id="vpe-lagerkosten" min="0" step="0.01" oninput="updateVpeSumme()"></div>
+        <div class="field"><label>Gültig ab</label><input type="date" id="vpe-gueltig-ab"></div>
+        <div class="field" style="grid-column:1/-1;background:#f5f5f3;border-radius:8px;padding:10px 12px;">
+          <div style="font-size:11px;color:#888780;margin-bottom:3px;">Gesamtkosten</div>
+          <div style="font-size:20px;font-weight:600;color:#003265;" id="vpe-summe-preview">—</div>
+        </div>
+      </div>
+      <div class="edit-modal-footer">
+        <span></span>
+        <div style="display:flex;gap:8px;">
+          <button class="btn danger" onclick="deleteVersandFromEdit()">Profil löschen</button>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" onclick="closeVersandEdit()">Abbrechen</button>
+          <button class="btn primary" onclick="saveVersandEdit()">Speichern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- MPG EDIT MODAL -->
   <div class="edit-modal-bg" id="mpg-edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeMpgEdit()">
     <div class="edit-modal" style="max-width:360px;">
@@ -504,9 +569,13 @@ tr:last-child td{border-bottom:none;}
           <input type="number" id="bulk-waren" min="0" step="0.01">
         </div>
         <div class="field">
-          <label>Versandkosten (€)</label>
-          <input type="number" id="bulk-versand" min="0" step="0.01">
+          <label>Versandprofil</label>
+          <select id="bulk-versand-profil" onchange="onBulkVersandProfilChange()">
+            <option value="">— nicht ändern —</option>
+          </select>
+          <input type="hidden" id="bulk-versand" value="">
         </div>
+
         <div class="field">
           <label>Marktplatzgebühr (€)</label>
           <input type="number" id="bulk-provision" min="0" step="0.01">
@@ -561,7 +630,12 @@ tr:last-child td{border-bottom:none;}
         <div class="field"><label>Artikel</label><input type="text" id="ed-artikel"></div>
         <div class="field"><label>Verkaufspreis brutto (€)</label><input type="number" id="ed-brutto" min="0" step="0.01" oninput="edAutoCalc()"></div>
         <div class="field"><label>Warenkosten netto (€)</label><input type="number" id="ed-waren" min="0" step="0.01" oninput="edUpdatePreview()"></div>
-        <div class="field"><label>Versandkosten (€)</label><input type="number" id="ed-versand" min="0" step="0.01" oninput="edUpdatePreview()"></div>
+        <div class="field"><label>Versandprofil</label>
+          <select id="ed-versand-profil" onchange="onEdVersandProfilChange()">
+            <option value="">— Profil auswählen —</option>
+          </select>
+          <input type="hidden" id="ed-versand" value="0">
+        </div>
         <div class="field"><label>Marktplatzgebühr (€)</label><input type="number" id="ed-provision" min="0" step="0.01" oninput="edManualFee()"><span class="fee-hint" id="ed-fee-hint"></span></div>
         <div class="field" style="justify-content:flex-end;">
           <label for="ed-is-retoure" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f5f5f3;border-radius:8px;cursor:pointer;margin-top:20px;">
@@ -902,6 +976,96 @@ tr:last-child td{border-bottom:none;}
         </table>
       </div>
     </div>
+
+  </div>
+
+  <!-- VERSAND -->
+  <div class="page" id="page-versand">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+      <div class="section-title" style="margin:0;">Versandprofile</div>
+      <button class="btn primary" onclick="toggleVersandForm()" id="versand-toggle-btn">+ Neues Profil</button>
+    </div>
+
+    <!-- FORMULAR -->
+    <div id="versand-form-wrap" style="display:none;margin-bottom:1.5rem;">
+      <div class="form-card" style="margin-bottom:0;">
+        <div class="section-title">Neues Versandprofil</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1rem;">
+          <div class="field">
+            <label>Dienstleister</label>
+            <select id="vp-carrier" onchange="updateVpName()">
+              <option value="DHL">DHL</option>
+              <option value="Deutsche Post">Deutsche Post</option>
+              <option value="DPD">DPD</option>
+              <option value="UPS">UPS</option>
+              <option value="Hermes">Hermes</option>
+              <option value="GLS">GLS</option>
+              <option value="FedEx">FedEx</option>
+              <option value="Amazon Logistics">Amazon Logistics</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Paketart</label>
+            <select id="vp-paketart" onchange="updateVpName()">
+              <option value="Päckchen S">Päckchen S</option>
+              <option value="Päckchen M">Päckchen M</option>
+              <option value="Kleinpaket">Kleinpaket</option>
+              <option value="Paket">Paket</option>
+              <option value="Großpaket">Großpaket</option>
+              <option value="Sperrgut">Sperrgut</option>
+              <option value="Brief">Brief</option>
+              <option value="Warensendung">Warensendung</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Gewicht</label>
+            <div style="display:flex;gap:6px;">
+              <input type="number" id="vp-gewicht" min="0" step="1" placeholder="0" oninput="updateVpName()" style="flex:1;">
+              <select id="vp-gewicht-einheit" onchange="updateVpName()" style="width:70px;">
+                <option value="g">g</option>
+                <option value="kg" selected>kg</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="section-title" style="margin-bottom:8px;">Kostenaufstellung</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1rem;">
+          <div class="field">
+            <label>Versandkosten (€)</label>
+            <input type="number" id="vp-versandkosten" min="0" step="0.01" placeholder="0.00" oninput="updateVpSumme()">
+          </div>
+          <div class="field">
+            <label>Materialkosten (€)</label>
+            <input type="number" id="vp-materialkosten" min="0" step="0.01" placeholder="0.00" oninput="updateVpSumme()">
+          </div>
+          <div class="field">
+            <label>Verpackungskosten (€)</label>
+            <input type="number" id="vp-verpackungskosten" min="0" step="0.01" placeholder="0.00" oninput="updateVpSumme()">
+          </div>
+          <div class="field">
+            <label>Lagerkosten (€)</label>
+            <input type="number" id="vp-lagerkosten" min="0" step="0.01" placeholder="0.00" oninput="updateVpSumme()">
+          </div>
+          <div class="field">
+            <label>Gültig ab</label>
+            <input type="date" id="vp-gueltig-ab">
+          </div>
+          <div class="field" style="background:#f5f5f3;border-radius:8px;padding:10px 12px;">
+            <div style="font-size:11px;color:#888780;margin-bottom:4px;">Gesamtkosten</div>
+            <div style="font-size:20px;font-weight:600;color:#003265;" id="vp-summe-preview">0,00 €</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn primary" onclick="addVersandProfile()">Speichern</button>
+          <button class="btn" onclick="toggleVersandForm()">Abbrechen</button>
+          <span id="vp-save-flash" style="font-size:12px;color:#1D9E75;display:none;">✓ Gespeichert</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROFIL-LISTE -->
+    <div id="versand-list"></div>
 
   </div>
 
@@ -1961,7 +2125,12 @@ function editOrder(id){
   document.getElementById('ed-artikel').value=o.artikel||'';
   document.getElementById('ed-brutto').value=o.umsatzBrutto||'';
   document.getElementById('ed-waren').value=o.waren||'';
+  populateVersandDropdown();
   document.getElementById('ed-versand').value=o.versand||'';
+  // Pre-select the versand profil if stored
+  const edProfSel=document.getElementById('ed-versand-profil');
+  edProfSel.value=o.versandProfilId||'';
+  // If profil not found in dropdown (e.g. outdated), keep versand value as-is
   document.getElementById('ed-provision').value=o.provision||'';
   document.getElementById('ed-fee-hint').innerHTML='';
   document.getElementById('ed-retoure-banner').style.display=isR?'block':'none';
@@ -2034,6 +2203,7 @@ function saveEdit(){
     umsatzNetto:  isR?0:parseFloat(nettoVon(brutto).toFixed(2)),
     waren:     isR?0:(parseFloat(document.getElementById('ed-waren').value)||0),
     versand,
+    versandProfilId: document.getElementById('ed-versand-profil').value||null,
     provision: isR?0:(parseFloat(document.getElementById('ed-provision').value)||0),
     retoure: 0,
     isRetoure: isR,
@@ -2066,7 +2236,7 @@ function nettoVon(b){return b/(1+MwSt);}
 function mwstVon(b){return b-nettoVon(b);}
 function calcDB(o){return(o.umsatzNetto||0)-(o.waren||0)-(o.versand||0)-(o.provision||0)-(o.retoure||0);}
 
-function onKanalChange(){manualFee=false;autoCalc();}
+function onKanalChange(){manualFee=false;autoCalc();populateVersandDropdown();}
 function autoCalc(){
   const kanal=document.getElementById('f-kanal').value;
   const brutto=parseFloat(document.getElementById('f-brutto').value)||0;
@@ -2135,6 +2305,7 @@ function showPage(p){
   if(p==='fixkosten') { renderFixkosten(); }
   if(p==='marketing') { populateMkFilters(); renderMarketing(); }
   if(p==='berichte') { populateBerFilters(); renderBerichte(); }
+  if(p==='versand') { renderVersandProfiles(); }
   if(p==='cashflow') { populateCfFilters(); renderCashflow(); }
   if(p==='rechnungen') { populateRechFilters(); renderRechnungen(); }
   if(p==='eingabe') {
@@ -2158,6 +2329,7 @@ function saveOrder(){
     umsatzNetto:parseFloat(nettoVon(brutto).toFixed(2)),
     waren:parseFloat(document.getElementById('f-waren').value)||0,
     versand:parseFloat(document.getElementById('f-versand').value)||0,
+    versandProfilId:document.getElementById('f-versand-profil').value||null,
     provision:parseFloat(document.getElementById('f-provision').value)||0,
     retoure:parseFloat(document.getElementById('f-retoure').value)||0,
   };
@@ -2173,7 +2345,9 @@ function saveOrder(){
 }
 
 function clearForm(){
-  ['f-bestellnr','f-artikel','f-brutto','f-waren','f-versand','f-retoure'].forEach(id=>document.getElementById(id).value='');
+  ['f-bestellnr','f-artikel','f-brutto','f-waren','f-retoure'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-versand').value='0';
+  document.getElementById('f-versand-profil').value='';
   document.getElementById('f-datum').value=new Date().toISOString().split('T')[0];
   manualFee=false;
   document.getElementById('f-provision').value='';
@@ -2190,6 +2364,53 @@ function deleteOrder(id){
 function deleteAll(){
   if(!confirm('Wirklich alle Bestellungen löschen? Das kann nicht rückgängig gemacht werden.')) return;
   saveOrders([]); renderOrders(); renderDashboard();
+}
+
+/* ── FIXKOSTEN LOGIK ── */
+const FK_CAT_RULES=[
+  {cat:'Miete & Immobilien',words:['miete','lager','büro','office','raum','halle','immobil','gebäude','grundstück','stellplatz']},
+  {cat:'Personal',words:['personal','gehalt','lohn','mitarbeiter','sozial','minijob','mini job','arbeit','angestellt']},
+  {cat:'Software & Tools',words:['software','tool','abo','subscription','lizenz','app','saas','programm','system','cloud','aws','hosting','server','domain','billbee','sellerboard','shopify','jtl']},
+  {cat:'Marketing',words:['marketing','werbung','ads','anzeige','seo','agentur','social','media','influencer','kampagne','newsletter','print']},
+  {cat:'Logistik & Versand',words:['versand','logistik','fulfillment','lagerung','dhl','ups','hermes','dpd','transport','spedition','porto','paket']},
+  {cat:'Beratung & Dienstleistungen',words:['steuer','berater','beratung','anwalt','rechtsanwalt','buchhaltung','buchführung','notar','service','dienstleist']},
+  {cat:'Versicherungen',words:['versicherung','haftpflicht','betrieb','inventar','schutz']},
+  {cat:'Fahrzeuge & Transport',words:['fahrzeug','auto','kfz','leasing','tanke','benzin','diesel','pkw','lkw','transporter']},
+  {cat:'Kredite & Finanzierung',words:['kredit','darlehen','finanzierung','rate','tilgung','zins','bank','bankrate','annuität','loan']},
+];
+const FK_CAT_ICONS={'Miete & Immobilien':'🏢','Personal':'👥','Software & Tools':'💻','Marketing':'📣','Logistik & Versand':'📦','Beratung & Dienstleistungen':'🤝','Versicherungen':'🛡','Fahrzeuge & Transport':'🚗','Kredite & Finanzierung':'🏦','Sonstiges':'📋'};
+const FK_ALL_CATS=Object.keys(FK_CAT_ICONS);
+const FK_INTERVALL_LABELS={monatlich:'Monatlich','2wochen':'Alle 2 Wochen',woechentlich:'Wöchentlich',jaehrlich:'Jährlich'};
+
+function toMonthly(betrag,intervall){
+  if(intervall==='monatlich') return betrag;
+  if(intervall==='2wochen') return betrag*2.1667;
+  if(intervall==='woechentlich') return betrag*4.3333;
+  if(intervall==='jaehrlich') return betrag/12;
+  return betrag;
+}
+
+function detectCat(name){
+  const lower=(name||'').toLowerCase();
+  for(const rule of FK_CAT_RULES) if(rule.words.some(w=>lower.includes(w))) return rule.cat;
+  return 'Sonstiges';
+}
+
+function autoDetectCat(){
+  const name=document.getElementById('fk-name').value.trim();
+  if(!name){document.getElementById('cat-hint').innerHTML='';return;}
+  const cat=detectCat(name);
+  document.getElementById('cat-hint').innerHTML=`Kategorie erkannt: <b>${FK_CAT_ICONS[cat]||'📋'} ${cat}</b>`;
+}
+
+function updateFkePreview(){
+  const betrag=parseFloat(document.getElementById('fke-betrag').value)||0;
+  const intervall=document.getElementById('fke-intervall').value;
+  document.getElementById('fke-monthly-preview').textContent=fmt(toMonthly(betrag,intervall))+' /Monat';
+}
+
+function totalFixkostenMonthly(){
+  return getFkItems().filter(i=>!i.bereich||i.bereich==='fixkosten').reduce((s,i)=>s+toMonthly(i.betrag,i.intervall),0);
 }
 
 function renderFixkosten(){
@@ -2270,8 +2491,148 @@ function renderFixkosten(){
   if(grandTotal) grandTotal.textContent=fmt(fixMonthly+varTotal+mpgTotal)+' /Monat';
 }
 
-function totalFixkostenMonthly(){
-  return getFkItems().reduce((s,i)=>s+toMonthly(i.betrag,i.intervall),0);
+
+
+
+/* ── FIXKOSTEN NEUE POSITION ── */
+function toggleFkForm(){
+  const wrap=document.getElementById('fk-form-wrap');
+  const btn=document.getElementById('fk-toggle-btn');
+  if(!wrap||!btn) return;
+  const isOpen=wrap.style.display!=='none';
+  wrap.style.display=isOpen?'none':'block';
+  btn.textContent=isOpen?'+ Neue Position':'✕ Schließen';
+}
+
+function onFkBereichChange(){
+  const bereich=document.getElementById('fk-bereich').value;
+  const intWrap=document.getElementById('fk-intervall-wrap');
+  const datWrap=document.getElementById('fk-datum-wrap');
+  if(intWrap) intWrap.style.display=bereich==='variabel'?'none':'block';
+  if(datWrap) datWrap.style.display=bereich==='variabel'?'block':'none';
+}
+
+function addFkItem(){
+  const name=document.getElementById('fk-name').value.trim();
+  const betrag=parseFloat(document.getElementById('fk-betrag').value)||0;
+  const bereich=document.getElementById('fk-bereich').value;
+  if(!name){alert('Bitte eine Bezeichnung eingeben.');return;}
+  if(betrag<=0){alert('Bitte einen Betrag eingeben.');return;}
+  const item={
+    id:Date.now(), name, betrag, bereich,
+    intervall:bereich==='variabel'?'einmalig':document.getElementById('fk-intervall').value,
+    datum:bereich==='variabel'?(document.getElementById('fk-datum-var').dataset.value||new Date().toISOString().slice(0,7)):'',
+    cat:detectCat(name), updatedAt:Date.now(),
+  };
+  const items=getFkItems();
+  items.push(item);
+  setFkItems(items);
+  document.getElementById('fk-name').value='';
+  document.getElementById('fk-betrag').value='';
+  document.getElementById('cat-hint').innerHTML='';
+  document.getElementById('fk-datum-var').value='';
+  document.getElementById('fk-datum-var').dataset.value='';
+  const fl=document.getElementById('fk-save-flash');
+  if(fl){fl.style.display='inline'; setTimeout(()=>fl.style.display='none',1800);}
+  document.getElementById('fk-form-wrap').style.display='none';
+  document.getElementById('fk-toggle-btn').textContent='+ Neue Position';
+  renderFixkosten();
+}
+
+function deleteFkItem(id){
+  if(!confirm('Position löschen?')) return;
+  setFkItems(getFkItems().filter(i=>i.id!==id));
+  renderFixkosten();
+}
+
+let fkEditId=null;
+function editFkItem(id){
+  const item=getFkItems().find(i=>i.id===id);
+  if(!item) return;
+  fkEditId=id;
+  document.getElementById('fke-name').value=item.name||'';
+  document.getElementById('fke-betrag').value=item.betrag||'';
+  document.getElementById('fke-intervall').value=item.intervall||'monatlich';
+  const isVar=item.bereich==='variabel';
+  document.getElementById('fke-intervall-wrap').style.display=isVar?'none':'block';
+  const catSel=document.getElementById('fke-cat');
+  catSel.innerHTML=FK_ALL_CATS.map(c=>`<option value="${c}"${c===item.cat?' selected':''}>${FK_CAT_ICONS[c]||'📋'} ${c}</option>`).join('');
+  updateFkePreview();
+  document.getElementById('fk-edit-modal-bg').style.display='flex';
+  setTimeout(()=>{document.getElementById('fke-name').focus();},50);
+}
+
+function saveFkEdit(){
+  if(!fkEditId) return;
+  const items=getFkItems();
+  const idx=items.findIndex(i=>i.id===fkEditId);
+  if(idx===-1) return;
+  items[idx]={...items[idx],
+    name:document.getElementById('fke-name').value,
+    betrag:parseFloat(document.getElementById('fke-betrag').value)||0,
+    intervall:document.getElementById('fke-intervall').value,
+    cat:document.getElementById('fke-cat').value,
+    updatedAt:Date.now(),
+  };
+  setFkItems(items);
+  closeFkEdit();
+  renderFixkosten();
+}
+
+function closeFkEdit(){
+  document.getElementById('fk-edit-modal-bg').style.display='none';
+  fkEditId=null;
+}
+
+/* ── MONTH PICKER ── */
+const monthPickerState={};
+function toggleMonthPicker(pickerId,inputId){
+  const picker=document.getElementById(pickerId);
+  if(!picker) return;
+  if(picker.style.display==='none'){
+    const curVal=document.getElementById(inputId)?.dataset.value;
+    const year=curVal?parseInt(curVal.split('-')[0]):new Date().getFullYear();
+    monthPickerState[pickerId]={year,inputId};
+    renderMonthPicker(pickerId);
+    picker.style.display='block';
+    setTimeout(()=>document.addEventListener('click',function h(e){
+      if(!document.getElementById(pickerId)?.contains(e.target)&&e.target.id!==inputId){
+        document.getElementById(pickerId).style.display='none';
+        document.removeEventListener('click',h);
+      }
+    }),10);
+  } else { picker.style.display='none'; }
+}
+function changePickerYear(pickerId,delta){
+  if(!monthPickerState[pickerId]) return;
+  monthPickerState[pickerId].year+=delta;
+  renderMonthPicker(pickerId);
+}
+function renderMonthPicker(pickerId){
+  const state=monthPickerState[pickerId];
+  if(!state) return;
+  document.getElementById(pickerId+'-year').textContent=state.year;
+  const curVal=document.getElementById(state.inputId)?.dataset.value||'';
+  const short=['Jan.','Feb.','März','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Dez.'];
+  document.getElementById(pickerId+'-grid').innerHTML=short.map((m,i)=>{
+    const val=state.year+'-'+String(i+1).padStart(2,'0');
+    const sel=val===curVal;
+    return `<button onclick="selectMonth('${pickerId}','${val}')" style="padding:8px 4px;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:${sel?'600':'400'};background:${sel?'#003265':'transparent'};color:${sel?'#fff':'#1a1a18'};" onmouseover="if(!${sel})this.style.background='#CCE5FF'" onmouseout="if(!${sel})this.style.background='transparent'">${m}</button>`;
+  }).join('');
+}
+function selectMonth(pickerId,val){
+  const state=monthPickerState[pickerId];
+  if(!state) return;
+  const input=document.getElementById(state.inputId);
+  if(!input) return;
+  input.dataset.value=val;
+  input.value=formatFkDatum(val);
+  document.getElementById(pickerId).style.display='none';
+}
+function formatFkDatum(datum){
+  if(!datum) return '';
+  if(datum.length===7){const[y,m]=datum.split('-');return (MONTHS[parseInt(m)-1]||m)+' '+y;}
+  return datum;
 }
 
 function renderDay(){
@@ -2531,6 +2892,8 @@ function openBulkEdit(){
   const checked=[...document.querySelectorAll('.order-check:checked')];
   if(!checked.length) return;
   ['bulk-waren','bulk-versand','bulk-provision','bulk-retoure','bulk-datum'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('bulk-versand-profil').value='';
+  populateVersandDropdown();
   document.getElementById('bulk-kanal').value='';
   document.getElementById('bulk-modal-count').textContent='— '+checked.length+' Bestellungen';
   document.getElementById('bulk-save-btn').textContent='Auf '+checked.length+' Bestellungen anwenden';
@@ -2588,7 +2951,7 @@ function deleteSelected(){
 }
 
 document.addEventListener('keydown', e=>{
-  if(e.key==='Escape'){ closeBulkEdit(); closeEdit(); closeRechEdit(); closeFkEdit(); closeMpgEdit(); }
+  if(e.key==='Escape'){ closeBulkEdit(); closeEdit(); closeRechEdit(); closeFkEdit(); closeMpgEdit(); closeVersandEdit(); }
   if(e.key==='Enter'&&editId!==null){
     const tag=document.activeElement.tagName;
     if(tag==='INPUT') saveEdit();
@@ -2939,208 +3302,299 @@ function renderMpgRows(){
 }
 
 
-/* ── FIXKOSTEN LOGIK ── */
-const FK_CAT_RULES=[
-  {cat:'Miete & Immobilien',words:['miete','lager','büro','office','raum','halle','immobil','gebäude','grundstück','stellplatz']},
-  {cat:'Personal',words:['personal','gehalt','lohn','mitarbeiter','sozial','minijob','mini job','arbeit','angestellt']},
-  {cat:'Software & Tools',words:['software','tool','abo','subscription','lizenz','app','saas','programm','system','cloud','aws','hosting','server','domain','billbee','sellerboard','datawow','shopify','jtl']},
-  {cat:'Marketing',words:['marketing','werbung','ads','anzeige','seo','agentur','social','media','influencer','kampagne','newsletter','print']},
-  {cat:'Logistik & Versand',words:['versand','logistik','fulfillment','lagerung','dhl','ups','hermes','dpd','transport','spedition','porto','paket']},
-  {cat:'Beratung & Dienstleistungen',words:['steuer','berater','beratung','anwalt','rechtsanwalt','buchhaltung','buchführung','notar','service','dienstleist']},
-  {cat:'Versicherungen',words:['versicherung','haftpflicht','betrieb','inventar','schutz']},
-  {cat:'Fahrzeuge & Transport',words:['fahrzeug','auto','kfz','leasing','tanke','benzin','diesel','pkw','lkw','transporter']},
-  {cat:'Kredite & Finanzierung',words:['kredit','darlehen','finanzierung','rate','tilgung','zins','bank','bankrate','annuität','loan']},
-];
-const FK_CAT_ICONS={'Miete & Immobilien':'🏢','Personal':'👥','Software & Tools':'💻','Marketing':'📣','Logistik & Versand':'📦','Beratung & Dienstleistungen':'🤝','Versicherungen':'🛡','Fahrzeuge & Transport':'🚗','Kredite & Finanzierung':'🏦','Sonstiges':'📋'};
-const FK_ALL_CATS=Object.keys(FK_CAT_ICONS);
-const FK_INTERVALL_LABELS={monatlich:'Monatlich','2wochen':'Alle 2 Wochen',woechentlich:'Wöchentlich',jaehrlich:'Jährlich'};
+/* ── VERSAND PROFILE ── */
+function getVersandProfile(){try{return JSON.parse(localStorage.getItem('ec_versand')||'[]');}catch{return[];}}
+function setVersandProfile(d){localStorage.setItem('ec_versand',JSON.stringify(d));}
 
-function toMonthly(betrag,intervall){
-  if(intervall==='monatlich') return betrag;
-  if(intervall==='2wochen') return betrag*2.1667;
-  if(intervall==='woechentlich') return betrag*4.3333;
-  if(intervall==='jaehrlich') return betrag/12;
-  return betrag;
-}
-
-function detectCat(name){
-  const lower=(name||'').toLowerCase();
-  for(const rule of FK_CAT_RULES) if(rule.words.some(w=>lower.includes(w))) return rule.cat;
-  return 'Sonstiges';
-}
-
-function autoDetectCat(){
-  const name=document.getElementById('fk-name').value.trim();
-  if(!name){document.getElementById('cat-hint').innerHTML='';return;}
-  const cat=detectCat(name);
-  document.getElementById('cat-hint').innerHTML=`Kategorie erkannt: <b>${FK_CAT_ICONS[cat]||'📋'} ${cat}</b>`;
-}
-
-function toggleFkForm(){
-  const wrap=document.getElementById('fk-form-wrap');
-  const btn=document.getElementById('fk-toggle-btn');
+function toggleVersandForm(){
+  const wrap=document.getElementById('versand-form-wrap');
+  const btn=document.getElementById('versand-toggle-btn');
   const isOpen=wrap.style.display!=='none';
   wrap.style.display=isOpen?'none':'block';
-  btn.textContent=isOpen?'+ Neue Position':'✕ Schließen';
+  btn.textContent=isOpen?'+ Neues Profil':'✕ Schließen';
 }
 
-function onFkBereichChange(){
-  const bereich=document.getElementById('fk-bereich').value;
-  document.getElementById('fk-intervall-wrap').style.display=bereich==='variabel'?'none':'block';
-  document.getElementById('fk-datum-wrap').style.display=bereich==='variabel'?'block':'none';
+function updateVpName(){
+  // Auto-name displayed in preview (used on save)
 }
 
-// Month picker
-const monthPickerState={};
-function toggleMonthPicker(pickerId,inputId){
-  const picker=document.getElementById(pickerId);
-  if(picker.style.display==='none'){
-    const curVal=document.getElementById(inputId).dataset.value;
-    const year=curVal?parseInt(curVal.split('-')[0]):new Date().getFullYear();
-    monthPickerState[pickerId]={year,inputId};
-    renderMonthPicker(pickerId);
-    picker.style.display='block';
-    setTimeout(()=>document.addEventListener('click',function h(e){
-      if(!document.getElementById(pickerId).contains(e.target)&&e.target.id!==inputId){
-        document.getElementById(pickerId).style.display='none';
-        document.removeEventListener('click',h);
-      }
-    }),10);
-  } else { picker.style.display='none'; }
+function updateVpSumme(){
+  const v=parseFloat(document.getElementById('vp-versandkosten').value)||0;
+  const m=parseFloat(document.getElementById('vp-materialkosten').value)||0;
+  const p=parseFloat(document.getElementById('vp-verpackungskosten').value)||0;
+  const l=parseFloat(document.getElementById('vp-lagerkosten').value)||0;
+  document.getElementById('vp-summe-preview').textContent=fmt(v+m+p+l);
 }
-function changePickerYear(pickerId,delta){
-  if(!monthPickerState[pickerId]) return;
-  monthPickerState[pickerId].year+=delta;
-  renderMonthPicker(pickerId);
+
+function buildVpName(carrier,paketart,gewicht,einheit){
+  if(!carrier||!paketart) return '—';
+  const g=gewicht?(gewicht+' '+einheit):'';
+  return [carrier,paketart,g].filter(Boolean).join(' ');
 }
-function renderMonthPicker(pickerId){
-  const state=monthPickerState[pickerId];
-  document.getElementById(pickerId+'-year').textContent=state.year;
-  const curVal=document.getElementById(state.inputId).dataset.value||'';
-  const short=['Jan.','Feb.','März','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Dez.'];
-  document.getElementById(pickerId+'-grid').innerHTML=short.map((m,i)=>{
-    const val=state.year+'-'+String(i+1).padStart(2,'0');
-    const sel=val===curVal;
-    return `<button onclick="selectMonth('${pickerId}','${val}')" style="padding:8px 4px;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:${sel?'600':'400'};background:${sel?'#003265':'transparent'};color:${sel?'#fff':'#1a1a18'};" onmouseover="if(!${sel})this.style.background='#CCE5FF'" onmouseout="if(!${sel})this.style.background='transparent'">${m}</button>`;
+
+function addVersandProfile(){
+  const carrier=document.getElementById('vp-carrier').value;
+  const paketart=document.getElementById('vp-paketart').value;
+  const gewicht=parseFloat(document.getElementById('vp-gewicht').value)||0;
+  const einheit=document.getElementById('vp-gewicht-einheit').value;
+  const versandkosten=parseFloat(document.getElementById('vp-versandkosten').value)||0;
+  const materialkosten=parseFloat(document.getElementById('vp-materialkosten').value)||0;
+  const verpackungskosten=parseFloat(document.getElementById('vp-verpackungskosten').value)||0;
+  const lagerkosten=parseFloat(document.getElementById('vp-lagerkosten').value)||0;
+  const kosten=parseFloat((versandkosten+materialkosten+verpackungskosten+lagerkosten).toFixed(2));
+  const gueltigAb=document.getElementById('vp-gueltig-ab').value||new Date().toISOString().split('T')[0];
+  const name=buildVpName(carrier,paketart,gewicht,einheit);
+  const profile=getVersandProfile();
+  profile.push({id:Date.now(),name,carrier,paketart,gewicht,einheit,versandkosten,materialkosten,verpackungskosten,lagerkosten,kosten,gueltigAb});
+  setVersandProfile(profile);
+  ['vp-versandkosten','vp-materialkosten','vp-verpackungskosten','vp-lagerkosten','vp-gewicht'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('vp-summe-preview').textContent='0,00 €';
+  document.getElementById('vp-carrier').value='DHL';
+  document.getElementById('vp-gueltig-ab').value='';
+  document.getElementById('vp-paketart').value='Päckchen S';
+  document.getElementById('vp-gewicht-einheit').value='kg';
+  const fl=document.getElementById('vp-save-flash');
+  fl.style.display='inline'; setTimeout(()=>fl.style.display='none',1800);
+  document.getElementById('versand-form-wrap').style.display='none';
+  document.getElementById('versand-toggle-btn').textContent='+ Neues Profil';
+  renderVersandProfiles();
+  populateVersandDropdown();
+}
+
+function deleteVersandProfile(id){
+  if(!confirm('Profil löschen?')) return;
+  setVersandProfile(getVersandProfile().filter(p=>p.id!==id));
+  renderVersandProfiles();
+  populateVersandDropdown();
+}
+
+function toggleVersandDetail(id){
+  const el=document.getElementById('vd-'+id);
+  const btn=document.getElementById('vd-btn-'+id);
+  if(!el) return;
+  const open=el.style.display!=='none';
+  el.style.display=open?'none':'block';
+  btn.textContent=open?'▸':'▾';
+  btn.style.transform=open?'':'rotate(90deg)';
+}
+
+function editVersandProfile(id){
+  const p=getVersandProfile().find(p=>p.id===id);
+  if(!p) return;
+  document.getElementById('vp-edit-id').value=id;
+  document.getElementById('vpe-carrier').value=p.carrier||'DHL';
+  document.getElementById('vpe-paketart').value=p.paketart||'Paket';
+  document.getElementById('vpe-gewicht').value=p.gewicht||'';
+  document.getElementById('vpe-gewicht-einheit').value=p.einheit||'kg';
+  document.getElementById('vpe-versandkosten').value=p.versandkosten||'';
+  document.getElementById('vpe-materialkosten').value=p.materialkosten||'';
+  document.getElementById('vpe-verpackungskosten').value=p.verpackungskosten||'';
+  document.getElementById('vpe-lagerkosten').value=p.lagerkosten||'';
+  document.getElementById('vpe-gueltig-ab').value=p.gueltigAb||'';
+  updateVpeSumme();
+  document.getElementById('versand-edit-modal-bg').style.display='flex';
+  setTimeout(()=>document.getElementById('vpe-carrier').focus(),50);
+}
+
+function updateVpeSumme(){
+  const v=parseFloat(document.getElementById('vpe-versandkosten').value)||0;
+  const m=parseFloat(document.getElementById('vpe-materialkosten').value)||0;
+  const p=parseFloat(document.getElementById('vpe-verpackungskosten').value)||0;
+  const l=parseFloat(document.getElementById('vpe-lagerkosten').value)||0;
+  const el=document.getElementById('vpe-summe-preview');
+  if(el) el.textContent=fmt(v+m+p+l);
+}
+
+function saveVersandEdit(){
+  const id=parseInt(document.getElementById('vp-edit-id').value);
+  const profile=getVersandProfile();
+  const idx=profile.findIndex(p=>p.id===id);
+  if(idx===-1) return;
+  const carrier=document.getElementById('vpe-carrier').value;
+  const paketart=document.getElementById('vpe-paketart').value;
+  const gewicht=parseFloat(document.getElementById('vpe-gewicht').value)||0;
+  const einheit=document.getElementById('vpe-gewicht-einheit').value;
+  const versandkosten=parseFloat(document.getElementById('vpe-versandkosten').value)||0;
+  const materialkosten=parseFloat(document.getElementById('vpe-materialkosten').value)||0;
+  const verpackungskosten=parseFloat(document.getElementById('vpe-verpackungskosten').value)||0;
+  const lagerkosten=parseFloat(document.getElementById('vpe-lagerkosten').value)||0;
+  const kosten=parseFloat((versandkosten+materialkosten+verpackungskosten+lagerkosten).toFixed(2));
+  const gueltigAb=document.getElementById('vpe-gueltig-ab').value||profile[idx].gueltigAb||new Date().toISOString().split('T')[0];
+  profile[idx]={...profile[idx],name:buildVpName(carrier,paketart,gewicht,einheit),carrier,paketart,gewicht,einheit,versandkosten,materialkosten,verpackungskosten,lagerkosten,kosten,gueltigAb};
+  setVersandProfile(profile);
+  // Update all orders that reference this profile
+  const orders=getOrders();
+  let changed=false;
+  orders.forEach(o=>{
+    if(String(o.versandProfilId)===String(id)){
+      o.versand=kosten;
+      changed=true;
+    }
+  });
+  if(changed) saveOrders(orders);
+  closeVersandEdit();
+  renderVersandProfiles();
+  populateVersandDropdown();
+  if(changed) renderDashboard();
+}
+
+function closeVersandEdit(){
+  document.getElementById('versand-edit-modal-bg').style.display='none';
+}
+
+function deleteVersandFromEdit(){
+  const id=parseInt(document.getElementById('vp-edit-id').value);
+  if(!confirm('Versandprofil wirklich löschen?')) return;
+  setVersandProfile(getVersandProfile().filter(p=>p.id!==id));
+  closeVersandEdit();
+  renderVersandProfiles();
+  populateVersandDropdown();
+}
+
+function getVersandProfileStatus(p, allProfiles){
+  const today=new Date().toISOString().split('T')[0];
+  const ab=p.gueltigAb||'2000-01-01';
+  if(ab > today) return `<span style="color:#EF9F27;">ab ${fmtDate(ab)}</span>`;
+  // Find if there's a newer profile with the same name
+  const newerExists=allProfiles.some(q=>q.id!==p.id && q.name===p.name && (q.gueltigAb||'2000-01-01') > ab && (q.gueltigAb||'2000-01-01') <= today);
+  if(newerExists){
+    // Find the next profile's start date
+    const nextDates=allProfiles.filter(q=>q.id!==p.id && q.name===p.name && (q.gueltigAb||'2000-01-01') > ab).map(q=>q.gueltigAb||'2000-01-01').sort();
+    return `<span style="color:#888780;">gültig bis ${fmtDate(nextDates[0])}</span>`;
+  }
+  return `<span style="color:#1D9E75;">Aktuelles Profil</span>`;
+}
+
+function fmtDate(d){
+  if(!d) return '—';
+  const [y,m,day]=d.split('-');
+  return `${day}.${m}.${y}`;
+}
+
+function renderVersandProfiles(){
+  const profile=getVersandProfile();
+  const el=document.getElementById('versand-list');
+  if(!el) return;
+  if(!profile.length){
+    el.innerHTML='<div class="fk-empty">Noch keine Versandprofile angelegt.<br>Klicke auf "+ Neues Profil" um ein Profil zu erstellen.</div>';
+    return;
+  }
+  el.innerHTML=profile.map(p=>{
+    const detail=`<div id="vd-${p.id}" style="display:none;margin-top:10px;background:#f5f5f3;border-radius:8px;padding:12px 14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;font-size:13px;margin-bottom:10px;">
+        <div style="color:#888780;">Dienstleister</div><div style="font-weight:500;">${p.carrier||'—'}</div>
+        <div style="color:#888780;">Paketart</div><div style="font-weight:500;">${p.paketart||'—'}</div>
+        <div style="color:#888780;">Gewicht</div><div style="font-weight:500;">${p.gewicht?p.gewicht+' '+p.einheit:'—'}</div>
+      </div>
+      <div style="border-top:0.5px solid #ddddd5;padding-top:10px;">
+        <div style="font-size:11px;color:#888780;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">Kostenaufstellung</div>
+        ${[['Versandkosten',p.versandkosten],['Materialkosten',p.materialkosten],['Verpackungskosten',p.verpackungskosten],['Lagerkosten',p.lagerkosten]].filter(([,v])=>v>0).map(([label,val])=>`
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:0.5px solid #f0f0ec;">
+          <span style="color:#888780;">${label}</span><span>${fmt(val)}</span>
+        </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;color:#003265;padding-top:8px;margin-top:4px;">
+          <span>Gesamt</span><span>${fmt(p.kosten)}</span>
+        </div>
+      </div>
+    </div>`;
+    return `<div class="form-card" style="margin-bottom:10px;padding:16px 20px;cursor:pointer;" onclick="toggleVersandDetail(${p.id})">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span id="vd-btn-${p.id}" style="font-size:16px;color:#003265;transition:transform .2s;display:inline-block;">▸</span>
+          <div>
+            <div style="font-weight:600;font-size:15px;color:#1a1a18;">${p.name}</div>
+            <div style="font-size:12px;color:#888780;margin-top:2px;">${p.carrier} · ${p.paketart}${p.gewicht?' · '+p.gewicht+' '+p.einheit:''} · ${getVersandProfileStatus(p, profile)}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:16px;font-weight:600;color:#003265;">${fmt(p.kosten)}</span>
+          <button class="btn" style="height:32px;padding:0 12px;font-size:12px;" onclick="event.stopPropagation();editVersandProfile(${p.id})">✎ Bearbeiten</button>
+        </div>
+      </div>
+      ${detail}
+    </div>`;
   }).join('');
 }
-function selectMonth(pickerId,val){
-  const state=monthPickerState[pickerId];
-  const input=document.getElementById(state.inputId);
-  input.dataset.value=val;
-  input.value=formatFkDatum(val);
-  document.getElementById(pickerId).style.display='none';
-}
-function formatFkDatum(datum){
-  if(!datum) return '';
-  if(datum.length===7){const [y,m]=datum.split('-');return (MONTHS[parseInt(m)-1]||m)+' '+y;}
-  return datum;
-}
 
-function addFkItem(){
-  const name=document.getElementById('fk-name').value.trim();
-  const betrag=parseFloat(document.getElementById('fk-betrag').value)||0;
-  const bereich=document.getElementById('fk-bereich').value;
-  if(!name){alert('Bitte eine Bezeichnung eingeben.');return;}
-  if(betrag<=0){alert('Bitte einen Betrag eingeben.');return;}
-  const item={
-    id:Date.now(), name, betrag, bereich,
-    intervall:bereich==='variabel'?'einmalig':document.getElementById('fk-intervall').value,
-    datum:bereich==='variabel'?(document.getElementById('fk-datum-var').dataset.value||new Date().toISOString().slice(0,7)):'',
-    cat:detectCat(name), updatedAt:Date.now(),
-  };
-  const items=getFkItems();
-  items.push(item);
-  setFkItems(items);
-  document.getElementById('fk-name').value='';
-  document.getElementById('fk-betrag').value='';
-  document.getElementById('cat-hint').innerHTML='';
-  document.getElementById('fk-datum-var').value='';
-  document.getElementById('fk-datum-var').dataset.value='';
-  const fl=document.getElementById('fk-save-flash');
-  fl.style.display='inline'; setTimeout(()=>fl.style.display='none',1800);
-  document.getElementById('fk-form-wrap').style.display='none';
-  document.getElementById('fk-toggle-btn').textContent='+ Neue Position';
-  renderFixkosten();
-}
-
-function deleteFkItem(id){
-  if(!confirm('Position löschen?')) return;
-  setFkItems(getFkItems().filter(i=>i.id!==id));
-  renderFixkosten();
-}
-
-// Edit modal functions
-let fkEditId=null;
-function editFkItem(id){
-  const item=getFkItems().find(i=>i.id===id);
-  if(!item) return;
-  fkEditId=id;
-  document.getElementById('fke-name').value=item.name||'';
-  document.getElementById('fke-betrag').value=item.betrag||'';
-  document.getElementById('fke-intervall').value=item.intervall||'monatlich';
-  const isVar=item.bereich==='variabel';
-  document.getElementById('fke-intervall-wrap').style.display=isVar?'none':'block';
-  const catSel=document.getElementById('fke-cat');
-  catSel.innerHTML=FK_ALL_CATS.map(c=>`<option value="${c}"${c===item.cat?' selected':''}>${FK_CAT_ICONS[c]||'📋'} ${c}</option>`).join('');
-  updateFkePreview();
-  document.getElementById('fk-edit-modal-bg').style.display='flex';
-  setTimeout(()=>{document.getElementById('fke-name').focus();},50);
-}
-function updateFkePreview(){
-  const betrag=parseFloat(document.getElementById('fke-betrag').value)||0;
-  const intervall=document.getElementById('fke-intervall').value;
-  document.getElementById('fke-monthly-preview').textContent=fmt(toMonthly(betrag,intervall))+' /Monat';
-}
-function saveFkEdit(){
-  if(!fkEditId) return;
-  const items=getFkItems();
-  const idx=items.findIndex(i=>i.id===fkEditId);
-  if(idx===-1) return;
-  items[idx]={...items[idx],
-    name:document.getElementById('fke-name').value,
-    betrag:parseFloat(document.getElementById('fke-betrag').value)||0,
-    intervall:document.getElementById('fke-intervall').value,
-    cat:document.getElementById('fke-cat').value,
-    updatedAt:Date.now(),
-  };
-  setFkItems(items);
-  closeFkEdit();
-  renderFixkosten();
-}
-function closeFkEdit(){
-  document.getElementById('fk-edit-modal-bg').style.display='none';
-  fkEditId=null;
-}
-
-
-
-document.addEventListener('DOMContentLoaded',()=>{
-  const fn=document.getElementById('fk-name');
-  const fb=document.getElementById('fk-betrag');
-  if(fn) fn.addEventListener('keydown',e=>{if(e.key==='Enter') fb?.focus();});
-  if(fb) fb.addEventListener('keydown',e=>{if(e.key==='Enter') addFkItem();});
-});
-
-// Enter in Bestellungserfassung — global listener
-document.addEventListener('keydown', e=>{
-  if(e.key!=='Enter') return;
-  if(document.getElementById('page-eingabe')?.classList.contains('active')){
-    const tag=document.activeElement?.tagName;
-    if(tag==='INPUT'){
-      e.preventDefault();
-      const brutto=parseFloat(document.getElementById('f-brutto').value)||0;
-      if(brutto>0){
-        saveOrder();
-      } else {
-        // Springe zu f-brutto wenn noch leer
-        const bruttoEl=document.getElementById('f-brutto');
-        if(bruttoEl){ bruttoEl.focus(); bruttoEl.select(); }
-      }
-    }
+function onEdVersandProfilChange(){
+  const sel=document.getElementById('ed-versand-profil');
+  const input=document.getElementById('ed-versand');
+  if(!sel||!input) return;
+  if(sel.value==='none'){
+    input.value='0'; if(typeof edUpdatePreview==='function') edUpdatePreview();
+  } else if(sel.value){
+    const p=getVersandProfile().find(p=>p.id===parseInt(sel.value));
+    if(p){input.value=p.kosten; if(typeof edUpdatePreview==='function') edUpdatePreview();}
+  } else {
+    input.value='';
   }
-});
+}
 
+function onBulkVersandProfilChange(){
+  const sel=document.getElementById('bulk-versand-profil');
+  const input=document.getElementById('bulk-versand');
+  if(!sel||!input) return;
+  if(sel.value==='none'){
+    input.value='0';
+  } else if(sel.value){
+    const p=getVersandProfile().find(p=>p.id===parseInt(sel.value));
+    if(p) input.value=p.kosten;
+  } else {
+    input.value='';
+  }
+}
+
+function populateVersandDropdown(){
+  const profile=getVersandProfile();
+  const today=new Date().toISOString().split('T')[0];
+  // For dropdown: only show currently active profiles (newest valid for each name)
+  const activeMap={};
+  profile.forEach(p=>{
+    const ab=p.gueltigAb||'2000-01-01';
+    if(ab<=today){
+      if(!activeMap[p.name]||ab>(activeMap[p.name].gueltigAb||'2000-01-01')) activeMap[p.name]=p;
+    }
+  });
+  // Also include future profiles not yet active
+  profile.forEach(p=>{
+    const ab=p.gueltigAb||'2000-01-01';
+    if(ab>today) activeMap[p.id+'_future']=p;
+  });
+  const profileOpts=Object.values(activeMap).map(p=>`<option value="${p.id}">${p.name} (${fmt(p.kosten)})${(p.gueltigAb&&p.gueltigAb>today)?' — ab '+fmtDate(p.gueltigAb):''}</option>`).join('');
+  const opts=`<option value="">— Profil auswählen —</option><option value="none">Keine Versandkosten (0,00 €)</option>${profileOpts}`;
+  const bulkOpts=`<option value="">— nicht ändern —</option><option value="none">Keine Versandkosten (0,00 €)</option>${profileOpts}`;
+  const selF=document.getElementById('f-versand-profil');
+  if(selF) selF.innerHTML=opts;
+  const selEd=document.getElementById('ed-versand-profil');
+  if(selEd) selEd.innerHTML=opts;
+  const selBulk=document.getElementById('bulk-versand-profil');
+  if(selBulk) selBulk.innerHTML=bulkOpts;
+  onVersandProfilChange();
+}
+
+function onVersandProfilChange(){
+  const sel=document.getElementById('f-versand-profil');
+  const input=document.getElementById('f-versand');
+  if(!sel||!input) return;
+  if(sel.value==='none'){
+    input.value='0';
+  } else if(sel.value){
+    const p=getVersandProfile().find(p=>p.id===parseInt(sel.value));
+    if(p) input.value=p.kosten;
+  } else {
+    input.value='';
+  }
+  if(typeof updatePreview==='function') updatePreview();
+}
+
+function exportLocalData(){
+  const data={orders:getOrders(),fixkosten:getFkItems(),marketing:getMkItems(),mpg:getMpg(),rechnungen:getRechnungen(),versand:getVersandProfile(),exportedAt:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='ecommerce-backup-'+new Date().toISOString().split('T')[0]+'.json';
+  a.click();
+}
 
 async function importLocalData(event){
   const file=event.target.files[0];
@@ -3150,47 +3604,26 @@ async function importLocalData(event){
     const text=await file.text();
     const data=JSON.parse(text);
     if(syncEl){syncEl.style.opacity='1';syncEl.textContent='⟳ Lade Daten hoch...';}
-
-    // In localStorage laden
     if(data.orders) localStorage.setItem('ec_orders',JSON.stringify(data.orders));
     if(data.fixkosten) localStorage.setItem('ec_fixkosten_v2',JSON.stringify(data.fixkosten));
     if(data.marketing) localStorage.setItem('ec_marketing',JSON.stringify(data.marketing));
     if(data.mpg) localStorage.setItem('ec_mpg',JSON.stringify(data.mpg));
     if(data.rechnungen) localStorage.setItem('ec_rechnungen',JSON.stringify(data.rechnungen));
-
-    // In Supabase hochladen
+    if(data.versand) localStorage.setItem('ec_versand',JSON.stringify(data.versand));
     const uploads=[];
     if(data.orders?.length) uploads.push(saveOrdersToSupabase(data.orders));
     if(data.fixkosten?.length) uploads.push(saveFkkostenToSupabase(data.fixkosten));
     if(data.marketing?.length) uploads.push(saveMarketingToSupabase(data.marketing));
-    if(data.mpg && Object.keys(data.mpg).length) uploads.push(saveMpgToSupabase(data.mpg));
+    if(data.mpg&&Object.keys(data.mpg).length) uploads.push(saveMpgToSupabase(data.mpg));
     if(data.rechnungen?.length) uploads.push(saveRechnungenToSupabase(data.rechnungen));
     await Promise.all(uploads);
-
     if(syncEl){syncEl.textContent='✓ Daten erfolgreich hochgeladen!';syncEl.style.color='#1D9E75';setTimeout(()=>{syncEl.style.opacity='0';syncEl.style.color='#888780';},4000);}
-    // Neu rendern
-    renderDashboard();renderDay();renderRechnungen();
+    renderDashboard();renderDay();renderRechnungen();populateVersandDropdown();
     event.target.value='';
   }catch(e){
     console.error('Import error:',e);
     if(syncEl){syncEl.textContent='✗ Fehler beim Import';syncEl.style.color='#E24B4A';setTimeout(()=>{syncEl.style.opacity='0';syncEl.style.color='#888780';},4000);}
   }
-}
-
-function exportLocalData(){
-  const data={
-    orders:getOrders(),
-    fixkosten:getFkItems(),
-    marketing:getMkItems(),
-    mpg:getMpg(),
-    rechnungen:getRechnungen(),
-    exportedAt:new Date().toISOString(),
-  };
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='ecommerce-backup-'+new Date().toISOString().split('T')[0]+'.json';
-  a.click();
 }
 
 async function initApp(){
@@ -3199,7 +3632,7 @@ async function initApp(){
   document.getElementById('f-datum').value=today;
   document.getElementById('day-date').value=today;
   onKanalChange();
-  // Sofort rendern mit lokalen Daten (auch wenn leer)
+  populateVersandDropdown();
   populateDateFilters();
   populateMkFilters();
   populateCfFilters();
@@ -3208,12 +3641,10 @@ async function initApp(){
   renderDashboard();
   renderDay();
   renderRechnungen();
-  // Dann Supabase sync im Hintergrund
   const syncEl=document.getElementById('sync-indicator');
   if(syncEl){syncEl.style.opacity='1';syncEl.textContent='⟳ Synchronisiere...';}
   await syncFromSupabase();
   if(syncEl){syncEl.textContent=dbSynced?'✓ Online':'⚠ Offline-Modus';setTimeout(()=>syncEl.style.opacity='0',3000);}
-  // Nach sync nochmal alles neu rendern mit Cloud-Daten
   populateDateFilters();
   populateMkFilters();
   populateCfFilters();
@@ -3223,7 +3654,6 @@ async function initApp(){
   renderDay();
   renderRechnungen();
 }
-
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>

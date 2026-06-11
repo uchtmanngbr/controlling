@@ -85,6 +85,9 @@ tr:last-child td{border-bottom:none;}
 .day-metric-label{font-size:11px;color:#888780;margin-bottom:4px;}
 .day-metric-value{font-size:18px;font-weight:500;color:#1a1a18;}
 .day-orders{margin-top:12px;border-top:0.5px solid #ddddd5;padding-top:10px;}
+.kpi-delta-pos{color:#1D9E75;font-size:11px;font-weight:500;}
+.kpi-delta-neg{color:#E24B4A;font-size:11px;font-weight:500;}
+.kpi-delta-neu{color:#888780;font-size:11px;}
 .day-orders-title{font-size:11px;color:#888780;margin-bottom:8px;}
 .day-order-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid #f5f5f3;font-size:12px;}
 .day-order-row:last-child{border-bottom:none;}
@@ -171,7 +174,7 @@ tr:last-child td{border-bottom:none;}
         <div class="day-header-left">
           <span class="day-title">Tagesübersicht</span>
           <input type="date" id="day-date" class="day-date-input" onchange="renderDay()" style="opacity:0;width:0;height:0;padding:0;border:none;position:absolute;">
-          <span id="day-date-display" onclick="document.getElementById('day-date').showPicker?document.getElementById('day-date').showPicker():document.getElementById('day-date').click()" style="font-size:12px;padding:4px 10px;border:0.5px solid #c8c8c0;border-radius:6px;background:#f5f5f3;color:#1a1a18;cursor:pointer;height:28px;display:inline-flex;align-items:center;gap:5px;">📅 <span id="day-date-label">—</span></span>
+          <span id="day-date-display" onclick="document.getElementById('day-date').click()" style="font-size:12px;padding:4px 10px;border:0.5px solid #c8c8c0;border-radius:6px;background:#f5f5f3;color:#1a1a18;cursor:pointer;height:28px;display:inline-flex;align-items:center;gap:5px;">📅 <span id="day-date-label">—</span></span>
           <span class="day-badge today" id="day-badge">Heute</span>
         </div>
       </div>
@@ -267,28 +270,69 @@ tr:last-child td{border-bottom:none;}
 
   <!-- BESTELLUNGEN -->
   <div class="page" id="page-bestellungen">
-    <div class="filter-row">
-      <select id="filter-kanal" onchange="renderOrders()">
+
+    <!-- FILTER -->
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">
+
+      <!-- Marktplatz -->
+      <select id="filter-kanal" onchange="renderOrders()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;">
         <option value="">Alle Kanäle</option>
         <option>Amazon</option><option>eBay</option><option>Otto</option><option>Shopify</option>
       </select>
-      <select id="filter-month" onchange="renderOrders()"></select>
-      <select id="filter-year" onchange="renderOrders()"></select>
-      <input type="text" id="orders-search" placeholder="🔍 Artikel, Bestellnr., Betrag..." oninput="renderOrders()" style="font-size:12px;padding:5px 10px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;flex:1;min-width:180px;max-width:280px;">
-      <span id="orders-count" style="font-size:12px;color:#888780;"></span>
-      <div style="margin-left:auto;position:relative;" id="orders-action-wrap" style="display:none;">
-        <button id="btn-actions" class="btn" onclick="toggleActionsMenu(event)" style="display:none;">
-          <span id="btn-actions-label">Bestellungen</span> ▾
-        </button>
-        <div id="actions-menu" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:0.5px solid #ddddd5;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.1);z-index:100;min-width:180px;overflow:hidden;">
-          <button onclick="openBulkEdit();closeActionsMenu();" style="display:block;width:100%;text-align:left;padding:10px 14px;font-size:13px;background:none;border:none;cursor:pointer;color:#1a1a18;" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background='none'">✎ Bearbeiten</button>
-          <button onclick="deleteSelected();closeActionsMenu();" style="display:block;width:100%;text-align:left;padding:10px 14px;font-size:13px;background:none;border:none;cursor:pointer;color:#E24B4A;" onmouseover="this.style.background='#FCEBEB'" onmouseout="this.style.background='none'">× Löschen</button>
-          <div id="actions-menu-delete-all" style="display:none;border-top:0.5px solid #ddddd5;">
-            <button onclick="deleteAll();closeActionsMenu();" style="display:block;width:100%;text-align:left;padding:10px 14px;font-size:13px;background:none;border:none;cursor:pointer;color:#E24B4A;" onmouseover="this.style.background='#FCEBEB'" onmouseout="this.style.background='none'">⚠ Alle löschen</button>
+
+      <!-- Zeitraum Dropdown -->
+      <select id="op-period-select" onchange="onPeriodSelectChange()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;">
+        <option value="month">Dieser Monat</option>
+        <option value="today">Heute</option>
+        <option value="yesterday">Gestern</option>
+        <option value="7days">Letzte 7 Tage</option>
+        <option value="lastmonth">Letzter Monat</option>
+        <option value="custom">Eigenes Datum...</option>
+      </select>
+
+      <!-- Eigenes Datum (versteckt bis custom) -->
+      <div id="op-custom-wrap" style="display:none;gap:4px;align-items:center;">
+        <input type="date" id="op-custom-from" onchange="renderOrders()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;">
+        <span style="font-size:12px;color:#888780;">bis</span>
+        <input type="date" id="op-custom-to" onchange="renderOrders()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;">
+      </div>
+
+      <!-- Suche -->
+      <input type="text" id="orders-search" placeholder="🔍 Nach Bestellung suchen..." oninput="renderOrders()" style="font-size:12px;padding:5px 10px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;width:280px;">
+
+      <!-- Hidden -->
+      <select id="filter-month" style="display:none;"></select>
+      <select id="filter-year" style="display:none;"></select>
+
+      <!-- Rechts: Vergleich + Aktionen -->
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+        <span id="orders-count" style="font-size:12px;color:#888780;"></span>
+        <span style="font-size:12px;color:#888780;">Vergleich:</span>
+        <select id="op-compare" onchange="renderOrders()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;">
+          <option value="">Kein Vergleich</option>
+          <option value="prevperiod">Vorheriger Zeitraum</option>
+          <option value="yesterday">Gestern</option>
+          <option value="7days">Letzte 7 Tage</option>
+          <option value="lastmonth">Letzter Monat</option>
+          <option value="lastyear">Vorjahresmonat</option>
+        </select>
+        <div style="position:relative;" id="orders-action-wrap">
+          <button id="btn-actions" class="btn" onclick="toggleActionsMenu(event)" style="display:none;">
+            <span id="btn-actions-label">Bestellungen</span> ▾
+          </button>
+          <div id="actions-menu" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:0.5px solid #ddddd5;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.1);z-index:100;min-width:180px;overflow:hidden;">
+            <button onclick="openBulkEdit();closeActionsMenu();" style="display:block;width:100%;text-align:left;padding:10px 14px;font-size:13px;background:none;border:none;cursor:pointer;color:#1a1a18;" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background='none'">✎ Bearbeiten</button>
+            <button onclick="deleteSelected();closeActionsMenu();" style="display:block;width:100%;text-align:left;padding:10px 14px;font-size:13px;background:none;border:none;cursor:pointer;color:#E24B4A;" onmouseover="this.style.background='#FCEBEB'" onmouseout="this.style.background='none'">× Löschen</button>
+            <div id="actions-menu-delete-all" style="display:none;border-top:0.5px solid #ddddd5;">
+              <button onclick="deleteAll();closeActionsMenu();" style="display:block;width:100%;text-align:left;padding:10px 14px;font-size:13px;background:none;border:none;cursor:pointer;color:#E24B4A;" onmouseover="this.style.background='#FCEBEB'" onmouseout="this.style.background='none'">⚠ Alle löschen</button>
+            </div>
           </div>
         </div>
       </div>
     </div>
+
+        <!-- KPI KACHELN -->
+    <div id="orders-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1rem;"></div>
     <div class="orders-table-wrap">
       <table>
         <thead><tr>
@@ -2667,7 +2711,7 @@ function renderDay(){
     ordersWrap.innerHTML=`<div class="day-orders-title">Aktivität</div><div class="day-empty">Keine Bestellungen oder Rechnungen an diesem Tag</div>`;
     return;
   }
-  const rows=orders.sort((a,b)=>b.id-a.id).map(o=>{
+  const allRows=orders.sort((a,b)=>b.id-a.id).map(o=>{
     const db=calcDB(o);
     return `<div class="day-order-row">
       <span class="day-order-kanal"><span class="badge badge-${o.kanal.toLowerCase()}">${o.kanal}</span></span>
@@ -2675,14 +2719,42 @@ function renderDay(){
       <span class="day-order-brutto">${fmt(o.umsatzBrutto||0)}</span>
       <span class="day-order-db ${db>=0?'pos':'neg'}">${fmt(db)}</span>
     </div>`;
-  }).join('');
-  const rechRows=dayRech.map(r=>`<div class="day-order-row">
+  });
+  const rechRowsList=dayRech.map(r=>`<div class="day-order-row">
     <span class="day-order-kanal"><span class="badge" style="background:#9B59B6;color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;">Rechnung</span></span>
     <span class="day-order-artikel">${r.nr||r.partner||'—'}</span>
     <span class="day-order-brutto">${r.typ==='einnahme'?fmt(r.brutto||0):'—'}</span>
     <span class="day-order-db ${(r.gewinn||0)>=0?'pos':'neg'}">${fmt(r.gewinn||0)}</span>
-  </div>`).join('');
-  ordersWrap.innerHTML=`<div class="day-orders-title">Aktivität (${totalItems}) &nbsp;·&nbsp; <span style="color:#888780;font-size:11px;">Brutto · Deckungsbeitrag</span></div>${rows}${rechRows}`;
+  </div>`);
+  const combined=[...allRows,...rechRowsList];
+  const LIMIT_1=10, LIMIT_2=15;
+  const showMore=combined.length>LIMIT_1;
+  const showAll=combined.length>LIMIT_2;
+  const visibleRows=combined.slice(0,LIMIT_1).join('');
+  const extraRows=combined.slice(LIMIT_1,LIMIT_2).join('');
+  const moreBtn=showMore?`
+    <div id="day-more-wrap" style="margin-top:6px;">
+      <div id="day-extra-rows" style="display:none;">${extraRows}</div>
+      ${showAll
+        ?`<div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+            <button onclick="toggleDayMore()" id="day-more-btn" style="font-size:11px;color:#003265;background:none;border:none;cursor:pointer;padding:0;font-weight:500;">▸ ${combined.length-LIMIT_1} weitere anzeigen</button>
+            <span style="font-size:11px;color:#c8c8c0;">·</span>
+            <button onclick="showPage('bestellungen')" style="font-size:11px;color:#888780;background:none;border:none;cursor:pointer;padding:0;">Alle in Bestellungen →</button>
+          </div>`
+        :`<button onclick="toggleDayMore()" id="day-more-btn" style="font-size:11px;color:#003265;background:none;border:none;cursor:pointer;padding:4px 0;font-weight:500;">▸ ${combined.length-LIMIT_1} weitere anzeigen</button>`
+      }
+    </div>`:'';
+  ordersWrap.innerHTML=`<div class="day-orders-title">Aktivität (${totalItems}) &nbsp;·&nbsp; <span style="color:#888780;font-size:11px;">Brutto · Deckungsbeitrag</span></div>${visibleRows}${moreBtn}`;
+}
+
+function toggleDayMore(){
+  const extra=document.getElementById('day-extra-rows');
+  const btn=document.getElementById('day-more-btn');
+  if(!extra||!btn) return;
+  const open=extra.style.display!=='none';
+  extra.style.display=open?'none':'block';
+  const count=extra.querySelectorAll('.day-order-row').length;
+  btn.textContent=open?`▸ ${count} weitere anzeigen`:`▾ Weniger anzeigen`;
 }
 
 function renderDashboard(){
@@ -2808,31 +2880,175 @@ function renderDashboard(){
 }
 
 
+/* ── BESTELLUNGEN ANALYTICS ── */
+let currentOrderPeriod='month';
+
+function onPeriodSelectChange(){
+  const val=document.getElementById('op-period-select').value;
+  const customWrap=document.getElementById('op-custom-wrap');
+  if(val==='custom'){
+    customWrap.style.display='flex';
+    // Set default range to current month
+    const today=new Date();
+    const from=new Date(today.getFullYear(),today.getMonth(),1);
+    const localStr=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    document.getElementById('op-custom-from').value=localStr(from);
+    document.getElementById('op-custom-to').value=localStr(today);
+  } else {
+    customWrap.style.display='none';
+  }
+  currentOrderPeriod=val;
+  renderOrders();
+}
+
+function setOrderPeriod(period){
+  currentOrderPeriod=period;
+  const sel=document.getElementById('op-period-select');
+  if(sel) sel.value=period;
+  const customWrap=document.getElementById('op-custom-wrap');
+  if(customWrap) customWrap.style.display='none';
+  renderOrders();
+}
+
+function getDateRange(period){
+  const now=new Date();
+  const localStr=d=>{ // Format date as YYYY-MM-DD in local timezone
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  };
+  const today=localStr(now);
+  switch(period){
+    case 'today': return {from:today,to:today};
+    case 'yesterday':{
+      const y=new Date(now); y.setDate(y.getDate()-1);
+      const s=localStr(y); return {from:s,to:s};
+    }
+    case '7days':{
+      const w=new Date(now); w.setDate(w.getDate()-6);
+      return {from:localStr(w),to:today};
+    }
+    case 'month':{
+      const m=new Date(now.getFullYear(),now.getMonth(),1);
+      return {from:localStr(m),to:today};
+    }
+    case 'lastmonth':{
+      const lm=new Date(now.getFullYear(),now.getMonth()-1,1);
+      const lme=new Date(now.getFullYear(),now.getMonth(),0);
+      return {from:localStr(lm),to:localStr(lme)};
+    }
+    case 'all': return {from:'2000-01-01',to:'2099-12-31'};
+    case 'custom':{
+      const from=document.getElementById('op-custom-from')?.value||localStr(now);
+      const to=document.getElementById('op-custom-to')?.value||localStr(now);
+      return {from,to};
+    }
+    default: return {from:today,to:today};
+  }
+}
+
+function getCompareDateRange(comparePeriod, mainPeriod){
+  const localStr=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const main=getDateRange(mainPeriod);
+  const from=new Date(main.from+'T12:00:00');
+  const to=new Date(main.to+'T12:00:00');
+  const days=Math.round((to-from)/(1000*60*60*24))+1;
+  switch(comparePeriod){
+    case 'prevperiod':{
+      const pTo=new Date(from); pTo.setDate(pTo.getDate()-1);
+      const pFrom=new Date(pTo); pFrom.setDate(pFrom.getDate()-(days-1));
+      return {from:localStr(pFrom),to:localStr(pTo)};
+    }
+    case 'yesterday': return getDateRange('yesterday');
+    case '7days': return getDateRange('7days');
+    case 'lastmonth': return getDateRange('lastmonth');
+    case 'lastyear':{
+      const yFrom=new Date(from); yFrom.setFullYear(yFrom.getFullYear()-1);
+      const yTo=new Date(to); yTo.setFullYear(yTo.getFullYear()-1);
+      return {from:localStr(yFrom),to:localStr(yTo)};
+    }
+    default: return null;
+  }
+}
+
+function calcOrderStats(orders){
+  const count=orders.length;
+  const umsatz=orders.reduce((s,o)=>s+(o.umsatzBrutto||0),0);
+  const db=orders.reduce((s,o)=>s+calcDB(o),0);
+  const retouren=orders.filter(o=>o.isRetoure).length;
+  return {count,umsatz,db,retouren};
+}
+
+function fmtDelta(curr, prev){
+  if(prev===0&&curr===0) return '<span class="kpi-delta-neu">—</span>';
+  if(prev===0) return '<span class="kpi-delta-pos">Neu</span>';
+  const pct=((curr-prev)/Math.abs(prev)*100);
+  const cls=pct>=0?'kpi-delta-pos':'kpi-delta-neg';
+  const arrow=pct>=0?'▲':'▼';
+  return `<span class="${cls}">${arrow} ${Math.abs(pct).toFixed(1)}%</span>`;
+}
+
+function renderOrderKPIs(mainOrders, compareOrders){
+  const m=calcOrderStats(mainOrders);
+  const c=compareOrders?calcOrderStats(compareOrders):null;
+  const kpis=[
+    {label:'Bestellungen', val:m.count, prev:c?.count, fmt:v=>v},
+    {label:'Umsatz brutto', val:m.umsatz, prev:c?.umsatz, fmt:fmtS},
+    {label:'Deckungsbeitrag', val:m.db, prev:c?.db, fmt:fmtS, color:m.db>=0?'#1D9E75':'#E24B4A'},
+    {label:'Retouren', val:m.retouren, prev:c?.retouren, fmt:v=>v},
+  ];
+  document.getElementById('orders-kpis').innerHTML=kpis.map(k=>`
+    <div class="metric" style="text-align:center;">
+      <div class="metric-label">${k.label}</div>
+      <div class="metric-value neu" style="${k.color?'color:'+k.color:''}">${k.fmt(k.val)}</div>
+      ${c?`<div style="margin-top:3px;">${fmtDelta(k.val,k.prev)} <span class="kpi-delta-neu" style="font-size:10px;">${k.fmt(k.prev)}</span></div>`:''}
+    </div>`).join('');
+}
+
+function filterOrdersByRange(orders,range){
+  return orders.filter(o=>o.datum>=range.from&&o.datum<=range.to);
+}
+
 function renderOrders(){
   const kanal=document.getElementById('filter-kanal').value;
   const month=parseInt(document.getElementById('filter-month').value);
   const year=parseInt(document.getElementById('filter-year').value);
   const search=(document.getElementById('orders-search')?.value||'').trim().toLowerCase();
-  const searchNorm=search.replace(',','.');  // normalize comma to dot for number matching
+  const searchNorm=search.replace(',','.');
+  const comparePeriod=document.getElementById('op-compare')?.value||'';
+
+  // Period filter
+  const range=currentOrderPeriod!=='all'?getDateRange(currentOrderPeriod):null;
+  const compareRange=comparePeriod&&currentOrderPeriod!=='all'?getCompareDateRange(comparePeriod,currentOrderPeriod):null;
 
   let orders=getOrders().filter(o=>{
-    const d=new Date(o.datum);
     const matchKanal=!kanal||o.kanal===kanal;
-    // If searching: ignore month/year filter, search across all orders
-    const matchTime=search?true:(d.getMonth()+1===month&&d.getFullYear()===year);
+    let matchTime;
+    if(search){
+      matchTime=true;
+    } else if(range){
+      matchTime=o.datum>=range.from&&o.datum<=range.to;
+    } else {
+      const d=new Date(o.datum);
+      matchTime=d.getMonth()+1===month&&d.getFullYear()===year;
+    }
     if(!matchKanal||!matchTime) return false;
     if(!search) return true;
-    // Build haystack with both dot and comma variants of numbers
     const numFields=[o.umsatzBrutto,o.umsatzNetto,o.waren,o.versand,o.provision,o.retoure].map(v=>{
       const s=String(v||'');
-      return s+' '+s.replace('.',','); // include both "5.5" and "5,5"
+      return s+' '+s.replace('.',',');
     }).join(' ');
-    const haystack=[
-      o.artikel||'', o.bestellnr||'', o.kanal||'',
-      o.datum||'', numFields, o.notiz||''
-    ].join(' ').toLowerCase();
+    const haystack=[o.artikel||'',o.bestellnr||'',o.kanal||'',o.datum||'',numFields,o.notiz||''].join(' ').toLowerCase();
     return haystack.includes(search)||haystack.includes(searchNorm);
-  }).sort((a,b)=>b.datum.localeCompare(a.datum));
+  }).sort((a,b)=>b.datum.localeCompare(a.datum)||b.id-a.id);
+
+  // KPIs
+  const kpiEl=document.getElementById('orders-kpis');
+  if(kpiEl){
+    const compareOrders=compareRange?getOrders().filter(o=>{
+      const matchKanal=!kanal||o.kanal===kanal;
+      return matchKanal&&o.datum>=compareRange.from&&o.datum<=compareRange.to;
+    }):null;
+    renderOrderKPIs(orders,compareOrders);
+  }
 
   const countEl=document.getElementById('orders-count');
   if(countEl) countEl.textContent=orders.length>0?orders.length+(search?' Treffer':' Bestellungen'):'';

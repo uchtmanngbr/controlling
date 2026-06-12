@@ -173,8 +173,7 @@ tr:last-child td{border-bottom:none;}
       <div class="day-header">
         <div class="day-header-left">
           <span class="day-title">Tagesübersicht</span>
-          <input type="date" id="day-date" class="day-date-input" onchange="renderDay()" style="opacity:0;width:0;height:0;padding:0;border:none;position:absolute;">
-          <span id="day-date-display" onclick="document.getElementById('day-date').click()" style="font-size:12px;padding:4px 10px;border:0.5px solid #c8c8c0;border-radius:6px;background:#f5f5f3;color:#1a1a18;cursor:pointer;height:28px;display:inline-flex;align-items:center;gap:5px;">📅 <span id="day-date-label">—</span></span>
+          <input type="date" id="day-date" class="day-date-input" onchange="renderDay()" style="font-size:12px;padding:4px 10px;border:0.5px solid #c8c8c0;border-radius:6px;background:#f5f5f3;color:#1a1a18;outline:none;height:28px;cursor:pointer;">
           <span class="day-badge today" id="day-badge">Heute</span>
         </div>
       </div>
@@ -2687,8 +2686,7 @@ function renderDay(){
   const isToday=selDate===todayStr;
   // Update display label in DD.MM.YYYY format
   const [y,m,d]=selDate.split('-');
-  const displayEl=document.getElementById('day-date-label');
-  if(displayEl) displayEl.textContent=`${d}.${m}.${y}`;
+  // date display handled natively by input[type=date]
   const badge=document.getElementById('day-badge');
   badge.textContent=isToday?'Heute':new Date(selDate+'T12:00:00').toLocaleDateString('de-DE',{weekday:'long'});
   badge.className='day-badge'+(isToday?' today':'');

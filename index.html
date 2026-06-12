@@ -451,6 +451,53 @@ tr:last-child td{border-bottom:none;}
 
   </div>
 
+  <!-- BESTELLUNG DETAIL MODAL -->
+  <div class="edit-modal-bg" id="order-detail-modal-bg" style="display:none;" onclick="if(event.target===this) closeOrderDetail()">
+    <div class="edit-modal" style="max-width:560px;padding:0;overflow:hidden;">
+
+      <!-- HEADER: Bild + Grundinfos -->
+      <div style="display:flex;gap:0;background:#f5f5f3;border-radius:14px 14px 0 0;overflow:hidden;">
+        <!-- Bild -->
+        <div id="od-img-wrap" style="width:140px;min-height:140px;flex-shrink:0;background:#eeeee8;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;" onclick="document.getElementById('od-img-input').click()" title="Bild hinzufügen">
+          <img id="od-img" src="" alt="" style="width:100%;height:140px;object-fit:cover;display:none;">
+          <div id="od-img-placeholder" style="text-align:center;color:#c8c8c0;font-size:12px;padding:12px;">
+            <div style="font-size:28px;margin-bottom:4px;">📷</div>
+            <div>Bild hinzufügen</div>
+          </div>
+          <input type="file" id="od-img-input" accept="image/*" style="display:none;" onchange="loadOrderDetailImage(event)">
+        </div>
+        <!-- Grundinfos -->
+        <div style="padding:20px;flex:1;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span id="od-badge" class="badge" style="font-size:11px;"></span>
+            <span id="od-datum" style="font-size:12px;color:#888780;"></span>
+          </div>
+          <div id="od-artikel" style="font-size:16px;font-weight:600;color:#1a1a18;margin-bottom:6px;line-height:1.3;"></div>
+          <div id="od-bestellnr" style="font-size:12px;color:#888780;margin-bottom:4px;"></div>
+          <div id="od-sku" style="font-size:12px;color:#888780;"></div>
+        </div>
+      </div>
+
+      <!-- KOSTENAUFSTELLUNG -->
+      <div style="padding:20px;">
+        <div style="font-size:11px;font-weight:600;color:#003265;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">Kostenaufstellung</div>
+        <div id="od-rows" style="font-size:13px;"></div>
+
+        <!-- ERGEBNIS -->
+        <div id="od-result" style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:2px solid #003265;">
+          <span style="font-weight:700;font-size:14px;color:#003265;">Deckungsbeitrag</span>
+          <span id="od-db" style="font-weight:700;font-size:18px;"></span>
+        </div>
+      </div>
+
+      <!-- FOOTER -->
+      <div style="display:flex;justify-content:space-between;padding:16px 20px;border-top:0.5px solid #ddddd5;background:#fff;border-radius:0 0 14px 14px;">
+        <button class="btn primary" onclick="openEditFromDetail()">✎ Bearbeiten</button>
+        <button class="btn" onclick="closeOrderDetail()">Schließen</button>
+      </div>
+    </div>
+  </div>
+
   <!-- VERSAND EDIT MODAL -->
   <div class="edit-modal-bg" id="versand-edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeVersandEdit()">
     <div class="edit-modal" style="max-width:480px;">
@@ -2711,7 +2758,7 @@ function renderDay(){
   }
   const allRows=orders.sort((a,b)=>b.id-a.id).map(o=>{
     const db=calcDB(o);
-    return `<div class="day-order-row">
+    return `<div class="day-order-row" onclick="openOrderDetail(${o.id})" style="cursor:pointer;" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
       <span class="day-order-kanal"><span class="badge badge-${o.kanal.toLowerCase()}">${o.kanal}</span></span>
       <span class="day-order-artikel">${o.artikel||o.bestellnr||'—'}</span>
       <span class="day-order-brutto">${fmt(o.umsatzBrutto||0)}</span>
@@ -3005,6 +3052,88 @@ function filterOrdersByRange(orders,range){
   return orders.filter(o=>o.datum>=range.from&&o.datum<=range.to);
 }
 
+/* ── BESTELLUNG DETAIL ── */
+let detailOrderId=null;
+
+function openOrderDetail(id){
+  const o=getOrders().find(o=>o.id===id);
+  if(!o) return;
+  detailOrderId=id;
+  const db=calcDB(o);
+  const isR=o.isRetoure;
+
+  // Badge
+  const badge=document.getElementById('od-badge');
+  badge.textContent=o.kanal;
+  badge.className='badge badge-'+(o.kanal||'').toLowerCase();
+
+  // Grundinfos
+  document.getElementById('od-datum').textContent=o.datum?o.datum.split('-').reverse().join('.'):'—';
+  document.getElementById('od-artikel').textContent=o.artikel||'Kein Artikelname';
+  document.getElementById('od-bestellnr').textContent=o.bestellnr?'Bestellnr.: '+o.bestellnr:'';
+  document.getElementById('od-sku').textContent=''; // for future API/SKU data
+
+  // Bild
+  const img=document.getElementById('od-img');
+  const placeholder=document.getElementById('od-img-placeholder');
+  if(o.imageData){
+    img.src=o.imageData; img.style.display='block'; placeholder.style.display='none';
+  } else {
+    img.style.display='none'; placeholder.style.display='flex';
+    placeholder.style.flexDirection='column'; placeholder.style.alignItems='center';
+  }
+
+  // Kostenaufstellung
+  const rows=[
+    {label:'Bruttoumsatz', val:o.umsatzBrutto||0, cls:''},
+    {label:'Nettoumsatz', val:o.umsatzNetto||0, cls:''},
+    {label:'− Warenkosten', val:-(o.waren||0), cls:'neg'},
+    {label:'− Versandkosten', val:-(o.versand||0), cls:'neg'},
+    {label:'− Marktplatzgebühren', val:-(o.provision||0), cls:'neg'},
+    {label:'− Retoure', val:-(o.retoure||0), cls:'neg', hide:!(o.retoure)},
+  ].filter(r=>!r.hide);
+
+  document.getElementById('od-rows').innerHTML=rows.map(r=>`
+    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid #f5f5f3;">
+      <span style="color:${r.cls==='neg'?'#888780':'#1a1a18'};">${r.label}</span>
+      <span style="font-weight:500;color:${r.cls==='neg'&&r.val<0?'#E24B4A':r.val>0?'#1a1a18':'#888780'};">${fmt(Math.abs(r.val))}</span>
+    </div>`).join('');
+
+  const dbEl=document.getElementById('od-db');
+  dbEl.textContent=fmt(db);
+  dbEl.style.color=db>=0?'#1D9E75':'#E24B4A';
+
+  document.getElementById('order-detail-modal-bg').style.display='flex';
+}
+
+function closeOrderDetail(){
+  document.getElementById('order-detail-modal-bg').style.display='none';
+  detailOrderId=null;
+}
+
+function openEditFromDetail(){
+  const id=detailOrderId;
+  closeOrderDetail();
+  if(id) setTimeout(()=>editOrder(id),50);
+}
+
+function loadOrderDetailImage(event){
+  const file=event.target.files[0];
+  if(!file||!detailOrderId) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const orders=getOrders();
+    const idx=orders.findIndex(o=>o.id===detailOrderId);
+    if(idx===-1) return;
+    orders[idx].imageData=e.target.result;
+    saveOrders(orders);
+    document.getElementById('od-img').src=e.target.result;
+    document.getElementById('od-img').style.display='block';
+    document.getElementById('od-img-placeholder').style.display='none';
+  };
+  reader.readAsDataURL(file);
+}
+
 function renderOrders(){
   const kanal=document.getElementById('filter-kanal').value;
   const month=parseInt(document.getElementById('filter-month').value);
@@ -3067,7 +3196,7 @@ function renderOrders(){
       <td>${fmt(o.versand)}</td><td>${fmt(o.provision)}</td><td>${fmt(o.retoure)}</td>
       <td class="${db>=0?'pos':'neg'}" style="font-weight:500;">${fmt(db)}</td>
       <td style="display:flex;gap:4px;">
-        <button class="btn" style="height:28px;padding:0 10px;font-size:12px;" onclick="editOrder(${o.id})">✎</button>
+        <button class="btn" style="height:28px;padding:0 8px;font-size:12px;" onclick="openOrderDetail(${o.id})" title="Details">👁</button>
         <button class="btn danger" style="height:28px;padding:0 8px;font-size:12px;" onclick="deleteOrder(${o.id})">×</button>
       </td>
     </tr>`;
@@ -3167,7 +3296,7 @@ function deleteSelected(){
 }
 
 document.addEventListener('keydown', e=>{
-  if(e.key==='Escape'){ closeBulkEdit(); closeEdit(); closeRechEdit(); closeFkEdit(); closeMpgEdit(); closeVersandEdit(); }
+  if(e.key==='Escape'){ closeBulkEdit(); closeEdit(); closeRechEdit(); closeFkEdit(); closeMpgEdit(); closeVersandEdit(); closeOrderDetail(); }
   if(e.key==='Enter'&&editId!==null){
     const tag=document.activeElement.tagName;
     if(tag==='INPUT') saveEdit();

@@ -204,7 +204,7 @@ tr:last-child td{border-bottom:none;}
       <div class="section-title">Neue Bestellung erfassen</div>
       <div class="form-grid">
         <div class="field"><label>Datum</label><input type="date" id="f-datum"></div>
-        <div class="field"><label>Kanal</label>
+        <div class="field"><label>Marktplatz</label>
           <select id="f-kanal" onchange="onKanalChange()">
             <option value="Amazon">Amazon</option><option value="eBay">eBay</option>
             <option value="Otto">Otto</option><option value="Shopify">Shopify</option>
@@ -273,7 +273,7 @@ tr:last-child td{border-bottom:none;}
 
       <!-- Marktplatz -->
       <select id="filter-kanal" onchange="renderOrders()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;">
-        <option value="">Alle Kanäle</option>
+        <option value="">Alle Marktplätze</option>
         <option>Amazon</option><option>eBay</option><option>Otto</option><option>Shopify</option>
       </select>
 
@@ -334,8 +334,8 @@ tr:last-child td{border-bottom:none;}
       <table>
         <thead><tr>
           <th style="width:32px;"><input type="checkbox" id="orders-check-all" onchange="toggleAllOrders(this.checked)" style="cursor:pointer;"></th>
-          <th>Datum</th><th>Kanal</th><th>Artikel</th><th>Brutto</th><th>Netto</th>
-          <th>Warenk.</th><th>Versand</th><th>Gebühr</th><th>Retoure</th><th>DB</th><th></th>
+          <th>Datum</th><th>Marktplatz</th><th>Artikel</th><th>SKU</th><th>Brutto</th>
+          <th>EK</th><th>Versand</th><th>Gebühren</th><th>Deckungsbeitrag</th><th></th>
         </tr></thead>
         <tbody id="orders-tbody"></tbody>
       </table>
@@ -673,7 +673,7 @@ tr:last-child td{border-bottom:none;}
           <input type="number" id="bulk-retoure" min="0" step="0.01">
         </div>
         <div class="field">
-          <label>Kanal</label>
+          <label>Marktplatz</label>
           <select id="bulk-kanal">
             <option value="">— nicht ändern —</option>
             <option value="Amazon">Amazon</option>
@@ -708,7 +708,7 @@ tr:last-child td{border-bottom:none;}
 
       <div class="edit-modal-grid" id="ed-fields-normal">
         <div class="field"><label>Datum</label><input type="date" id="ed-datum"></div>
-        <div class="field"><label>Kanal</label>
+        <div class="field"><label>Marktplatz</label>
           <select id="ed-kanal">
             <option value="Amazon">Amazon</option><option value="eBay">eBay</option>
             <option value="Otto">Otto</option><option value="Shopify">Shopify</option>
@@ -768,7 +768,7 @@ tr:last-child td{border-bottom:none;}
     <div class="form-card">
       <div class="fk-add-row">
         <div class="fk-field">
-          <label>Kanal</label>
+          <label>Marktplatz</label>
           <input type="text" id="mk-kanal" placeholder="z.B. idealo, Geizhals, Google Ads...">
         </div>
         <div class="fk-field">
@@ -1209,7 +1209,7 @@ tr:last-child td{border-bottom:none;}
             <thead><tr>
               <th><input type="checkbox" id="imp-check-all" onchange="toggleAllImport(this.checked)" style="cursor:pointer;"></th>
               <th>Datum</th><th>Bestellnr.</th><th>Artikel</th>
-              <th>Brutto</th><th>Netto</th><th>Versand</th><th>Gebühr (4%)</th><th>Retoure</th><th>DB (ohne Warenk.)</th>
+              <th>Brutto</th><th>Netto</th><th>Versand</th><th>Gebühr (4%)</th><th>Retoure</th><th>DB (ohne EK)</th>
             </tr></thead>
             <tbody id="imp-preview-tbody"></tbody>
           </table>
@@ -1415,7 +1415,7 @@ function renderMarketing(){
         <span class="fk-cat-total">${fmt(mTotal)} gesamt</span>
       </div>
       <div class="fk-col-header" style="grid-template-columns:1fr 160px 32px;">
-        <span>Kanal</span><span style="text-align:right;">Betrag netto</span><span></span>
+        <span>Marktplatz</span><span style="text-align:right;">Betrag netto</span><span></span>
       </div>
       ${monthItems.map(i=>`<div class="fk-item-row" style="grid-template-columns:1fr 160px 32px;">
         <span class="fk-item-name">📣 ${i.kanal}</span>
@@ -2796,7 +2796,7 @@ function renderDay(){
   ordersWrap.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px;">
     <thead>
       <tr style="border-bottom:0.5px solid #ddddd5;">
-        <th style="text-align:left;color:#888780;font-weight:400;padding:0 8px 6px 0;width:70px;">Kanal</th>
+        <th style="text-align:left;color:#888780;font-weight:400;padding:0 8px 6px 0;width:70px;">Marktplatz</th>
         <th style="text-align:left;color:#888780;font-weight:400;padding:0 8px 6px 0;width:110px;">Bestellnr.</th>
         <th style="text-align:left;color:#888780;font-weight:400;padding:0 8px 6px 0;">Artikel</th>
         <th style="text-align:left;color:#888780;font-weight:400;padding:0 8px 6px 0;width:120px;">SKU</th>
@@ -3206,10 +3206,11 @@ function renderOrders(){
       <td><input type="checkbox" class="order-check" data-id="${o.id}" onchange="updateSelectedInfo()" style="cursor:pointer;"></td>
       <td>${o.datum}</td>
       <td><span class="badge badge-${o.kanal.toLowerCase()}">${o.kanal}</span>${retoureLabel}</td>
-      <td style="max-width:110px;overflow:hidden;text-overflow:ellipsis;">${o.artikel||o.bestellnr||'—'}</td>
-      <td>${fmt(o.umsatzBrutto||0)}</td><td>${fmt(o.umsatzNetto||0)}</td>
+      <td style="max-width:110px;overflow:hidden;text-overflow:ellipsis;">${o.artikel||'—'}</td>
+      <td style="max-width:90px;overflow:hidden;text-overflow:ellipsis;color:#888780;">${o.sku||'—'}</td>
+      <td>${fmt(o.umsatzBrutto||0)}</td>
       <td style="${warenMissing?'color:#E24B4A;':''}">${warenMissing?'<span title="Bitte nachtragen">0,00 €⚠</span>':fmt(o.waren)}</td>
-      <td>${fmt(o.versand)}</td><td>${fmt(o.provision)}</td><td>${fmt(o.retoure)}</td>
+            <td>${fmt(o.versand)}</td><td>${fmt(o.provision)}</td>
       <td class="${db>=0?'pos':'neg'}" style="font-weight:500;">${fmt(db)}</td>
       <td style="display:flex;gap:4px;">
         <button class="btn" style="height:28px;padding:0 8px;font-size:12px;" onclick="openOrderDetail(${o.id})" title="Details">👁</button>

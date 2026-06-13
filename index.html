@@ -2783,19 +2783,13 @@ function renderDay(){
   const showMore=combined.length>LIMIT_1;
   const showAll=combined.length>LIMIT_2;
   const visibleRows=combined.slice(0,LIMIT_1).join('');
-  const extraRows=combined.slice(LIMIT_1,LIMIT_2).join('');
-  const moreBtn=showMore?`
-    <div id="day-more-wrap" style="margin-top:6px;">
-      <div id="day-extra-rows" style="display:none;">${extraRows}</div>
-      ${showAll
-        ?`<div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
-            <button onclick="toggleDayMore()" id="day-more-btn" style="font-size:11px;color:#003265;background:none;border:none;cursor:pointer;padding:0;font-weight:500;">▸ ${combined.length-LIMIT_1} weitere anzeigen</button>
-            <span style="font-size:11px;color:#c8c8c0;">·</span>
-            <button onclick="showPage('bestellungen')" style="font-size:11px;color:#888780;background:none;border:none;cursor:pointer;padding:0;">Alle in Bestellungen →</button>
-          </div>`
-        :`<button onclick="toggleDayMore()" id="day-more-btn" style="font-size:11px;color:#003265;background:none;border:none;cursor:pointer;padding:4px 0;font-weight:500;">▸ ${combined.length-LIMIT_1} weitere anzeigen</button>`
-      }
-    </div>`:'';
+  const extraRows=combined.slice(LIMIT_1,LIMIT_2).map(r=>
+    r.replace('<tr ', '<tr class="day-extra-row" style="display:none;" ')
+  ).join('');
+  const moreBtnRow=showMore?`<tr id="day-more-btn-row"><td colspan="6" style="padding:6px 0 2px 0;">
+    <button onclick="toggleDayMore()" id="day-more-btn" style="font-size:11px;color:#003265;background:none;border:none;cursor:pointer;padding:0;font-weight:500;">▸ ${combined.length-LIMIT_1} weitere anzeigen</button>
+    ${showAll?`<span style="font-size:11px;color:#c8c8c0;margin:0 6px;">·</span><button onclick="showPage('bestellungen')" style="font-size:11px;color:#888780;background:none;border:none;cursor:pointer;padding:0;">Alle in Bestellungen →</button>`:''}
+  </td></tr>`:'';
   ordersWrap.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px;">
     <thead>
       <tr style="border-bottom:0.5px solid #ddddd5;">
@@ -2807,18 +2801,17 @@ function renderDay(){
         <th style="text-align:center;color:#888780;font-weight:400;padding:0 0 6px 0;width:100px;">Deckungsbeitrag</th>
       </tr>
     </thead>
-    <tbody>${visibleRows}</tbody>
-  </table>${moreBtn}`;
+    <tbody>${visibleRows}${extraRows}${moreBtnRow}</tbody>
+  </table>`;
 }
 
 function toggleDayMore(){
-  const extra=document.getElementById('day-extra-rows');
+  const rows=document.querySelectorAll('.day-extra-row');
   const btn=document.getElementById('day-more-btn');
-  if(!extra||!btn) return;
-  const open=extra.style.display!=='none';
-  extra.style.display=open?'none':'block';
-  const count=extra.querySelectorAll('.day-order-row').length;
-  btn.textContent=open?`▸ ${count} weitere anzeigen`:`▾ Weniger anzeigen`;
+  if(!rows.length||!btn) return;
+  const open=rows[0].style.display!=='none';
+  rows.forEach(r=>r.style.display=open?'none':'');
+  btn.textContent=open?`▸ ${rows.length} weitere anzeigen`:'▾ Weniger anzeigen';
 }
 
 function renderDashboard(){

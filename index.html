@@ -335,7 +335,7 @@ tr:last-child td{border-bottom:none;}
         <thead><tr>
           <th style="width:32px;"><input type="checkbox" id="orders-check-all" onchange="toggleAllOrders(this.checked)" style="cursor:pointer;"></th>
           <th>Datum</th><th>Marktplatz</th><th>Artikel</th><th>SKU</th><th>Brutto</th>
-          <th>EK</th><th>Versand</th><th>Gebühren</th><th>Deckungsbeitrag</th><th></th>
+          <th>EK</th><th>Versand</th><th>Gebühren</th><th style="text-align:center;">Deckungsbeitrag</th><th></th>
         </tr></thead>
         <tbody id="orders-tbody"></tbody>
       </table>
@@ -1288,11 +1288,13 @@ async function saveOrdersToSupabase(orders){
     idMap[id]=true;
     return {
       id, datum:o.datum||'', kanal:o.kanal||'',
-      bestellnr:o.bestellnr||'', artikel:o.artikel||'',
+      bestellnr:o.bestellnr||'', artikel:o.artikel||'', sku:o.sku||'',
       umsatzBrutto:o.umsatzBrutto||0, umsatzNetto:o.umsatzNetto||0,
       waren:o.waren||0, versand:o.versand||0,
       provision:o.provision||0, retoure:o.retoure||0,
       isRetoure:o.isRetoure||false, notiz:o.notiz||'',
+      versandProfilId:o.versandProfilId||null,
+      imageData:o.imageData||null,
     };
   });
   // Upsert in Batches von 50
@@ -1331,6 +1333,7 @@ async function saveFkkostenToSupabase(items){
   const normalized=items.map(o=>({
     id:Math.round(o.id), name:o.name||'', betrag:o.betrag||0,
     intervall:o.intervall||'monatlich', cat:o.cat||'Sonstiges',
+    bereich:o.bereich||'fixkosten', datum:o.datum||'',
     updatedAt:o.updatedAt||0,
   }));
   await sbFetch('fixkosten','DELETE',null,'?id=gt.0');
@@ -3211,7 +3214,7 @@ function renderOrders(){
       <td>${fmt(o.umsatzBrutto||0)}</td>
       <td style="${warenMissing?'color:#E24B4A;':''}">${warenMissing?'<span title="Bitte nachtragen">0,00 €⚠</span>':fmt(o.waren)}</td>
             <td>${fmt(o.versand)}</td><td>${fmt(o.provision)}</td>
-      <td class="${db>=0?'pos':'neg'}" style="font-weight:500;">${fmt(db)}</td>
+      <td class="${db>=0?'pos':'neg'}" style="font-weight:500;text-align:center;">${fmt(db)}</td>
       <td style="display:flex;gap:4px;">
         <button class="btn" style="height:28px;padding:0 8px;font-size:12px;" onclick="openOrderDetail(${o.id})" title="Details">👁</button>
         <button class="btn danger" style="height:28px;padding:0 8px;font-size:12px;" onclick="deleteOrder(${o.id})">×</button>

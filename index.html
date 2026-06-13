@@ -129,9 +129,6 @@ tr:last-child td{border-bottom:none;}
 .fk-cat-select{font-size:11px;padding:3px 6px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#888780;outline:none;cursor:pointer;width:100%;}
 .fk-del-btn{background:none;border:none;color:#c8c8c0;font-size:18px;cursor:pointer;padding:0;line-height:1;transition:color .15s;justify-self:center;}
 .fk-del-btn:hover{color:#E24B4A;}
-.fk-summary{background:#1a1a18;border-radius:10px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;}
-.fk-summary-label{font-size:13px;color:#888780;}
-.fk-summary-total{font-size:22px;font-weight:500;color:#fff;}
 .fk-empty{text-align:center;padding:2.5rem;color:#888780;font-size:13px;line-height:1.8;}
 .save-flash{font-size:12px;color:#1D9E75;display:none;margin-top:6px;display:none;}
 </style>
@@ -214,7 +211,8 @@ tr:last-child td{border-bottom:none;}
           </select>
         </div>
         <div class="field"><label>Bestellnummer (optional)</label><input type="text" id="f-bestellnr" placeholder="z.B. 123-456"></div>
-        <div class="field"><label>Artikel / SKU (optional)</label><input type="text" id="f-artikel" placeholder="z.B. Produkt A"></div>
+        <div class="field"><label>Artikel (optional)</label><input type="text" id="f-artikel" placeholder="z.B. Philips Rasierer Series 3"></div>
+        <div class="field"><label>SKU / ASIN (optional)</label><input type="text" id="f-sku" placeholder="z.B. BHS732/00 oder B08N5WRWNW"></div>
       </div>
       <div class="form-grid">
         <div class="field">
@@ -718,6 +716,7 @@ tr:last-child td{border-bottom:none;}
         </div>
         <div class="field"><label>Bestellnummer</label><input type="text" id="ed-bestellnr"></div>
         <div class="field"><label>Artikel</label><input type="text" id="ed-artikel"></div>
+        <div class="field"><label>SKU / ASIN</label><input type="text" id="ed-sku"></div>
         <div class="field"><label>Verkaufspreis brutto (€)</label><input type="number" id="ed-brutto" min="0" step="0.01" oninput="edAutoCalc()"></div>
         <div class="field"><label>Warenkosten netto (€)</label><input type="number" id="ed-waren" min="0" step="0.01" oninput="edUpdatePreview()"></div>
         <div class="field"><label>Versandprofil</label>
@@ -2215,6 +2214,7 @@ function editOrder(id){
   document.getElementById('ed-kanal').value=o.kanal||'Shopify';
   document.getElementById('ed-bestellnr').value=o.bestellnr||'';
   document.getElementById('ed-artikel').value=o.artikel||'';
+  document.getElementById('ed-sku').value=o.sku||'';
   document.getElementById('ed-brutto').value=o.umsatzBrutto||'';
   document.getElementById('ed-waren').value=o.waren||'';
   populateVersandDropdown();
@@ -2291,6 +2291,7 @@ function saveEdit(){
     kanal: document.getElementById('ed-kanal').value,
     bestellnr: document.getElementById('ed-bestellnr').value,
     artikel: document.getElementById('ed-artikel').value,
+    sku: document.getElementById('ed-sku').value,
     umsatzBrutto: isR?0:brutto,
     umsatzNetto:  isR?0:parseFloat(nettoVon(brutto).toFixed(2)),
     waren:     isR?0:(parseFloat(document.getElementById('ed-waren').value)||0),
@@ -2417,6 +2418,7 @@ function saveOrder(){
     kanal:document.getElementById('f-kanal').value,
     bestellnr:document.getElementById('f-bestellnr').value,
     artikel:document.getElementById('f-artikel').value,
+    sku:document.getElementById('f-sku').value,
     umsatzBrutto:brutto,
     umsatzNetto:parseFloat(nettoVon(brutto).toFixed(2)),
     waren:parseFloat(document.getElementById('f-waren').value)||0,
@@ -2437,7 +2439,7 @@ function saveOrder(){
 }
 
 function clearForm(){
-  ['f-bestellnr','f-artikel','f-brutto','f-waren','f-retoure'].forEach(id=>document.getElementById(id).value='');
+  ['f-bestellnr','f-artikel','f-sku','f-brutto','f-waren','f-retoure'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-versand').value='0';
   document.getElementById('f-versand-profil').value='';
   document.getElementById('f-datum').value=new Date().toISOString().split('T')[0];
@@ -2758,12 +2760,14 @@ function renderDay(){
   }
   const allRows=orders.sort((a,b)=>b.id-a.id).map(o=>{
     const db=calcDB(o);
-    return `<div class="day-order-row" onclick="openOrderDetail(${o.id})" style="cursor:pointer;" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
-      <span class="day-order-kanal"><span class="badge badge-${o.kanal.toLowerCase()}">${o.kanal}</span></span>
-      <span class="day-order-artikel">${o.artikel||o.bestellnr||'—'}</span>
-      <span class="day-order-brutto">${fmt(o.umsatzBrutto||0)}</span>
-      <span class="day-order-db ${db>=0?'pos':'neg'}">${fmt(db)}</span>
-    </div>`;
+    return `<tr onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''" onclick="openOrderDetail(${o.id})" style="cursor:pointer;border-bottom:0.5px solid #f5f5f3;">
+      <td style="padding:6px 8px 6px 0;"><span class="badge badge-${o.kanal.toLowerCase()}">${o.kanal}</span></td>
+      <td style="padding:6px 8px 6px 0;color:#888780;white-space:nowrap;">${o.bestellnr||'—'}</td>
+      <td style="padding:6px 8px 6px 0;color:#1a1a18;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">${o.artikel||'—'}</td>
+      <td style="padding:6px 8px 6px 0;color:#888780;white-space:nowrap;">${o.sku||'—'}</td>
+      <td style="padding:6px 8px 6px 0;text-align:right;white-space:nowrap;">${fmt(o.umsatzBrutto||0)}</td>
+      <td style="padding:6px 0 6px 0;text-align:center;font-weight:500;white-space:nowrap;" class="${db>=0?'pos':'neg'}">${fmt(db)}</td>
+    </tr>`;
   });
   const rechRowsList=dayRech.map(r=>`<div class="day-order-row">
     <span class="day-order-kanal"><span class="badge" style="background:#9B59B6;color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;">Rechnung</span></span>
@@ -2789,7 +2793,19 @@ function renderDay(){
         :`<button onclick="toggleDayMore()" id="day-more-btn" style="font-size:11px;color:#003265;background:none;border:none;cursor:pointer;padding:4px 0;font-weight:500;">▸ ${combined.length-LIMIT_1} weitere anzeigen</button>`
       }
     </div>`:'';
-  ordersWrap.innerHTML=`<div class="day-orders-title">Aktivität (${totalItems}) &nbsp;·&nbsp; <span style="color:#888780;font-size:11px;">Brutto · Deckungsbeitrag</span></div>${visibleRows}${moreBtn}`;
+  ordersWrap.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <thead>
+      <tr style="border-bottom:0.5px solid #ddddd5;">
+        <th style="text-align:left;color:#888780;font-weight:400;padding:0 8px 6px 0;width:70px;">Kanal</th>
+        <th style="text-align:left;color:#888780;font-weight:400;padding:0 8px 6px 0;width:110px;">Bestellnr.</th>
+        <th style="text-align:left;color:#888780;font-weight:400;padding:0 8px 6px 0;">Artikel</th>
+        <th style="text-align:left;color:#888780;font-weight:400;padding:0 8px 6px 0;width:120px;">SKU</th>
+        <th style="text-align:right;color:#888780;font-weight:400;padding:0 8px 6px 0;width:80px;">Brutto</th>
+        <th style="text-align:center;color:#888780;font-weight:400;padding:0 0 6px 0;width:100px;">Deckungsbeitrag</th>
+      </tr>
+    </thead>
+    <tbody>${visibleRows}</tbody>
+  </table>${moreBtn}`;
 }
 
 function toggleDayMore(){
@@ -3071,7 +3087,7 @@ function openOrderDetail(id){
   document.getElementById('od-datum').textContent=o.datum?o.datum.split('-').reverse().join('.'):'—';
   document.getElementById('od-artikel').textContent=o.artikel||'Kein Artikelname';
   document.getElementById('od-bestellnr').textContent=o.bestellnr?'Bestellnr.: '+o.bestellnr:'';
-  document.getElementById('od-sku').textContent=''; // for future API/SKU data
+  document.getElementById('od-sku').textContent=o.sku?'SKU/ASIN: '+o.sku:'';
 
   // Bild
   const img=document.getElementById('od-img');

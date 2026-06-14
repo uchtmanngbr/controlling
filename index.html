@@ -346,8 +346,8 @@ tr:last-child td{border-bottom:none;}
   <!-- RETOUREN -->
   <div class="page" id="page-retouren">
 
-    <!-- MONATSFILTER -->
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;">
+    <!-- HEADER -->
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:1rem;flex-wrap:wrap;">
       <div class="section-title" style="margin:0;">Retouren</div>
       <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
         <select id="ret-month" onchange="renderRetouren()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;"></select>
@@ -356,6 +356,23 @@ tr:last-child td{border-bottom:none;}
           <option value="">Alle Marktplätze</option>
           <option>Amazon</option><option>eBay</option><option>Otto</option><option>Shopify</option>
         </select>
+        <button class="btn" onclick="toggleRetSettings()" id="ret-settings-btn" style="font-size:12px;">⚙ Einstellungen</button>
+      </div>
+    </div>
+
+    <!-- EINSTELLUNGEN PANEL -->
+    <div id="ret-settings-wrap" style="display:none;margin-bottom:1rem;">
+      <div class="form-card" style="margin-bottom:0;">
+        <div class="section-title" style="margin-bottom:12px;">Retouren-Einstellungen</div>
+        <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;">
+          <div class="field" style="margin-bottom:0;min-width:200px;">
+            <label>Pauschalgebühr Retourenlabel (€)</label>
+            <input type="number" id="ret-label-default" min="0" step="0.01" placeholder="z.B. 4.99" style="width:100%;">
+          </div>
+          <button class="btn primary" onclick="saveRetSettings()" style="height:36px;padding:0 16px;">Speichern</button>
+          <span id="ret-settings-flash" style="font-size:12px;color:#1D9E75;display:none;">✓ Gespeichert</span>
+        </div>
+        <div style="font-size:11px;color:#888780;margin-top:8px;">Die Pauschalgebühr wird automatisch bei jeder neuen Retoure als Retourenlabelkosten eingetragen.</div>
       </div>
     </div>
 
@@ -378,6 +395,11 @@ tr:last-child td{border-bottom:none;}
       <div id="ret-edit-info" style="background:#f5f5f3;border-radius:8px;padding:12px;margin-bottom:1rem;font-size:13px;"></div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;">
+        <div class="field" style="grid-column:1/-1;">
+          <label>Versandkosten der Bestellung (€)</label>
+          <input type="number" id="ret-versand" min="0" step="0.01" readonly style="background:#f5f5f3;color:#888780;">
+          <div style="font-size:11px;color:#888780;margin-top:3px;">Aus der ursprünglichen Bestellung — fließt als Verlust ein</div>
+        </div>
         <div class="field" style="grid-column:1/-1;">
           <label>Artikelzustand</label>
           <select id="ret-zustand" onchange="updateRetAbschreibung()">
@@ -410,9 +432,15 @@ tr:last-child td{border-bottom:none;}
         </div>
       </div>
 
-      <div style="background:#f5f5f3;border-radius:8px;padding:12px;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:13px;color:#888780;">Gesamtverlust</span>
-        <span id="ret-verlust-preview" style="font-size:16px;font-weight:600;color:#E24B4A;">—</span>
+      <div style="background:#f5f5f3;border-radius:8px;padding:12px;margin-bottom:1rem;">
+        <div style="font-size:11px;color:#888780;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;">Verlustrechnung</div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;"><span style="color:#888780;">Versandkosten</span><span id="ret-verlust-versand">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;"><span style="color:#888780;">Retourenlabel</span><span id="ret-verlust-label">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:0.5px solid #ddddd5;"><span style="color:#888780;">Abschreibung</span><span id="ret-verlust-abschr">—</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:4px;">
+          <span style="font-size:13px;color:#888780;">Gesamtverlust</span>
+          <span id="ret-verlust-preview" style="font-size:16px;font-weight:600;color:#E24B4A;">—</span>
+        </div>
       </div>
 
       <div class="edit-modal-footer">
@@ -1382,6 +1410,9 @@ async function saveOrdersToSupabase(orders){
       waren:o.waren||0, versand:o.versand||0,
       provision:o.provision||0, retoure:o.retoure||0,
       isRetoure:o.isRetoure||false, notiz:o.notiz||'',
+      retZustand:o.retZustand||null, retPct:o.retPct||null,
+      retAbschreibung:o.retAbschreibung||0, retLabelKosten:o.retLabelKosten||0,
+      retNotiz:o.retNotiz||'',
       versandProfilId:o.versandProfilId||null,
       imageData:o.imageData||null,
     };
@@ -2559,6 +2590,27 @@ function deleteAll(){
 }
 
 /* ── RETOUREN ── */
+function getRetSettings(){try{return JSON.parse(localStorage.getItem('ec_ret_settings')||'{}')}catch{return{}}}
+function setRetSettings(d){localStorage.setItem('ec_ret_settings',JSON.stringify(d))}
+
+function toggleRetSettings(){
+  const wrap=document.getElementById('ret-settings-wrap');
+  const isOpen=wrap.style.display!=='none';
+  wrap.style.display=isOpen?'none':'block';
+  if(!isOpen){
+    const s=getRetSettings();
+    document.getElementById('ret-label-default').value=s.labelDefault||'';
+  }
+}
+
+function saveRetSettings(){
+  const s=getRetSettings();
+  s.labelDefault=parseFloat(document.getElementById('ret-label-default').value)||0;
+  setRetSettings(s);
+  const fl=document.getElementById('ret-settings-flash');
+  fl.style.display='inline'; setTimeout(()=>fl.style.display='none',1800);
+}
+
 function populateRetFilters(){
   const orders=getOrders();
   const years=[...new Set(orders.map(o=>o.datum?.split('-')[0]).filter(Boolean))].sort().reverse();
@@ -2605,14 +2657,15 @@ function renderRetouren(){
   const quoteUmsatz=umsatzGesamt>0?((retUmsatz/umsatzGesamt)*100).toFixed(1):0;
   const abschreibung=retouren.reduce((s,o)=>s+(o.retAbschreibung||0),0);
   const labelKosten=retouren.reduce((s,o)=>s+(o.retLabelKosten||0),0);
-  const gesamtverlust=abschreibung+labelKosten;
+  const versandKosten=retouren.reduce((s,o)=>s+(o.versand||0),0);
+  const gesamtverlust=parseFloat((abschreibung+labelKosten+versandKosten).toFixed(2));
 
   const kpiEl=document.getElementById('ret-kpis');
   if(kpiEl) kpiEl.innerHTML=[
     {label:'Retourenquote (Stück)',val:`${quoteStk}%`,sub:`${anzahl} von ${totalVerkauft} Bestellungen`},
     {label:'Retourenquote (Umsatz)',val:`${quoteUmsatz}%`,sub:`${fmt(retUmsatz)} von ${fmt(umsatzGesamt)}`},
     {label:'Anzahl Retouren',val:anzahl,sub:'im gewählten Zeitraum'},
-    {label:'Abschreibungswert',val:fmt(abschreibung),sub:`+ ${fmt(labelKosten)} Labelkosten`,color:'#E24B4A'},
+    {label:'Abschreibungswert',val:fmt(abschreibung),sub:`+ ${fmt(labelKosten)} Label + ${fmt(versandKosten)} Versand`,color:'#E24B4A'},
   ].map(k=>`<div class="metric" style="text-align:center;">
     <div class="metric-label">${k.label}</div>
     <div class="metric-value neu" style="${k.color?'color:'+k.color:''}">${k.val}</div>
@@ -2633,15 +2686,17 @@ function renderRetouren(){
       <th style="text-align:left;color:#888780;font-weight:400;padding:10px 8px;">Marktplatz</th>
       <th style="text-align:left;color:#888780;font-weight:400;padding:10px 8px;">Artikel</th>
       <th style="text-align:left;color:#888780;font-weight:400;padding:10px 8px;">Zustand</th>
+      <th style="text-align:right;color:#888780;font-weight:400;padding:10px 8px;">Versand</th>
       <th style="text-align:right;color:#888780;font-weight:400;padding:10px 8px;">Abschreibung</th>
       <th style="text-align:right;color:#888780;font-weight:400;padding:10px 8px;">Label</th>
-      <th style="text-align:right;color:#888780;font-weight:400;padding:10px 12px;">Verlust</th>
+      <th style="text-align:right;color:#888780;font-weight:400;padding:10px 12px;">Gesamtverlust</th>
       <th style="padding:10px 12px;"></th>
     </tr></thead>
     <tbody>${retouren.map(o=>{
       const abschr=o.retAbschreibung||0;
       const label=o.retLabelKosten||0;
-      const verlust=abschr+label;
+      const versandKosten=o.versand||0;
+      const verlust=parseFloat((versandKosten+abschr+label).toFixed(2));
       const zustandLabel=o.retZustand==='custom'?`Individuell (${o.retPct||0}%)`:
         o.retZustand==='0'||!o.retZustand?'Einwandfrei':
         o.retZustand==='20'?'Geöffnet':
@@ -2652,6 +2707,7 @@ function renderRetouren(){
         <td style="padding:10px 8px;"><span class="badge badge-${(o.kanal||'').toLowerCase()}">${o.kanal||'—'}</span></td>
         <td style="padding:10px 8px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.artikel||o.bestellnr||'—'}</td>
         <td style="padding:10px 8px;font-size:12px;color:#888780;">${zustandLabel}</td>
+        <td style="padding:10px 8px;text-align:right;color:${versandKosten>0?'#E24B4A':'#888780'};">${versandKosten>0?fmt(versandKosten):'—'}</td>
         <td style="padding:10px 8px;text-align:right;color:${abschr>0?'#E24B4A':'#888780'};">${abschr>0?fmt(abschr):'—'}</td>
         <td style="padding:10px 8px;text-align:right;color:${label>0?'#E24B4A':'#888780'};">${label>0?fmt(label):'—'}</td>
         <td style="padding:10px 12px;text-align:right;font-weight:600;color:${verlust>0?'#E24B4A':'#888780'};">${verlust>0?fmt(verlust):'—'}</td>
@@ -2670,8 +2726,10 @@ function openRetEdit(id){
     <div style="color:#888780;">${o.kanal||''} · ${o.datum?o.datum.split('-').reverse().join('.'):'—'} · ${o.bestellnr||''}</div>
     <div style="margin-top:4px;font-size:12px;color:#003265;">Brutto: <b>${fmt(o.umsatzBrutto||0)}</b> · EK: <b>${fmt(o.waren||0)}</b></div>`;
   document.getElementById('ret-ek').value=o.waren||'';
+  document.getElementById('ret-versand').value=o.versand||0;
   document.getElementById('ret-zustand').value=o.retZustand||'0';
-  document.getElementById('ret-label-kosten').value=o.retLabelKosten||'';
+  const hasExistingLabel=o.retLabelKosten!==undefined&&o.retLabelKosten!==null;
+  document.getElementById('ret-label-kosten').value=hasExistingLabel?o.retLabelKosten:(getRetSettings().labelDefault||'');
   document.getElementById('ret-notiz').value=o.retNotiz||'';
   const isCustom=o.retZustand==='custom';
   document.getElementById('ret-custom-wrap').style.display=isCustom?'block':'none';
@@ -2690,8 +2748,13 @@ function updateRetAbschreibung(){
   const abschr=parseFloat((ek*pct/100).toFixed(2));
   document.getElementById('ret-abschreibung').value=abschr||'';
   const label=parseFloat(document.getElementById('ret-label-kosten').value)||0;
-  const verlust=abschr+label;
-  document.getElementById('ret-verlust-preview').textContent=verlust>0?fmt(verlust):'0,00 €';
+  const versand=parseFloat(document.getElementById('ret-versand').value)||0;
+  const verlust=parseFloat((versand+abschr+label).toFixed(2));
+  const el=n=>document.getElementById(n);
+  if(el('ret-verlust-versand')) el('ret-verlust-versand').textContent=versand>0?fmt(versand):'—';
+  if(el('ret-verlust-label')) el('ret-verlust-label').textContent=label>0?fmt(label):'—';
+  if(el('ret-verlust-abschr')) el('ret-verlust-abschr').textContent=abschr>0?fmt(abschr):'—';
+  el('ret-verlust-preview').textContent=verlust>0?fmt(verlust):'0,00 €';
 }
 
 function saveRetEdit(){
@@ -2705,6 +2768,7 @@ function saveRetEdit(){
   if(zustand==='custom') pct=parseFloat(document.getElementById('ret-custom-pct').value)||0;
   const abschr=parseFloat((ek*pct/100).toFixed(2));
   const label=parseFloat(document.getElementById('ret-label-kosten').value)||0;
+  const versand=parseFloat(document.getElementById('ret-versand').value)||0;
   orders[idx]={...orders[idx],
     waren:ek,
     retZustand:zustand,

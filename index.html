@@ -11,10 +11,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .header-title{font-size:16px;font-weight:600;color:#003265;letter-spacing:0.01em;}
 .header-sub{font-size:12px;color:#888780;margin-top:2px;}
 .container{max-width:1200px;margin:0 auto;padding:24px 16px;}
-.tabs{display:flex;gap:4px;margin-bottom:1.5rem;border-bottom:0.5px solid #ddddd5;}
-.tab{font-size:14px;padding:8px 16px;cursor:pointer;color:#888780;border-bottom:2px solid transparent;margin-bottom:-1px;background:none;border-top:none;border-left:none;border-right:none;transition:color .15s;}
-.tab.active{color:#003265;border-bottom-color:#003265;font-weight:600;}
-.tab:hover{color:#003265;}
+.tabs{display:flex;gap:4px;margin-bottom:1.5rem;border-bottom:0.5px solid #ddddd5;padding:6px 6px 0;}
+.tab{font-size:14px;padding:7px 16px;cursor:pointer;color:#888780;border:none;border-radius:8px 8px 0 0;margin-bottom:-1px;background:none;transition:color .15s,background .15s;display:inline-flex;align-items:center;gap:5px;}
+.tab.active{color:#003265;font-weight:600;box-shadow:0 -1px 0 0 #ddddd5,1px 0 0 0 #ddddd5,-1px 0 0 0 #ddddd5;border-bottom:1px solid #f5f5f3;}
+.tab:hover{color:#003265;background:#f5f5f3;}
 .page{display:none;}.page.active{display:block;}
 .section-title{font-size:12px;font-weight:600;color:#003265;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;}
 .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1.5rem;}
@@ -88,6 +88,9 @@ tr:last-child td{border-bottom:none;}
 .kpi-delta-pos{color:#1D9E75;font-size:11px;font-weight:500;}
 .kpi-delta-neg{color:#E24B4A;font-size:11px;font-weight:500;}
 .kpi-delta-neu{color:#888780;font-size:11px;}
+.op-btn{font-size:12px;padding:5px 10px;border:none;border-radius:7px;background:transparent;color:#888780;cursor:pointer;font-family:inherit;transition:all .15s;}
+.op-btn:hover{background:#fff;color:#1a1a18;}
+.op-active{background:#fff !important;color:#003265 !important;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
 .day-orders-title{font-size:11px;color:#888780;margin-bottom:8px;}
 .day-order-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid #f5f5f3;font-size:12px;}
 .day-order-row:last-child{border-bottom:none;}
@@ -157,7 +160,7 @@ tr:last-child td{border-bottom:none;}
     <button class="tab" onclick="showPage('rechnungen')">Rechnungen</button>
     <button class="tab" onclick="showPage('berichte')">Berichte</button>
     <button class="tab" onclick="showPage('cashflow')">Cashflow & ROI</button>
-    <button class="tab" onclick="showPage('versand')">Versand</button>
+    <button class="tab" onclick="showPage('praeferenzen')" style="display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.92c.04-.34.07-.69.07-1.08s-.03-.73-.07-1.08l2.32-1.81c.21-.16.27-.46.13-.7l-2.2-3.81c-.13-.24-.42-.33-.67-.24l-2.74 1.1c-.57-.44-1.18-.8-1.85-1.08l-.42-2.92C14.54 2.18 14.29 2 14 2h-4c-.29 0-.54.18-.58.44l-.42 2.92c-.67.28-1.28.65-1.85 1.08L4.41 5.35c-.25-.1-.54 0-.67.24L1.54 9.4c-.14.24-.08.54.13.7l2.32 1.81C3.93 12.27 3.9 12.62 3.9 13s.03.73.07 1.08L1.67 15.9c-.21.16-.27.46-.13.7l2.2 3.81c.13.24.42.33.67.24l2.74-1.1c.57.44 1.18.8 1.85 1.08l.42 2.92c.04.26.29.44.58.44h4c.29 0 .54-.18.58-.44l.42-2.92c.67-.28 1.28-.65 1.85-1.08l2.74 1.1c.25.1.54 0 .67-.24l2.2-3.81c.14-.24.08-.54-.13-.7l-2.32-1.82z"/></svg>Präferenzen</button>
     <button class="tab" onclick="showPage('import')">CSV Import</button>
   </div>
 
@@ -354,23 +357,6 @@ tr:last-child td{border-bottom:none;}
           <option value="">Alle Marktplätze</option>
           <option>Amazon</option><option>eBay</option><option>Otto</option><option>Shopify</option>
         </select>
-        <button class="btn" onclick="toggleRetSettings()" id="ret-settings-btn" style="font-size:12px;">⚙ Einstellungen</button>
-      </div>
-    </div>
-
-    <!-- EINSTELLUNGEN PANEL -->
-    <div id="ret-settings-wrap" style="display:none;margin-bottom:1rem;">
-      <div class="form-card" style="margin-bottom:0;">
-        <div class="section-title" style="margin-bottom:12px;">Retouren-Einstellungen</div>
-        <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;">
-          <div class="field" style="margin-bottom:0;min-width:200px;">
-            <label>Pauschalgebühr Retourenlabel (€)</label>
-            <input type="number" id="ret-label-default" min="0" step="0.01" placeholder="z.B. 4.99" style="width:100%;">
-          </div>
-          <button class="btn primary" onclick="saveRetSettings()" style="height:36px;padding:0 16px;">Speichern</button>
-          <span id="ret-settings-flash" style="font-size:12px;color:#1D9E75;display:none;">✓ Gespeichert</span>
-        </div>
-        <div style="font-size:11px;color:#888780;margin-top:8px;">Die Pauschalgebühr wird automatisch bei jeder neuen Retoure als Retourenlabelkosten eingetragen.</div>
       </div>
     </div>
 
@@ -1179,101 +1165,121 @@ tr:last-child td{border-bottom:none;}
 
   </div>
 
-  <!-- VERSAND -->
-  <div class="page" id="page-versand">
-
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
-      <div class="section-title" style="margin:0;">Versandprofile</div>
-      <button class="btn primary" onclick="toggleVersandForm()" id="versand-toggle-btn">+ Neues Profil</button>
+  <!-- PRÄFERENZEN -->
+  <div class="page" id="page-praeferenzen">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:1.5rem;">
+      <div class="section-title" style="margin:0;">Präferenzen</div>
     </div>
 
-    <!-- FORMULAR -->
-    <div id="versand-form-wrap" style="display:none;margin-bottom:1.5rem;">
-      <div class="form-card" style="margin-bottom:0;">
-        <div class="section-title">Neues Versandprofil</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1rem;">
-          <div class="field">
-            <label>Profilname (optional)</label>
-            <input type="text" id="vp-name" placeholder="Leer lassen für automatischen Namen">
-          </div>
-          <div class="field">
-            <label>Dienstleister</label>
-            <select id="vp-carrier" onchange="updateVpName()">
-              <option value="DHL">DHL</option>
-              <option value="Deutsche Post">Deutsche Post</option>
-              <option value="DPD">DPD</option>
-              <option value="UPS">UPS</option>
-              <option value="Hermes">Hermes</option>
-              <option value="GLS">GLS</option>
-              <option value="FedEx">FedEx</option>
-              <option value="Amazon Logistics">Amazon Logistics</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Paketart</label>
-            <select id="vp-paketart" onchange="updateVpName()">
-              <option value="Päckchen S">Päckchen S</option>
-              <option value="Päckchen M">Päckchen M</option>
-              <option value="Kleinpaket">Kleinpaket</option>
-              <option value="Paket">Paket</option>
-              <option value="Großpaket">Großpaket</option>
-              <option value="Sperrgut">Sperrgut</option>
-              <option value="Brief">Brief</option>
-              <option value="Warensendung">Warensendung</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Gewicht</label>
-            <div style="display:flex;gap:6px;">
-              <input type="number" id="vp-gewicht" min="0" step="1" placeholder="0" oninput="updateVpName()" style="flex:1;">
-              <select id="vp-gewicht-einheit" onchange="updateVpName()" style="width:70px;">
-                <option value="g">g</option>
-                <option value="kg" selected>kg</option>
+    <!-- UNTERNAVIGATION -->
+    <div style="display:flex;gap:4px;background:#f5f5f3;border-radius:10px;padding:3px;margin-bottom:1.5rem;width:fit-content;">
+      <button onclick="showPraef('versand')" id="praef-btn-versand" class="op-btn op-active" style="font-size:14px;padding:8px 20px;">Versandprofile</button>
+      <button onclick="showPraef('retouren')" id="praef-btn-retouren" class="op-btn" style="font-size:14px;padding:8px 20px;">Retoureneinstellungen</button>
+      <button onclick="showPraef('marktplaetze')" id="praef-btn-marktplaetze" class="op-btn" style="font-size:14px;padding:8px 20px;">Verkaufsprovision</button>
+    </div>
+
+    <!-- VERSAND INHALT -->
+    <div id="praef-versand">
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <div style="font-size:13px;color:#888780;">Versandprofile verwalten und bei Bestellungen auswählen</div>
+        <button class="btn primary" onclick="toggleVersandForm()" id="versand-toggle-btn">+ Neues Profil</button>
+      </div>
+
+      <div id="versand-form-wrap" style="display:none;margin-bottom:1.5rem;">
+        <div class="form-card" style="margin-bottom:0;">
+          <div class="section-title">Neues Versandprofil</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1rem;">
+            <div class="field" style="grid-column:1/-1;"><label>Profilname (optional)</label>
+              <input type="text" id="vp-name" placeholder="Leer lassen für automatischen Namen">
+            </div>
+            <div class="field"><label>Dienstleister</label>
+              <select id="vp-carrier" onchange="updateVpName()">
+                <option value="DHL">DHL</option>
+                <option value="Deutsche Post">Deutsche Post</option>
+                <option value="DPD">DPD</option>
+                <option value="UPS">UPS</option>
+                <option value="Hermes">Hermes</option>
+                <option value="GLS">GLS</option>
+                <option value="FedEx">FedEx</option>
+                <option value="Amazon Logistics">Amazon Logistics</option>
               </select>
             </div>
+            <div class="field"><label>Paketart</label>
+              <select id="vp-paketart" onchange="updateVpName()">
+                <option value="Päckchen S">Päckchen S</option>
+                <option value="Päckchen M">Päckchen M</option>
+                <option value="Kleinpaket">Kleinpaket</option>
+                <option value="Paket">Paket</option>
+                <option value="Großpaket">Großpaket</option>
+                <option value="Sperrgut">Sperrgut</option>
+                <option value="Brief">Brief</option>
+                <option value="Warensendung">Warensendung</option>
+              </select>
+            </div>
+            <div class="field"><label>Gewicht</label>
+              <div style="display:flex;gap:6px;">
+                <input type="number" id="vp-gewicht" min="0" step="1" placeholder="0" oninput="updateVpName()" style="flex:1;">
+                <select id="vp-gewicht-einheit" onchange="updateVpName()" style="width:70px;">
+                  <option value="g">g</option>
+                  <option value="kg" selected>kg</option>
+                </select>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="section-title" style="margin-bottom:8px;">Kostenaufstellung</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1rem;">
-          <div class="field">
-            <label>Versandkosten (€)</label>
-            <input type="number" id="vp-versandkosten" min="0" step="0.01" placeholder="0.00" oninput="updateVpSumme()">
+          <div class="section-title" style="margin-bottom:8px;">Kostenaufstellung</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1rem;">
+            <div class="field"><label>Versandkosten (€)</label><input type="number" id="vp-versandkosten" min="0" step="0.01" placeholder="0.00" oninput="updateVpSumme()"></div>
+            <div class="field"><label>Materialkosten (€)</label><input type="number" id="vp-materialkosten" min="0" step="0.01" placeholder="0.00" oninput="updateVpSumme()"></div>
+            <div class="field"><label>Verpackungskosten (€)</label><input type="number" id="vp-verpackungskosten" min="0" step="0.01" placeholder="0.00" oninput="updateVpSumme()"></div>
+            <div class="field"><label>Lagerkosten (€)</label><input type="number" id="vp-lagerkosten" min="0" step="0.01" placeholder="0.00" oninput="updateVpSumme()"></div>
+            <div class="field"><label>Gültig ab</label><input type="date" id="vp-gueltig-ab"></div>
+            <div class="field" style="background:#f5f5f3;border-radius:8px;padding:10px 12px;">
+              <div style="font-size:11px;color:#888780;margin-bottom:4px;">Gesamtkosten</div>
+              <div style="font-size:20px;font-weight:600;color:#003265;" id="vp-summe-preview">0,00 €</div>
+            </div>
           </div>
-          <div class="field">
-            <label>Materialkosten (€)</label>
-            <input type="number" id="vp-materialkosten" min="0" step="0.01" placeholder="0.00" oninput="updateVpSumme()">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn primary" onclick="addVersandProfile()">Speichern</button>
+            <button class="btn" onclick="toggleVersandForm()">Abbrechen</button>
+            <span id="vp-save-flash" style="font-size:12px;color:#1D9E75;display:none;">✓ Gespeichert</span>
           </div>
-          <div class="field">
-            <label>Verpackungskosten (€)</label>
-            <input type="number" id="vp-verpackungskosten" min="0" step="0.01" placeholder="0.00" oninput="updateVpSumme()">
-          </div>
-          <div class="field">
-            <label>Lagerkosten (€)</label>
-            <input type="number" id="vp-lagerkosten" min="0" step="0.01" placeholder="0.00" oninput="updateVpSumme()">
-          </div>
-          <div class="field">
-            <label>Gültig ab</label>
-            <input type="date" id="vp-gueltig-ab">
-          </div>
-          <div class="field" style="background:#f5f5f3;border-radius:8px;padding:10px 12px;">
-            <div style="font-size:11px;color:#888780;margin-bottom:4px;">Gesamtkosten</div>
-            <div style="font-size:20px;font-weight:600;color:#003265;" id="vp-summe-preview">0,00 €</div>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <button class="btn primary" onclick="addVersandProfile()">Speichern</button>
-          <button class="btn" onclick="toggleVersandForm()">Abbrechen</button>
-          <span id="vp-save-flash" style="font-size:12px;color:#1D9E75;display:none;">✓ Gespeichert</span>
         </div>
       </div>
+
+      <div id="versand-list"></div>
     </div>
 
-    <!-- PROFIL-LISTE -->
-    <div id="versand-list"></div>
+    <!-- MARKTPLÄTZE INHALT -->
+    <div id="praef-marktplaetze" style="display:none;">
+      <div class="form-card" style="margin-bottom:1rem;">
+        <div class="section-title" style="margin-bottom:4px;">Prozentuale Verkaufsprovision</div>
+        <div style="font-size:12px;color:#888780;margin-bottom:16px;">Prozentsatz des erzielten Verkaufspreises, der pro Bestellung an den Marktplatz abgegeben wird. Zzgl. zur Verkaufsprovision zahlst du eine generelle Marktplatzgebühr pro Monat (Siehe Fixkosten).</div>
+        <div id="praef-mpg-rows"></div>
+      </div>
+      <div style="font-size:11px;color:#888780;">Änderungen wirken sich auf neue Berechnungen aus. Bestehende Bestellungen mit manuell eingetragenen Gebühren bleiben unverändert.</div>
+    </div>
 
+    <!-- RETOUREN EINSTELLUNGEN INHALT -->    <div id="praef-retouren" style="display:none;">
+      <div class="form-card">
+        <div class="section-title" style="margin-bottom:12px;">Retouren-Standardwerte</div>
+        <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;">
+          <div class="field" style="margin-bottom:0;min-width:220px;">
+            <label>Pauschalgebühr Retourenlabel (€)</label>
+            <input type="number" id="ret-label-default" min="0" step="0.01" placeholder="z.B. 4.99" style="width:100%;">
+          </div>
+          <button class="btn primary" onclick="saveRetSettings()" style="height:36px;padding:0 16px;">Speichern</button>
+          <span id="ret-settings-flash" style="font-size:12px;color:#1D9E75;display:none;">✓ Gespeichert</span>
+        </div>
+        <div style="font-size:11px;color:#888780;margin-top:8px;">Wird automatisch bei jeder neuen Retoure als Retourenlabelkosten vorausgefüllt.</div>
+      </div>
+    </div>
   </div>
 
-  <!-- CSV IMPORT -->
+    <!-- VERSAND (versteckt, für Kompatibilität) -->
+  <div class="page" id="page-versand" style="display:none!important;"></div>
+
+<!-- CSV IMPORT -->
   <div class="page" id="page-import">
     <div class="form-card">
       <div class="section-title">CSV Import</div>
@@ -2313,8 +2319,11 @@ function renderRechnungen(){
 }
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const COLORS={Amazon:'#378ADD',eBay:'#E24B4A',Otto:'#EF9F27',Shopify:'#1D9E75',Rechnungen:'#9B59B6'};
-const FEES={Amazon:0.15,eBay:0.12,Otto:0.13,Shopify:0.04};
-const FEE_LABELS={Amazon:'15%',eBay:'12%',Otto:'13%',Shopify:'4%'};
+function getFeeRate(kanal){
+  const mpg=getMpg();
+  if(mpg[kanal]!==undefined) return mpg[kanal].betrag/100;
+  return (MPG_DEFAULTS[kanal]||0)/100;
+}
 const MwSt=0.19;
 let lineInst=null,manualFee=false;
 let editId=null,edManual=false;
@@ -2366,9 +2375,9 @@ function edAutoCalc(){
   if(edManual) return;
   const kanal=document.getElementById('ed-kanal').value;
   const brutto=parseFloat(document.getElementById('ed-brutto').value)||0;
-  const fee=parseFloat((brutto*FEES[kanal]).toFixed(2));
+  const fee=parseFloat((brutto*getFeeRate(kanal)).toFixed(2));
   document.getElementById('ed-provision').value=fee>0?fee:'';
-  document.getElementById('ed-fee-hint').innerHTML=brutto>0?`Auto: <b>${FEE_LABELS[kanal]}</b> × ${fmt(brutto)}`:'';
+  document.getElementById('ed-fee-hint').innerHTML=brutto>0?`Auto: <b>${(getFeeRate(kanal)*100).toFixed(1)}%</b> × ${fmt(brutto)}`:''; 
   edUpdatePreview();
 }
 
@@ -2461,10 +2470,10 @@ function autoCalc(){
   const brutto=parseFloat(document.getElementById('f-brutto').value)||0;
   document.getElementById('hint-netto').innerHTML=brutto>0?`Netto: <b>${fmt(nettoVon(brutto))}</b> &nbsp;·&nbsp; MwSt.: <b>${fmt(mwstVon(brutto))}</b>`:'';
   if(!manualFee){
-    const fee=parseFloat((brutto*FEES[kanal]).toFixed(2));
+    const fee=parseFloat((brutto*getFeeRate(kanal)).toFixed(2));
     const inp=document.getElementById('f-provision');
     inp.value=fee>0?fee:''; inp.classList.add('auto-filled');
-    document.getElementById('hint-fee').innerHTML=`Automatisch: <b>${FEE_LABELS[kanal]}</b> × ${fmt(brutto)} Brutto`;
+    document.getElementById('hint-fee').innerHTML=`Automatisch: <b>${(getFeeRate(kanal)*100).toFixed(1)}%</b> × ${fmt(brutto)} Brutto`;
   }
   updatePreview();
 }
@@ -2524,8 +2533,14 @@ function showPage(p){
   if(p==='fixkosten') { renderFixkosten(); }
   if(p==='marketing') { populateMkFilters(); renderMarketing(); }
   if(p==='berichte') { populateBerFilters(); renderBerichte(); }
+  if(p==='praeferenzen'){
+    renderVersandProfiles();
+    const s=getRetSettings();
+    const el=document.getElementById('ret-label-default');
+    if(el) el.value=s.labelDefault||'';
+  }
+  if(p==='versand') { showPage('praeferenzen'); return; }
   if(p==='retouren'){ populateRetFilters(); renderRetouren(); }
-  if(p==='versand') { renderVersandProfiles(); }
   if(p==='cashflow') { populateCfFilters(); renderCashflow(); }
   if(p==='rechnungen') { populateRechFilters(); renderRechnungen(); }
   if(p==='eingabe') {
@@ -2591,15 +2606,7 @@ function deleteAll(){
 function getRetSettings(){try{return JSON.parse(localStorage.getItem('ec_ret_settings')||'{}')}catch{return{}}}
 function setRetSettings(d){localStorage.setItem('ec_ret_settings',JSON.stringify(d))}
 
-function toggleRetSettings(){
-  const wrap=document.getElementById('ret-settings-wrap');
-  const isOpen=wrap.style.display!=='none';
-  wrap.style.display=isOpen?'none':'block';
-  if(!isOpen){
-    const s=getRetSettings();
-    document.getElementById('ret-label-default').value=s.labelDefault||'';
-  }
-}
+
 
 function saveRetSettings(){
   const s=getRetSettings();
@@ -3940,7 +3947,12 @@ function setMpg(d){
   if(dbSynced) saveMpgToSupabase(d).catch(e=>console.warn('Supabase mpg sync:',e));
 }
 
-function getMpgForChannel(ch){return getMpg()[ch]||{betrag:0,updatedAt:null};}
+const MPG_DEFAULTS={Amazon:15,eBay:12,Otto:13,Shopify:4,Kaufland:9};
+function getMpgForChannel(ch){
+  const mpg=getMpg();
+  if(mpg[ch]!==undefined) return mpg[ch];
+  return {betrag:MPG_DEFAULTS[ch]||0,updatedAt:null};
+}
 
 let mpgEditChannel=null;
 function editMpg(ch){
@@ -4178,6 +4190,65 @@ function fmtDate(d){
   if(!d) return '—';
   const [y,m,day]=d.split('-');
   return `${day}.${m}.${y}`;
+}
+
+function showPraef(sub){
+  ['versand','retouren','marktplaetze'].forEach(s=>{
+    const el=document.getElementById('praef-'+s);
+    const btn=document.getElementById('praef-btn-'+s);
+    if(el) el.style.display=s===sub?'block':'none';
+    if(btn) btn.classList.toggle('op-active',s===sub);
+  });
+  if(sub==='versand') renderVersandProfiles();
+  if(sub==='marktplaetze') renderPraefMpg();
+  if(sub==='retouren'){
+    const s=getRetSettings();
+    const el=document.getElementById('ret-label-default');
+    if(el) el.value=s.labelDefault||'';
+  }
+}
+
+function renderPraefMpg(){
+  const el=document.getElementById('praef-mpg-rows');
+  if(!el) return;
+  const mpg=getMpg();
+  const defaults={Amazon:15,eBay:12,Otto:13,Shopify:4,Kaufland:9};
+  el.innerHTML=`<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:0.5px solid #ddddd5;">
+      <th style="text-align:left;color:#888780;font-weight:400;font-size:12px;padding:8px 0;">Marktplatz</th>
+      <th style="text-align:left;color:#888780;font-weight:400;font-size:12px;padding:8px;">Provision (%)</th>
+      <th style="padding:8px 0;"></th>
+    </tr></thead>
+    <tbody>${Object.entries(defaults).map(([ch,def])=>{
+      const cur=mpg[ch]?.betrag;
+      const val=cur!==undefined?cur:def;
+      return `<tr style="border-bottom:0.5px solid #f5f5f3;">
+        <td style="padding:10px 0;font-weight:500;">${ch}</td>
+        <td style="padding:10px 8px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="number" id="mpg-input-${ch}" value="${val}" min="0" max="100" step="0.1"
+              style="width:80px;font-size:13px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;outline:none;">
+            <span style="font-size:13px;color:#888780;">%</span>
+          </div>
+        </td>
+        <td style="padding:10px 0;">
+          <button class="btn primary" style="height:28px;padding:0 10px;font-size:12px;" onclick="savePraefMpg('${ch}')">Speichern</button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+function savePraefMpg(ch){
+  const val=parseFloat(document.getElementById('mpg-input-'+ch).value)||0;
+  updateMpg(ch,val);
+  renderPraefMpg();
+  if(typeof autoCalc==='function') autoCalc();
+}
+
+function toggleRetSettings(){
+  showPage('praeferenzen');
+  setTimeout(()=>showPraef('retouren'),50);
 }
 
 function renderVersandProfiles(){

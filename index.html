@@ -909,6 +909,7 @@ tr:last-child td{border-bottom:none;}
     <div style="display:flex;gap:4px;background:#f5f5f3;border-radius:10px;padding:3px;margin-bottom:1.5rem;width:fit-content;">
       <button onclick="showKennzahlen('berichte')" id="kz-btn-berichte" class="op-btn op-active" style="font-size:14px;padding:8px 20px;">Monatsbericht</button>
       <button onclick="showKennzahlen('cashflow')" id="kz-btn-cashflow" class="op-btn" style="font-size:14px;padding:8px 20px;">Cashflow & ROI</button>
+      <button onclick="showKennzahlen('jahresverlauf')" id="kz-btn-jahresverlauf" class="op-btn" style="font-size:14px;padding:8px 20px;">Jahresverlauf</button>
     </div>
     <div id="kz-berichte">
 <!-- FILTER -->
@@ -922,6 +923,8 @@ tr:last-child td{border-bottom:none;}
         <select id="ber-year" onchange="renderBerichte()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;"></select>
       </div>
     </div>
+
+
 
     <!-- KPI KARTEN -->
     <div id="ber-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:1.5rem;"></div>
@@ -976,6 +979,19 @@ tr:last-child td{border-bottom:none;}
       <div id="ber-table" style="overflow-x:auto;"></div>
     </div>
     </div>
+    <div id="kz-jahresverlauf" style="display:none;">
+      <div class="form-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+          <div class="section-title" style="margin:0;">Bruttoumsatz im Jahresverlauf</div>
+          <select id="jv-year" onchange="renderJahresverlauf()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;"></select>
+        </div>
+        <div style="position:relative;height:300px;">
+          <canvas id="jv-chart"></canvas>
+        </div>
+      </div>
+      <div id="jv-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:1rem;"></div>
+    </div>
+
     <div id="kz-cashflow" style="display:none;">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:8px;">
       <div class="section-title" style="margin:0;">Cashflow & ROI</div>
@@ -1818,8 +1834,97 @@ function populateBerFilters(){
 }
 
 /* ── KENNZAHLEN ── */
+/* ── JAHRESVERLAUF ── */
+let jvChart=null;
+function renderJahresverlauf(){
+  const orders=getOrders();
+  const years=[...new Set(orders.map(o=>o.datum?.split('-')[0]).filter(Boolean))].sort().reverse();
+  const jvYearEl=document.getElementById('jv-year');
+  if(!jvYearEl) return;
+  if(!jvYearEl.options.length){
+    jvYearEl.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  }
+  const year=jvYearEl.value||String(new Date().getFullYear());
+  const prevYear=String(parseInt(year)-1);
+  const MONTHS_SHORT=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+
+  // Build monthly data for selected year
+  const data=Array(12).fill(0);
+  const channelTotals={};
+  orders.forEach(o=>{
+    if(o.isRetoure) return;
+    const d=o.datum?.split('-');
+    if(!d||d[0]!==year) return;
+    const mo=parseInt(d[1])-1;
+    data[mo]+=(o.umsatzBrutto||0);
+    channelTotals[o.kanal]=(channelTotals[o.kanal]||0)+(o.umsatzBrutto||0);
+  });
+
+  // Previous year total
+  let prevTotal=0;
+  orders.forEach(o=>{
+    if(o.isRetoure) return;
+    if(o.datum?.startsWith(prevYear)) prevTotal+=(o.umsatzBrutto||0);
+  });
+
+  // Chart
+  const ctx=document.getElementById('jv-chart');
+  if(!ctx) return;
+  if(jvChart) jvChart.destroy();
+  jvChart=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:MONTHS_SHORT,
+      datasets:[{
+        label:'Bruttoumsatz',
+        data:data.map(v=>parseFloat(v.toFixed(2))),
+        backgroundColor:'rgba(0,50,101,0.75)',
+        borderRadius:5,
+        borderSkipped:false,
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>`${fmt(c.raw)}`}}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{color:'#888780',font:{size:11}}},
+        y:{grid:{color:'#f0f0ec'},ticks:{color:'#888780',font:{size:11},callback:v=>fmtS(v)},border:{display:false}}
+      }
+    }
+  });
+
+  // KPIs
+  const yearTotal=data.reduce((s,v)=>s+v,0);
+  const nonZero=data.filter(v=>v>0);
+  const avgMonth=nonZero.length?yearTotal/nonZero.length:0;
+  const maxVal=Math.max(...data);
+  const minVal=Math.min(...data.filter(v=>v>0));
+  const maxMo=maxVal>0?MONTHS_SHORT[data.indexOf(maxVal)]:'—';
+  const minMo=minVal>0?MONTHS_SHORT[data.findIndex((v,i)=>v===minVal&&data.filter(x=>x>0).length>0&&v>0)]:'—';
+  const bestChannel=Object.entries(channelTotals).sort((a,b)=>b[1]-a[1])[0];
+  const growth=prevTotal>0?((yearTotal-prevTotal)/prevTotal*100).toFixed(1):null;
+
+  const kpiEl=document.getElementById('jv-kpis');
+  if(!kpiEl) return;
+  kpiEl.innerHTML=[
+    {label:'Jahresumsatz '+year, val:fmtS(yearTotal), sub:'Brutto gesamt'},
+    {label:'Jahresumsatz '+prevYear, val:prevTotal>0?fmtS(prevTotal):'Keine Daten', sub:growth!==null?`${growth>=0?'▲':'▼'} ${Math.abs(growth)}% ggü. Vorjahr`:''},
+    {label:'Stärkster Monat', val:maxMo, sub:maxVal>0?fmtS(maxVal):'—', color:'#1D9E75'},
+    {label:'Schwächster Monat', val:minMo, sub:minVal>0?fmtS(minVal):'—', color:'#E24B4A'},
+    {label:'Ø Monatsumsatz', val:fmtS(avgMonth), sub:`aus ${nonZero.length} aktiven Monaten`},
+    {label:'Stärkster Kanal', val:bestChannel?bestChannel[0]:'—', sub:bestChannel?fmtS(bestChannel[1]):''},
+  ].map(k=>`<div class="metric" style="text-align:center;">
+    <div class="metric-label">${k.label}</div>
+    <div class="metric-value neu" style="${k.color?'color:'+k.color:''}">${k.val}</div>
+    <div style="font-size:11px;color:#888780;margin-top:2px;">${k.sub||''}</div>
+  </div>`).join('');
+}
+
 function showKennzahlen(sub){
-  ['berichte','cashflow'].forEach(s=>{
+  ['berichte','cashflow','jahresverlauf'].forEach(s=>{
     const el=document.getElementById('kz-'+s);
     const btn=document.getElementById('kz-btn-'+s);
     if(el) el.style.display=s===sub?'block':'none';
@@ -1827,6 +1932,7 @@ function showKennzahlen(sub){
   });
   if(sub==='berichte'){populateBerFilters();renderBerichte();}
   if(sub==='cashflow'){populateCfFilters();renderCashflow();}
+  if(sub==='jahresverlauf'){renderJahresverlauf();}
 }
 
 function renderBerichte(){

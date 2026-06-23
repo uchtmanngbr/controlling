@@ -151,15 +151,14 @@ tr:last-child td{border-bottom:none;}
 
 <div class="container">
   <div class="tabs">
-    <button class="tab active" onclick="showPage('dashboard')">Dashboard</button>
+    <button class="tab active" onclick="showPage('dashboard')" style="display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>Dashboard</button>
     <button class="tab" onclick="showPage('eingabe')">Bestellung erfassen</button>
     <button class="tab" onclick="showPage('bestellungen')">Bestellungen</button>
     <button class="tab" onclick="showPage('retouren')">Retouren</button>
     <button class="tab" onclick="showPage('fixkosten')">Fixkosten</button>
     <button class="tab" onclick="showPage('marketing')">Marketing</button>
     <button class="tab" onclick="showPage('rechnungen')">Rechnungen</button>
-    <button class="tab" onclick="showPage('berichte')">Berichte</button>
-    <button class="tab" onclick="showPage('cashflow')">Cashflow & ROI</button>
+    <button class="tab" onclick="showPage('kennzahlen')">Kennzahlen</button>
     <button class="tab" onclick="showPage('praeferenzen')" style="display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.92c.04-.34.07-.69.07-1.08s-.03-.73-.07-1.08l2.32-1.81c.21-.16.27-.46.13-.7l-2.2-3.81c-.13-.24-.42-.33-.67-.24l-2.74 1.1c-.57-.44-1.18-.8-1.85-1.08l-.42-2.92C14.54 2.18 14.29 2 14 2h-4c-.29 0-.54.18-.58.44l-.42 2.92c-.67.28-1.28.65-1.85 1.08L4.41 5.35c-.25-.1-.54 0-.67.24L1.54 9.4c-.14.24-.08.54.13.7l2.32 1.81C3.93 12.27 3.9 12.62 3.9 13s.03.73.07 1.08L1.67 15.9c-.21.16-.27.46-.13.7l2.2 3.81c.13.24.42.33.67.24l2.74-1.1c.57.44 1.18.8 1.85 1.08l.42 2.92c.04.26.29.44.58.44h4c.29 0 .54-.18.58-.44l.42-2.92c.67-.28 1.28-.65 1.85-1.08l2.74 1.1c.25.1.54 0 .67-.24l2.2-3.81c.14-.24.08-.54-.13-.7l-2.32-1.82z"/></svg>Präferenzen</button>
     <button class="tab" onclick="showPage('import')">CSV Import</button>
   </div>
@@ -902,6 +901,154 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <!-- BERICHTE -->
+  <!-- KENNZAHLEN -->
+  <div class="page" id="page-kennzahlen">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:1.5rem;">
+      <div class="section-title" style="margin:0;">Kennzahlen</div>
+    </div>
+    <div style="display:flex;gap:4px;background:#f5f5f3;border-radius:10px;padding:3px;margin-bottom:1.5rem;width:fit-content;">
+      <button onclick="showKennzahlen('berichte')" id="kz-btn-berichte" class="op-btn op-active" style="font-size:14px;padding:8px 20px;">Monatsbericht</button>
+      <button onclick="showKennzahlen('cashflow')" id="kz-btn-cashflow" class="op-btn" style="font-size:14px;padding:8px 20px;">Cashflow & ROI</button>
+    </div>
+    <div id="kz-berichte">
+<!-- FILTER -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-size:20px;font-weight:600;color:#1a1a18;" id="ber-title">Monatsbericht</div>
+        <div style="font-size:12px;color:#888780;margin-top:2px;" id="ber-subtitle"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select id="ber-month" onchange="renderBerichte()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;"></select>
+        <select id="ber-year" onchange="renderBerichte()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;"></select>
+      </div>
+    </div>
+
+    <!-- KPI KARTEN -->
+    <div id="ber-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:1.5rem;"></div>
+
+    <!-- DIAGRAMME REIHE 1 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+
+      <!-- DB nach Marktplatz (Kuchendiagramm) -->
+      <div class="form-card" style="margin-bottom:0;">
+        <div class="section-title">Deckungsbeitrag nach Kanal</div>
+        <div style="position:relative;height:240px;display:flex;align-items:center;justify-content:center;">
+          <canvas id="ber-pie-chart"></canvas>
+        </div>
+        <div id="ber-pie-legend" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;justify-content:center;"></div>
+      </div>
+
+      <!-- Bestellungen nach Kanal -->
+      <div class="form-card" style="margin-bottom:0;">
+        <div class="section-title">Bestellungen nach Kanal</div>
+        <div style="position:relative;height:240px;">
+          <canvas id="ber-bar-chart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- DIAGRAMME REIHE 2 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+
+      <!-- Top 5 Produkte -->
+      <div class="form-card" style="margin-bottom:0;">
+        <div class="section-title">Top 5 Produkte nach Deckungsbeitrag</div>
+        <div id="ber-top5" style="margin-top:4px;"></div>
+      </div>
+
+      <!-- Kostenstruktur -->
+      <div class="form-card" style="margin-bottom:0;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.75rem;">
+          <div class="section-title" style="margin:0;">Kostenstruktur</div>
+          <div id="ber-cost-total" style="font-size:15px;font-weight:600;color:#E24B4A;"></div>
+        </div>
+        <div style="position:relative;height:240px;display:flex;align-items:center;justify-content:center;">
+          <canvas id="ber-cost-chart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- KENNZAHLEN TABELLE -->
+    <div class="form-card">
+      <div class="section-title">Kennzahlenübersicht</div>
+      <div id="ber-table" style="overflow-x:auto;"></div>
+    </div>
+    </div>
+    <div id="kz-cashflow" style="display:none;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:8px;">
+      <div class="section-title" style="margin:0;">Cashflow & ROI</div>
+      <div style="display:flex;gap:8px;">
+        <select id="cf-month" onchange="renderCashflow()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;"></select>
+        <select id="cf-year" onchange="renderCashflow()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;"></select>
+      </div>
+    </div>
+
+    <!-- KPI KACHELN -->
+    <div class="metric-grid" id="cf-metrics" style="margin-bottom:1.5rem;"></div>
+
+    <!-- ZWEI SPALTEN -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+
+      <!-- CASHFLOW AUFSCHLÜSSELUNG -->
+      <div class="form-card" style="margin-bottom:0;">
+        <div class="section-title">Cashflow-Rechnung</div>
+        <div id="cf-breakdown"></div>
+      </div>
+
+      <!-- BREAK-EVEN & PROGNOSE -->
+      <div class="form-card" style="margin-bottom:0;">
+        <div class="section-title">Break-Even & Prognose</div>
+        <div id="cf-breakeven"></div>
+      </div>
+
+    </div>
+
+    <!-- VERGLEICH VORMONAT -->
+    <div class="form-card">
+      <div class="section-title">Vergleich zum Vormonat</div>
+      <div id="cf-compare"></div>
+    </div>
+
+    <!-- REINVESTITIONSPROGNOSE -->
+    <div class="form-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div class="section-title" style="margin:0;">Reinvestitionsprognose</div>
+          <div style="font-size:11px;color:#888780;margin-top:3px;">Gewinn wird monatlich in Wareneinsatz reinvestiert — bei gleichbleibendem ROI und Fixkosten</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label style="font-size:12px;color:#888780;">Monate:</label>
+          <select id="cf-prognose-months" onchange="renderCashflow()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;">
+            <option value="6">6 Monate</option>
+            <option value="12" selected>12 Monate</option>
+            <option value="24">24 Monate</option>
+          </select>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="cf-prognose-table" style="width:100%;font-size:13px;border-collapse:collapse;">
+          <thead id="cf-prognose-head"></thead>
+          <tbody id="cf-prognose-body"></tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:#888780;margin-top:10px;" id="cf-prognose-hint"></div>
+    </div>
+
+    <!-- ROI ERKLÄRUNG -->
+    <div class="info-box">
+      <div class="section-title">Wie werden die Kennzahlen berechnet?</div>
+      <div style="font-size:13px;color:#888780;line-height:1.9;">
+        <b style="color:#1a1a18;">Cashflow</b> = Nettoumsatz − Warenkosten − Versand − Marktplatzgebühren − Fixkosten − Marketing − Grundgebühren<br>
+        <b style="color:#1a1a18;">ROI</b> = Deckungsbeitrag ÷ Wareneinsatz × 100 — zeigt wie effizient euer Kapital arbeitet<br>
+        <b style="color:#1a1a18;">Break-Even Umsatz</b> = Fixkosten ÷ durchschnittliche DB-Marge — wie viel Nettoumsatz ihr noch braucht<br>
+        <b style="color:#1a1a18;">Break-Even Wareneinsatz</b> = benötigter Umsatz × durchschnittliche Warenkostenquote
+      </div>
+    </div>
+    </div>
+  </div>
+
   <div class="page" id="page-berichte">
 
     <!-- FILTER -->
@@ -1668,6 +1815,18 @@ function populateBerFilters(){
   yrEl.value=String(now.getFullYear());
   moEl.innerHTML=MONTHS.map((m,i)=>`<option value="${i+1}">${m}</option>`).join('');
   moEl.value=String(now.getMonth()+1);
+}
+
+/* ── KENNZAHLEN ── */
+function showKennzahlen(sub){
+  ['berichte','cashflow'].forEach(s=>{
+    const el=document.getElementById('kz-'+s);
+    const btn=document.getElementById('kz-btn-'+s);
+    if(el) el.style.display=s===sub?'block':'none';
+    if(btn) btn.classList.toggle('op-active',s===sub);
+  });
+  if(sub==='berichte'){populateBerFilters();renderBerichte();}
+  if(sub==='cashflow'){populateCfFilters();renderCashflow();}
 }
 
 function renderBerichte(){
@@ -2532,7 +2691,8 @@ function showPage(p){
   if(p==='bestellungen') renderOrders();
   if(p==='fixkosten') { renderFixkosten(); }
   if(p==='marketing') { populateMkFilters(); renderMarketing(); }
-  if(p==='berichte') { populateBerFilters(); renderBerichte(); }
+  if(p==='kennzahlen'){ showKennzahlen('berichte'); }
+  if(p==='berichte') { showPage('kennzahlen'); setTimeout(()=>showKennzahlen('berichte'),50); return; }
   if(p==='praeferenzen'){
     renderVersandProfiles();
     const s=getRetSettings();
@@ -2541,7 +2701,7 @@ function showPage(p){
   }
   if(p==='versand') { showPage('praeferenzen'); return; }
   if(p==='retouren'){ populateRetFilters(); renderRetouren(); }
-  if(p==='cashflow') { populateCfFilters(); renderCashflow(); }
+  if(p==='cashflow') { showPage('kennzahlen'); setTimeout(()=>showKennzahlen('cashflow'),50); return; }
   if(p==='rechnungen') { populateRechFilters(); renderRechnungen(); }
   if(p==='eingabe') {
     document.getElementById('f-datum').value=new Date().toISOString().split('T')[0];

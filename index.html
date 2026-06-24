@@ -216,7 +216,7 @@ tr:last-child td{border-bottom:none;}
       </div>
       <div class="form-grid">
         <div class="field">
-          <label>Verkaufspreis brutto (€) <span style="color:#378ADD;">inkl. MwSt.</span></label>
+          <label>Bruttoverkaufspreis (€)</label>
           <input type="number" id="f-brutto" min="0" step="0.01" placeholder="0.00" oninput="autoCalc()">
           <span class="fee-hint" id="hint-netto"></span>
         </div>
@@ -228,7 +228,7 @@ tr:last-child td{border-bottom:none;}
           <input type="hidden" id="f-versand" value="0">
         </div>
         <div class="field">
-          <label>Marktplatzgebühr (€) <span style="color:#378ADD;">vom Brutto</span></label>
+          <label>Verkaufsprovision (<span id="hint-fee-pct" style="color:#378ADD;">%</span>)</label>
           <input type="number" id="f-provision" min="0" step="0.01" placeholder="0.00" oninput="onManualFee()">
           <span class="fee-hint" id="hint-fee"></span>
         </div>
@@ -242,7 +242,7 @@ tr:last-child td{border-bottom:none;}
           <hr class="preview-divider">
           <div class="preview-row"><span>− Warenkosten</span><span id="prev-waren" class="neg">0,00 €</span></div>
           <div class="preview-row"><span>− Versandkosten</span><span id="prev-versand" class="neg">0,00 €</span></div>
-          <div class="preview-row"><span>− Marktplatzgebühr</span><span id="prev-fee" class="neg">0,00 €</span></div>
+          <div class="preview-row"><span>− Verkaufsprovision</span><span id="prev-fee" class="neg">0,00 €</span></div>
           <div class="preview-row"><span>− Retoure</span><span id="prev-retoure" class="neg">0,00 €</span></div>
           <hr class="preview-divider">
           <div class="preview-total"><span>Deckungsbeitrag</span><span id="prev-db">0,00 €</span></div>
@@ -258,7 +258,7 @@ tr:last-child td{border-bottom:none;}
     <div class="info-box">
       <div class="section-title">Berechnungslogik</div>
       <div style="font-size:13px;color:#888780;line-height:1.9;">
-        <b style="color:#1a1a18;">Marktplatzgebühr</b> wird vom Bruttoverkaufspreis berechnet: Amazon 15% · eBay 12% · Otto 13% · Shopify 4%<br>
+        <b style="color:#1a1a18;">Verkaufsprovision</b> wird automatisch vom Brutto berechnet — Prozentsätze unter Präferenzen → Verkaufsprovision anpassbar.<br>
         <b style="color:#1a1a18;">Deckungsbeitrag</b> = Nettoumsatz − Warenkosten − Versand − Gebühr − Retoure<br>
         <span style="font-size:11px;">MwSt. wird herausgerechnet da ihr sie vom Finanzamt zurückbekommt (Vorsteuer).</span>
       </div>
@@ -2585,8 +2585,8 @@ function renderRechnungen(){
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const COLORS={Amazon:'#378ADD',eBay:'#E24B4A',Otto:'#EF9F27',Shopify:'#1D9E75',Rechnungen:'#9B59B6'};
 function getFeeRate(kanal){
-  const mpg=getMpg();
-  if(mpg[kanal]!==undefined) return mpg[kanal].betrag/100;
+  const vp=getVerkaufsprovision();
+  if(vp[kanal]!==undefined) return vp[kanal]/100;
   return (MPG_DEFAULTS[kanal]||0)/100;
 }
 const MwSt=0.19;
@@ -2734,11 +2734,15 @@ function autoCalc(){
   const kanal=document.getElementById('f-kanal').value;
   const brutto=parseFloat(document.getElementById('f-brutto').value)||0;
   document.getElementById('hint-netto').innerHTML=brutto>0?`Netto: <b>${fmt(nettoVon(brutto))}</b> &nbsp;·&nbsp; MwSt.: <b>${fmt(mwstVon(brutto))}</b>`:'';
+  // Update label with live rate
+  const rate=getFeeRate(kanal);
+  const pctLabel=document.getElementById('hint-fee-pct');
+  if(pctLabel) pctLabel.textContent=`${(rate*100).toFixed(1)}%`;
   if(!manualFee){
-    const fee=parseFloat((brutto*getFeeRate(kanal)).toFixed(2));
+    const fee=parseFloat((brutto*rate).toFixed(2));
     const inp=document.getElementById('f-provision');
     inp.value=fee>0?fee:''; inp.classList.add('auto-filled');
-    document.getElementById('hint-fee').innerHTML=`Automatisch: <b>${(getFeeRate(kanal)*100).toFixed(1)}%</b> × ${fmt(brutto)} Brutto`;
+    document.getElementById('hint-fee').innerHTML=brutto>0?`Automatisch: <b>${(rate*100).toFixed(1)}%</b> × ${fmt(brutto)} Brutto`:'';
   }
   updatePreview();
 }
@@ -4474,10 +4478,14 @@ function showPraef(sub){
   }
 }
 
+/* Verkaufsprovision - separate from Fixkosten Grundgebühren */
+function getVerkaufsprovision(){try{return JSON.parse(localStorage.getItem('ec_verkaufsprovision')||'{}');}catch{return{};}}
+function setVerkaufsprovision(d){localStorage.setItem('ec_verkaufsprovision',JSON.stringify(d));}
+
 function renderPraefMpg(){
   const el=document.getElementById('praef-mpg-rows');
   if(!el) return;
-  const mpg=getMpg();
+  const vp=getVerkaufsprovision();
   const defaults={Amazon:15,eBay:12,Otto:13,Shopify:4,Kaufland:9};
   el.innerHTML=`<table style="width:100%;border-collapse:collapse;">
     <thead><tr style="border-bottom:0.5px solid #ddddd5;">
@@ -4486,13 +4494,13 @@ function renderPraefMpg(){
       <th style="padding:8px 0;"></th>
     </tr></thead>
     <tbody>${Object.entries(defaults).map(([ch,def])=>{
-      const cur=mpg[ch]?.betrag;
+      const cur=vp[ch];
       const val=cur!==undefined?cur:def;
       return `<tr style="border-bottom:0.5px solid #f5f5f3;">
         <td style="padding:10px 0;font-weight:500;">${ch}</td>
         <td style="padding:10px 8px;">
           <div style="display:flex;align-items:center;gap:6px;">
-            <input type="number" id="mpg-input-${ch}" value="${val}" min="0" max="100" step="0.1"
+            <input type="number" id="praef-mpg-input-${ch}" value="${val}" min="0" max="100" step="0.1"
               style="width:80px;font-size:13px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;outline:none;">
             <span style="font-size:13px;color:#888780;">%</span>
           </div>
@@ -4506,8 +4514,10 @@ function renderPraefMpg(){
 }
 
 function savePraefMpg(ch){
-  const val=parseFloat(document.getElementById('mpg-input-'+ch).value)||0;
-  updateMpg(ch,val);
+  const val=parseFloat(document.getElementById('praef-mpg-input-'+ch).value)||0;
+  const vp=getVerkaufsprovision();
+  vp[ch]=val;
+  setVerkaufsprovision(vp);
   renderPraefMpg();
   if(typeof autoCalc==='function') autoCalc();
 }

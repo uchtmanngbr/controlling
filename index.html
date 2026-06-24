@@ -1538,13 +1538,14 @@ let dbSynced=false;
 
 async function syncFromSupabase(){
   try{
-    const [orders,fixkosten,marketing,mpg,rechnungen,versand]=await Promise.all([
+    const [orders,fixkosten,marketing,mpg,rechnungen,versand,settings]=await Promise.all([
       sbFetch('orders','GET',null,'?select=*&order=id.desc'),
       sbFetch('fixkosten','GET',null,'?select=*'),
       sbFetch('marketing','GET',null,'?select=*'),
       sbFetch('mpg','GET',null,'?select=*'),
       sbFetch('rechnungen','GET',null,'?select=*&order=id.desc'),
       sbFetch('versand','GET',null,'?select=*'),
+      sbFetch('settings','GET',null,'?select=*'),
     ]);
     if(orders) localStorage.setItem('ec_orders',JSON.stringify(orders));
     if(fixkosten) localStorage.setItem('ec_fixkosten_v2',JSON.stringify(fixkosten));
@@ -1556,11 +1557,28 @@ async function syncFromSupabase(){
     }
     if(rechnungen) localStorage.setItem('ec_rechnungen',JSON.stringify(rechnungen));
     if(versand) localStorage.setItem('ec_versand',JSON.stringify(versand));
+    if(settings&&settings.length){
+      settings.forEach(s=>{
+        if(s.key==='verkaufsprovision') localStorage.setItem('ec_verkaufsprovision',s.value);
+      });
+    }
     dbSynced=true;
     console.log('✓ Supabase sync complete');
   }catch(e){
     console.warn('Supabase sync failed, using localStorage',e);
   }
+}
+
+async function saveSettingToSupabase(key, value){
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/settings`,{
+    method:'POST',
+    headers:{
+      'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,
+      'Content-Type':'application/json','Prefer':'resolution=merge-duplicates',
+    },
+    body:JSON.stringify([{key, value:typeof value==='string'?value:JSON.stringify(value)}]),
+  });
+  if(!res.ok) console.error('Settings Supabase error:', await res.text());
 }
 
 async function saveOrdersToSupabase(orders){
@@ -4480,7 +4498,10 @@ function showPraef(sub){
 
 /* Verkaufsprovision - separate from Fixkosten Grundgebühren */
 function getVerkaufsprovision(){try{return JSON.parse(localStorage.getItem('ec_verkaufsprovision')||'{}');}catch{return{};}}
-function setVerkaufsprovision(d){localStorage.setItem('ec_verkaufsprovision',JSON.stringify(d));}
+function setVerkaufsprovision(d){
+  localStorage.setItem('ec_verkaufsprovision',JSON.stringify(d));
+  if(dbSynced) saveSettingToSupabase('verkaufsprovision',JSON.stringify(d)).catch(e=>console.warn('Supabase settings sync:',e));
+}
 
 function renderPraefMpg(){
   const el=document.getElementById('praef-mpg-rows');

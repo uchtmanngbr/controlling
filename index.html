@@ -152,12 +152,11 @@ tr:last-child td{border-bottom:none;}
 <div class="container">
   <div class="tabs">
     <button class="tab active" onclick="showPage('dashboard')" style="display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>Dashboard</button>
-    <button class="tab" onclick="showPage('eingabe')">Bestellung erfassen</button>
+    <button class="tab" onclick="showPage('eingabe')">Umsatz erfassen</button>
     <button class="tab" onclick="showPage('bestellungen')">Bestellungen</button>
     <button class="tab" onclick="showPage('retouren')">Retouren</button>
     <button class="tab" onclick="showPage('fixkosten')">Fixkosten</button>
     <button class="tab" onclick="showPage('marketing')">Marketing</button>
-    <button class="tab" onclick="showPage('rechnungen')">Rechnungen</button>
     <button class="tab" onclick="showPage('kennzahlen')">Kennzahlen</button>
     <button class="tab" onclick="showPage('praeferenzen')" style="display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.92c.04-.34.07-.69.07-1.08s-.03-.73-.07-1.08l2.32-1.81c.21-.16.27-.46.13-.7l-2.2-3.81c-.13-.24-.42-.33-.67-.24l-2.74 1.1c-.57-.44-1.18-.8-1.85-1.08l-.42-2.92C14.54 2.18 14.29 2 14 2h-4c-.29 0-.54.18-.58.44l-.42 2.92c-.67.28-1.28.65-1.85 1.08L4.41 5.35c-.25-.1-.54 0-.67.24L1.54 9.4c-.14.24-.08.54.13.7l2.32 1.81C3.93 12.27 3.9 12.62 3.9 13s.03.73.07 1.08L1.67 15.9c-.21.16-.27.46-.13.7l2.2 3.81c.13.24.42.33.67.24l2.74-1.1c.57.44 1.18.8 1.85 1.08l.42 2.92c.04.26.29.44.58.44h4c.29 0 .54-.18.58-.44l.42-2.92c.67-.28 1.28-.65 1.85-1.08l2.74 1.1c.25.1.54 0 .67-.24l2.2-3.81c.14-.24.08-.54-.13-.7l-2.32-1.82z"/></svg>Präferenzen</button>
     <button class="tab" onclick="showPage('import')">CSV Import</button>
@@ -200,6 +199,11 @@ tr:last-child td{border-bottom:none;}
 
     <!-- EINGABE -->
   <div class="page" id="page-eingabe">
+    <div style="display:flex;gap:4px;background:#f5f5f3;border-radius:10px;padding:3px;margin-bottom:1.5rem;width:fit-content;">
+      <button id="ein-btn-bestellung" class="op-btn op-active" onclick="showEingabeSub('bestellung')" style="font-size:14px;padding:8px 20px;">Bestellung</button>
+      <button id="ein-btn-rechnung" class="op-btn" onclick="showEingabeSub('rechnung')" style="font-size:14px;padding:8px 20px;">Rechnung</button>
+    </div>
+    <div id="ein-sub-bestellung">
     <div class="form-card">
       <div class="section-title">Neue Bestellung erfassen</div>
       <div class="form-grid">
@@ -262,6 +266,122 @@ tr:last-child td{border-bottom:none;}
         <b style="color:#1a1a18;">Deckungsbeitrag</b> = Nettoumsatz − Warenkosten − Versand − Gebühr − Retoure<br>
         <span style="font-size:11px;">MwSt. wird herausgerechnet da ihr sie vom Finanzamt zurückbekommt (Vorsteuer).</span>
       </div>
+    </div>
+    </div>
+    <div id="ein-sub-rechnung" style="display:none;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div class="section-title" style="margin:0;">Rechnungen</div>
+        <select id="rech-filter-month" onchange="renderRechnungen()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#1a1a18;outline:none;"></select>
+        <select id="rech-filter-year" onchange="renderRechnungen()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#1a1a18;outline:none;"></select>
+      </div>
+      <button class="btn primary" onclick="toggleRechForm()" id="rech-toggle-btn">+ Neue Rechnung</button>
+    </div>
+
+    <!-- MONATSÜBERSICHT -->
+    <div id="rech-overview" style="margin-bottom:1rem;"></div>
+
+    <!-- NEUE RECHNUNG (versteckt) -->
+    <div id="rech-form-wrap" style="display:none;">
+    <div style="margin-bottom:1.5rem;">
+
+      <!-- NEUE RECHNUNG -->
+      <div class="form-card" style="margin-bottom:0;">
+        <div class="section-title">Neue Rechnung erfassen</div>
+
+        <!-- PDF UPLOAD -->
+        <div id="rech-upload-area" style="border:1.5px dashed #c8c8c0;border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;margin-bottom:14px;transition:background .15s;" onclick="document.getElementById('rech-file-input').click()" ondragover="event.preventDefault();this.style.background='#eeeee8'" ondragleave="this.style.background=''" ondrop="handleRechDrop(event)">
+          <input type="file" id="rech-file-input" accept=".pdf" style="display:none;" onchange="handleRechFile(event)">
+          <div id="rech-upload-label">
+            <div style="font-size:24px;margin-bottom:6px;">📄</div>
+            <div style="font-size:13px;color:#888780;">PDF hier ablegen oder klicken</div>
+          </div>
+          <iframe id="rech-pdf-preview" style="display:none;width:100%;height:200px;border:none;border-radius:6px;" title="Rechnungsvorschau"></iframe>
+        </div>
+
+        <!-- FORMULAR -->
+        <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+          <div class="field">
+            <label>Typ</label>
+            <select id="rech-typ" onchange="updateRechPreview()">
+              <option value="einnahme">Einnahme (wir sind Absender)</option>
+              <option value="ausgabe">Ausgabe (wir sind Empfänger)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Datum</label>
+            <input type="date" id="rech-datum">
+          </div>
+          <div class="field">
+            <label>Rechnungsnummer</label>
+            <input type="text" id="rech-nr" placeholder="z.B. RE-2026-042">
+          </div>
+          <div class="field">
+            <label>Absender / Empfänger</label>
+            <input type="text" id="rech-partner" placeholder="Firmenname oder Person">
+          </div>
+          <div class="field">
+            <label>Betrag netto (€)</label>
+            <input type="number" id="rech-netto" min="0" step="0.01" placeholder="0.00" oninput="updateRechPreview()">
+          </div>
+          <div class="field">
+            <label>MwSt. (%)</label>
+            <select id="rech-mwst" onchange="updateRechPreview()">
+              <option value="19">19%</option>
+              <option value="7">7%</option>
+              <option value="0">0% (keine MwSt.)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Kategorie</label>
+            <select id="rech-kategorie">
+              <option value="Dienstleistung">Dienstleistung</option>
+              <option value="Warenverkauf">Warenverkauf</option>
+              <option value="Wareneinkauf">Wareneinkauf</option>
+              <option value="Betriebskosten">Betriebskosten</option>
+              <option value="Sonstiges">Sonstiges</option>
+            </select>
+          </div>
+          <div class="field" style="background:#f5f5f3;border-radius:8px;padding:10px 12px;">
+            <div style="font-size:11px;color:#888780;margin-bottom:3px;">Brutto</div>
+            <div style="font-size:18px;font-weight:500;" id="rech-brutto-preview">0,00 €</div>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:12px;">
+          <label>Notiz (optional)</label>
+          <input type="text" id="rech-notiz" placeholder="z.B. Projekt, Auftrag...">
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" onclick="saveRechnung()">Rechnung speichern</button>
+          <button class="btn" onclick="clearRechForm()">Zurücksetzen</button>
+          <span id="rech-save-msg" style="font-size:12px;color:#1D9E75;display:none;">✓ Gespeichert!</span>
+        </div>
+      </div>
+
+    </div>
+
+    </div><!-- end rech-form-wrap -->
+
+    <!-- LISTE -->
+    <div class="form-card">
+      <div class="section-title">Alle Rechnungen</div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;font-size:13px;border-collapse:collapse;">
+          <thead><tr>
+            <th style="text-align:left;color:#888780;font-weight:400;padding:6px 10px 8px 0;border-bottom:0.5px solid #ddddd5;">Datum</th>
+            <th style="text-align:left;color:#888780;font-weight:400;padding:6px 10px 8px 0;border-bottom:0.5px solid #ddddd5;">Nr.</th>
+            <th style="text-align:left;color:#888780;font-weight:400;padding:6px 10px 8px 0;border-bottom:0.5px solid #ddddd5;">Partner</th>
+            <th style="text-align:left;color:#888780;font-weight:400;padding:6px 10px 8px 0;border-bottom:0.5px solid #ddddd5;">Kategorie</th>
+            <th style="text-align:right;color:#888780;font-weight:400;padding:6px 10px 8px 0;border-bottom:0.5px solid #ddddd5;">Netto</th>
+            <th style="text-align:right;color:#888780;font-weight:400;padding:6px 10px 8px 0;border-bottom:0.5px solid #ddddd5;">Brutto</th>
+            <th style="text-align:right;color:#888780;font-weight:400;padding:6px 10px 8px 0;border-bottom:0.5px solid #ddddd5;">Gewinn</th>
+            <th style="text-align:left;color:#888780;font-weight:400;padding:6px 10px 8px 0;border-bottom:0.5px solid #ddddd5;">Typ</th>
+            <th style="border-bottom:0.5px solid #ddddd5;"></th>
+          </tr></thead>
+          <tbody id="rech-tbody"></tbody>
+        </table>
+      </div>
+    </div>
     </div>
   </div>
 
@@ -1210,123 +1330,7 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <!-- RECHNUNGEN -->
-  <div class="page" id="page-rechnungen">
 
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-      <div style="display:flex;gap:8px;align-items:center;">
-        <div class="section-title" style="margin:0;">Rechnungen</div>
-        <select id="rech-filter-month" onchange="renderRechnungen()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#1a1a18;outline:none;"></select>
-        <select id="rech-filter-year" onchange="renderRechnungen()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#1a1a18;outline:none;"></select>
-      </div>
-      <button class="btn primary" onclick="toggleRechForm()" id="rech-toggle-btn">+ Neue Rechnung</button>
-    </div>
-
-    <!-- MONATSÜBERSICHT -->
-    <div id="rech-overview" style="margin-bottom:1rem;"></div>
-
-    <!-- NEUE RECHNUNG (versteckt) -->
-    <div id="rech-form-wrap" style="display:none;">
-    <div style="margin-bottom:1.5rem;">
-
-      <!-- NEUE RECHNUNG -->
-      <div class="form-card" style="margin-bottom:0;">
-        <div class="section-title">Neue Rechnung erfassen</div>
-
-        <!-- PDF UPLOAD -->
-        <div id="rech-upload-area" style="border:1.5px dashed #c8c8c0;border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;margin-bottom:14px;transition:background .15s;" onclick="document.getElementById('rech-file-input').click()" ondragover="event.preventDefault();this.style.background='#eeeee8'" ondragleave="this.style.background=''" ondrop="handleRechDrop(event)">
-          <input type="file" id="rech-file-input" accept=".pdf" style="display:none;" onchange="handleRechFile(event)">
-          <div id="rech-upload-label">
-            <div style="font-size:24px;margin-bottom:6px;">📄</div>
-            <div style="font-size:13px;color:#888780;">PDF hier ablegen oder klicken</div>
-          </div>
-          <iframe id="rech-pdf-preview" style="display:none;width:100%;height:200px;border:none;border-radius:6px;" title="Rechnungsvorschau"></iframe>
-        </div>
-
-        <!-- FORMULAR -->
-        <div class="form-grid" style="grid-template-columns:1fr 1fr;">
-          <div class="field">
-            <label>Typ</label>
-            <select id="rech-typ" onchange="updateRechPreview()">
-              <option value="einnahme">Einnahme (wir sind Absender)</option>
-              <option value="ausgabe">Ausgabe (wir sind Empfänger)</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Datum</label>
-            <input type="date" id="rech-datum">
-          </div>
-          <div class="field">
-            <label>Rechnungsnummer</label>
-            <input type="text" id="rech-nr" placeholder="z.B. RE-2026-042">
-          </div>
-          <div class="field">
-            <label>Absender / Empfänger</label>
-            <input type="text" id="rech-partner" placeholder="Firmenname oder Person">
-          </div>
-          <div class="field">
-            <label>Betrag netto (€)</label>
-            <input type="number" id="rech-netto" min="0" step="0.01" placeholder="0.00" oninput="updateRechPreview()">
-          </div>
-          <div class="field">
-            <label>MwSt. (%)</label>
-            <select id="rech-mwst" onchange="updateRechPreview()">
-              <option value="19">19%</option>
-              <option value="7">7%</option>
-              <option value="0">0% (keine MwSt.)</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Kategorie</label>
-            <select id="rech-kategorie">
-              <option value="Dienstleistung">Dienstleistung</option>
-              <option value="Warenverkauf">Warenverkauf</option>
-              <option value="Wareneinkauf">Wareneinkauf</option>
-              <option value="Betriebskosten">Betriebskosten</option>
-              <option value="Sonstiges">Sonstiges</option>
-            </select>
-          </div>
-          <div class="field" style="background:#f5f5f3;border-radius:8px;padding:10px 12px;">
-            <div style="font-size:11px;color:#888780;margin-bottom:3px;">Brutto</div>
-            <div style="font-size:18px;font-weight:500;" id="rech-brutto-preview">0,00 €</div>
-          </div>
-        </div>
-        <div class="field" style="margin-bottom:12px;">
-          <label>Notiz (optional)</label>
-          <input type="text" id="rech-notiz" placeholder="z.B. Projekt, Auftrag...">
-        </div>
-        <div class="btn-row">
-          <button class="btn primary" onclick="saveRechnung()">Rechnung speichern</button>
-          <button class="btn" onclick="clearRechForm()">Zurücksetzen</button>
-          <span id="rech-save-msg" style="font-size:12px;color:#1D9E75;display:none;">✓ Gespeichert!</span>
-        </div>
-      </div>
-
-    </div>
-
-    </div><!-- end rech-form-wrap -->
-
-    <!-- LISTE -->
-    <div class="form-card">
-      <div class="section-title">Alle Rechnungen</div>
-      <div style="overflow-x:auto;">
-        <table style="width:100%;font-size:13px;border-collapse:collapse;">
-          <thead><tr>
-            <th style="text-align:left;color:#888780;font-weight:400;padding:6px 10px 8px 0;border-bottom:0.5px solid #ddddd5;">Datum</th>
-            <th style="text-align:left;color:#888780;font-weight:400;padding:6px 10px 8px 0;border-bottom:0.5px solid #ddddd5;">Nr.</th>
-            <th style="text-align:left;color:#888780;font-weight:400;padding:6px 10px 8px 0;border-bottom:0.5px solid #ddddd5;">Partner</th>
-            <th style="text-align:left;color:#888780;font-weight:400;padding:6px 10px 8px 0;border-bottom:0.5px solid #ddddd5;">Kategorie</th>
-            <th style="text-align:right;color:#888780;font-weight:400;padding:6px 10px 8px 0;border-bottom:0.5px solid #ddddd5;">Netto</th>
-            <th style="text-align:right;color:#888780;font-weight:400;padding:6px 10px 8px 0;border-bottom:0.5px solid #ddddd5;">Brutto</th>
-            <th style="text-align:right;color:#888780;font-weight:400;padding:6px 10px 8px 0;border-bottom:0.5px solid #ddddd5;">Gewinn</th>
-            <th style="text-align:left;color:#888780;font-weight:400;padding:6px 10px 8px 0;border-bottom:0.5px solid #ddddd5;">Typ</th>
-            <th style="border-bottom:0.5px solid #ddddd5;"></th>
-          </tr></thead>
-          <tbody id="rech-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-
-  </div>
 
   <!-- PRÄFERENZEN -->
   <div class="page" id="page-praeferenzen">
@@ -3431,6 +3435,16 @@ function toggleDayMore(){
   const open=rows[0].style.display!=='none';
   rows.forEach(r=>r.style.display=open?'none':'');
   btn.textContent=open?`▸ ${rows.length} weitere anzeigen`:'▾ Weniger anzeigen';
+}
+
+function showEingabeSub(sub){
+  ['bestellung','rechnung'].forEach(s=>{
+    const btn=document.getElementById('ein-btn-'+s);
+    const el=document.getElementById('ein-sub-'+s);
+    if(btn) btn.classList.toggle('op-active',s===sub);
+    if(el) el.style.display=s===sub?'block':'none';
+  });
+  if(sub==='rechnung'){populateRechFilters();renderRechnungen();}
 }
 
 function renderDashboard(){

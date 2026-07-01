@@ -1428,7 +1428,7 @@ tr:last-child td{border-bottom:none;}
     </div>
 
     <!-- RETOUREN EINSTELLUNGEN INHALT -->    <div id="praef-retouren" style="display:none;">
-      <div class="form-card">
+      <div class="form-card" style="margin-bottom:1rem;">
         <div class="section-title" style="margin-bottom:12px;">Retouren-Standardwerte</div>
         <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;">
           <div class="field" style="margin-bottom:0;min-width:220px;">
@@ -1439,6 +1439,30 @@ tr:last-child td{border-bottom:none;}
           <span id="ret-settings-flash" style="font-size:12px;color:#1D9E75;display:none;">✓ Gespeichert</span>
         </div>
         <div style="font-size:11px;color:#888780;margin-top:8px;">Wird automatisch bei jeder neuen Retoure als Retourenlabelkosten vorausgefüllt.</div>
+      </div>
+
+      <div class="form-card">
+        <div class="section-title" style="margin-bottom:4px;">Artikelzustände</div>
+        <div style="font-size:12px;color:#888780;margin-bottom:16px;">Diese Zustände erscheinen bei der Retouren-Bearbeitung. Standardzustände können nicht gelöscht werden.</div>
+        <div id="ret-zustaende-list" style="margin-bottom:1rem;"></div>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;border-top:0.5px solid #ddddd5;padding-top:1rem;">
+          <div class="field" style="margin-bottom:0;min-width:180px;">
+            <label>Name</label>
+            <input type="text" id="ret-zustand-name" placeholder="z.B. Kratzer" style="width:100%;">
+          </div>
+          <div class="field" style="margin-bottom:0;width:100px;">
+            <label>Abschreibung (%)</label>
+            <input type="number" id="ret-zustand-pct" min="0" max="100" step="1" placeholder="z.B. 30" style="width:100%;">
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>Versandkosten als Verlust</label>
+            <div style="display:flex;justify-content:center;align-items:center;height:36px;">
+              <input type="checkbox" id="ret-zustand-versand" checked style="width:18px;height:18px;cursor:pointer;accent-color:#003265;">
+            </div>
+          </div>
+          <button class="btn primary" onclick="addRetZustand()" style="height:36px;padding:0 16px;">+ Hinzufügen</button>
+          <span id="ret-zustand-flash" style="font-size:12px;color:#1D9E75;display:none;">✓ Gespeichert</span>
+        </div>
       </div>
     </div>
   </div>
@@ -1564,6 +1588,7 @@ async function syncFromSupabase(){
     if(settings&&settings.length){
       settings.forEach(s=>{
         if(s.key==='verkaufsprovision') localStorage.setItem('ec_verkaufsprovision',s.value);
+        if(s.key==='ret_zustaende') localStorage.setItem('ec_ret_zustaende',s.value);
       });
     }
     dbSynced=true;
@@ -2909,6 +2934,88 @@ function setRetSettings(d){localStorage.setItem('ec_ret_settings',JSON.stringify
 
 
 
+/* ── ARTIKELZUSTÄNDE ── */
+const RET_ZUSTAENDE_DEFAULT=[
+  {id:'0',  label:'Einwandfrei',                    pct:0,   fixed:true, versandAlsVerlust:true},
+  {id:'20', label:'Geöffnet / B-Ware',              pct:20,  fixed:true, versandAlsVerlust:true},
+  {id:'50', label:'Beschädigt / teilweise nutzbar', pct:50,  fixed:true, versandAlsVerlust:true},
+  {id:'100',label:'Defekt / unverkäuflich',          pct:100, fixed:true, versandAlsVerlust:true},
+];
+
+function getRetZustaende(){
+  try{
+    const custom=JSON.parse(localStorage.getItem('ec_ret_zustaende')||'[]');
+    return [...RET_ZUSTAENDE_DEFAULT, ...custom];
+  }catch{return [...RET_ZUSTAENDE_DEFAULT];}
+}
+function getCustomRetZustaende(){
+  try{return JSON.parse(localStorage.getItem('ec_ret_zustaende')||'[]');}catch{return[];}
+}
+function saveCustomRetZustaende(arr){
+  localStorage.setItem('ec_ret_zustaende',JSON.stringify(arr));
+  if(typeof dbSynced!=='undefined'&&dbSynced) saveSettingToSupabase('ret_zustaende',JSON.stringify(arr)).catch(e=>console.warn('Supabase ret_zustaende:',e));
+}
+
+function renderRetZustaendeList(){
+  const el=document.getElementById('ret-zustaende-list');
+  if(!el) return;
+  const all=getRetZustaende();
+  el.innerHTML=`<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="border-bottom:0.5px solid #ddddd5;">
+      <th style="text-align:left;color:#888780;font-weight:400;font-size:12px;padding:6px 0;">Name</th>
+      <th style="text-align:left;color:#888780;font-weight:400;font-size:12px;padding:6px 8px;">Abschreibung</th>
+      <th style="text-align:left;color:#888780;font-weight:400;font-size:12px;padding:6px 8px;">Versand als Verlust</th>
+      <th></th>
+    </tr></thead>
+    <tbody>${all.map(z=>`<tr style="border-bottom:0.5px solid #f5f5f3;">
+      <td style="padding:9px 0;font-size:13px;">${z.label}${z.fixed?'<span style="font-size:10px;color:#888780;margin-left:6px;">Standard</span>':''}</td>
+      <td style="padding:9px 8px;font-size:13px;">${z.pct}%</td>
+      <td style="padding:9px 8px;font-size:13px;">${z.versandAlsVerlust!==false?'✓':'✗'}</td>
+      <td style="padding:9px 0;text-align:right;">${!z.fixed?`<button class="btn" style="height:26px;padding:0 10px;font-size:12px;color:#E24B4A;border-color:#E24B4A;" onclick="deleteRetZustand('${z.id}')">Löschen</button>`:''}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function addRetZustand(){
+  const name=document.getElementById('ret-zustand-name').value.trim();
+  const pct=parseFloat(document.getElementById('ret-zustand-pct').value);
+  const versandAlsVerlust=document.getElementById('ret-zustand-versand').checked;
+  if(!name||isNaN(pct)||pct<0||pct>100) return;
+  const custom=getCustomRetZustaende();
+  const id='custom_'+Date.now();
+  custom.push({id, label:name, pct, fixed:false, versandAlsVerlust});
+  saveCustomRetZustaende(custom);
+  document.getElementById('ret-zustand-name').value='';
+  document.getElementById('ret-zustand-pct').value='';
+  document.getElementById('ret-zustand-versand').checked=true;
+  const fl=document.getElementById('ret-zustand-flash');
+  fl.style.display='inline'; setTimeout(()=>fl.style.display='none',1800);
+  renderRetZustaendeList();
+  populateRetZustandSelect();
+}
+
+function deleteRetZustand(id){
+  const custom=getCustomRetZustaende().filter(z=>z.id!==id);
+  saveCustomRetZustaende(custom);
+  renderRetZustaendeList();
+  populateRetZustandSelect();
+}
+
+function populateRetZustandSelect(){
+  const sel=document.getElementById('ret-zustand');
+  if(!sel) return;
+  const current=sel.value;
+  const all=getRetZustaende();
+  sel.innerHTML=all.map(z=>`<option value="${z.id}">${z.label} (${z.pct}%)</option>`).join('');
+  sel.innerHTML+=`<option value="custom">Individuell...</option>`;
+  if([...sel.options].some(o=>o.value===current)) sel.value=current;
+}
+
+function getRetZustandPct(id){
+  const z=getRetZustaende().find(z=>z.id===id);
+  return z?z.pct:0;
+}
+
 function saveRetSettings(){
   const s=getRetSettings();
   s.labelDefault=parseFloat(document.getElementById('ret-label-default').value)||0;
@@ -3003,11 +3110,7 @@ function renderRetouren(){
       const label=o.retLabelKosten||0;
       const versandKosten=o.versand||0;
       const verlust=parseFloat((versandKosten+abschr+label).toFixed(2));
-      const zustandLabel=o.retZustand==='custom'?`Individuell (${o.retPct||0}%)`:
-        o.retZustand==='0'||!o.retZustand?'Einwandfrei':
-        o.retZustand==='20'?'Geöffnet':
-        o.retZustand==='50'?'Beschädigt':
-        o.retZustand==='100'?'Defekt':'—';
+      const zustandLabel=o.retZustand==='custom'?`Individuell (${o.retPct||0}%)`:((z=>z?z.label:'—')(getRetZustaende().find(z=>z.id===o.retZustand)));
       return `<tr style="border-bottom:0.5px solid #f5f5f3;" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
         <td style="padding:10px 12px;color:#888780;white-space:nowrap;">${o.datum?o.datum.split('-').reverse().join('.'):'—'}</td>
         <td style="padding:10px 8px;"><span class="badge badge-${(o.kanal||'').toLowerCase()}">${o.kanal||'—'}</span></td>
@@ -3031,6 +3134,7 @@ function openRetEdit(id){
     <div style="font-weight:600;margin-bottom:4px;">${o.artikel||o.bestellnr||'—'}</div>
     <div style="color:#888780;">${o.kanal||''} · ${o.datum?o.datum.split('-').reverse().join('.'):'—'} · ${o.bestellnr||''}</div>
     <div style="margin-top:4px;font-size:12px;color:#003265;">Brutto: <b>${fmt(o.umsatzBrutto||0)}</b> · EK: <b>${fmt(o.waren||0)}</b></div>`;
+  populateRetZustandSelect();
   document.getElementById('ret-ek').value=o.waren||'';
   document.getElementById('ret-versand').value=o.versand||0;
   document.getElementById('ret-zustand').value=o.retZustand||'0';
@@ -3049,15 +3153,18 @@ function updateRetAbschreibung(){
   const customWrap=document.getElementById('ret-custom-wrap');
   customWrap.style.display=zustand==='custom'?'block':'none';
   const ek=parseFloat(document.getElementById('ret-ek').value)||0;
-  let pct=parseFloat(zustand)||0;
+  let pct;
   if(zustand==='custom') pct=parseFloat(document.getElementById('ret-custom-pct').value)||0;
+  else pct=getRetZustandPct(zustand);
   const abschr=parseFloat((ek*pct/100).toFixed(2));
   document.getElementById('ret-abschreibung').value=abschr||'';
   const label=parseFloat(document.getElementById('ret-label-kosten').value)||0;
-  const versand=parseFloat(document.getElementById('ret-versand').value)||0;
+  const z=getRetZustaende().find(z=>z.id===zustand);
+  const versandAlsVerlust=zustand==='custom'||!z||z.versandAlsVerlust!==false;
+  const versand=versandAlsVerlust?parseFloat(document.getElementById('ret-versand').value)||0:0;
   const verlust=parseFloat((versand+abschr+label).toFixed(2));
   const el=n=>document.getElementById(n);
-  if(el('ret-verlust-versand')) el('ret-verlust-versand').textContent=versand>0?fmt(versand):'—';
+  if(el('ret-verlust-versand')) el('ret-verlust-versand').textContent=versand>0?fmt(versand):(versandAlsVerlust?'—':'Nicht berechnet');
   if(el('ret-verlust-label')) el('ret-verlust-label').textContent=label>0?fmt(label):'—';
   if(el('ret-verlust-abschr')) el('ret-verlust-abschr').textContent=abschr>0?fmt(abschr):'—';
   el('ret-verlust-preview').textContent=verlust>0?fmt(verlust):'0,00 €';
@@ -3070,13 +3177,15 @@ function saveRetEdit(){
   if(idx===-1) return;
   const zustand=document.getElementById('ret-zustand').value;
   const ek=parseFloat(document.getElementById('ret-ek').value)||0;
-  let pct=parseFloat(zustand)||0;
+  let pct;
   if(zustand==='custom') pct=parseFloat(document.getElementById('ret-custom-pct').value)||0;
+  else pct=getRetZustandPct(zustand);
   const abschr=parseFloat((ek*pct/100).toFixed(2));
   const label=parseFloat(document.getElementById('ret-label-kosten').value)||0;
-  const versand=parseFloat(document.getElementById('ret-versand').value)||0;
+  const z=getRetZustaende().find(z=>z.id===zustand);
+  const versandAlsVerlust=zustand==='custom'||!z||z.versandAlsVerlust!==false;
+  const versand=versandAlsVerlust?parseFloat(document.getElementById('ret-versand').value)||0:0;
   orders[idx]={...orders[idx],
-    waren:ek,
     retZustand:zustand,
     retPct:zustand==='custom'?pct:null,
     retAbschreibung:abschr,
@@ -4516,6 +4625,7 @@ function showPraef(sub){
     const s=getRetSettings();
     const el=document.getElementById('ret-label-default');
     if(el) el.value=s.labelDefault||'';
+    renderRetZustaendeList();
   }
 }
 

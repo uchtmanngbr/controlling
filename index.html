@@ -4837,6 +4837,95 @@ async function importLocalData(event){
   }
 }
 
+/* ── REALTIME ── */
+let realtimeSocket=null;
+function initRealtime(){
+  const wsUrl=`wss://byazoaixpovvtfmmphin.supabase.co/realtime/v1/websocket?apikey=${SUPABASE_KEY}&vsn=1.0.0`;
+  realtimeSocket=new WebSocket(wsUrl);
+
+  realtimeSocket.onopen=()=>{
+    // Join realtime channel for all DB changes
+    realtimeSocket.send(JSON.stringify({
+      topic:'realtime:public',
+      event:'phx_join',
+      payload:{config:{broadcast:{self:false},presence:{key:''},postgres_changes:[
+        {event:'*',schema:'public',table:'orders'},
+        {event:'*',schema:'public',table:'fixkosten'},
+        {event:'*',schema:'public',table:'marketing'},
+        {event:'*',schema:'public',table:'mpg'},
+        {event:'*',schema:'public',table:'versand'},
+        {event:'*',schema:'public',table:'settings'},
+        {event:'*',schema:'public',table:'rechnungen'},
+      ]}},
+      ref:'1'
+    }));
+    console.log('✓ Supabase Realtime verbunden');
+  };
+
+  realtimeSocket.onmessage=async(e)=>{
+    const msg=JSON.parse(e.data);
+    // Heartbeat
+    if(msg.event==='heartbeat'||msg.topic==='phoenix'){
+      realtimeSocket.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:'hb'}));
+      return;
+    }
+    if(msg.event!=='postgres_changes') return;
+    const table=msg.payload?.data?.table;
+    if(!table) return;
+
+    // Sync only the changed table
+    console.log(`↻ Realtime: ${table} geändert`);
+    const syncEl=document.getElementById('sync-indicator');
+    if(syncEl){syncEl.style.opacity='1';syncEl.textContent='↻ Synchronisiere...';}
+
+    if(table==='orders'){
+      const data=await sbFetch('orders','GET',null,'?select=*&order=id.desc');
+      if(data) localStorage.setItem('ec_orders',JSON.stringify(data));
+      renderDashboard(); renderDay();
+      const page=document.querySelector('.page.active');
+      if(page?.id==='page-bestellungen') renderOrders();
+      if(page?.id==='page-retouren') renderRetouren();
+    } else if(table==='fixkosten'){
+      const data=await sbFetch('fixkosten','GET',null,'?select=*');
+      if(data) localStorage.setItem('ec_fixkosten_v2',JSON.stringify(data));
+      renderDashboard();
+      const page=document.querySelector('.page.active');
+      if(page?.id==='page-fixkosten') renderFixkosten();
+    } else if(table==='marketing'){
+      const data=await sbFetch('marketing','GET',null,'?select=*');
+      if(data) localStorage.setItem('ec_marketing',JSON.stringify(data));
+      const page=document.querySelector('.page.active');
+      if(page?.id==='page-marketing') renderMarketing();
+    } else if(table==='mpg'){
+      const data=await sbFetch('mpg','GET',null,'?select=*');
+      if(data){const obj={};data.forEach(r=>obj[r.kanal]={betrag:r.betrag,updatedAt:r.updated_at});localStorage.setItem('ec_mpg',JSON.stringify(obj));}
+      renderMpgRows();
+    } else if(table==='versand'){
+      const data=await sbFetch('versand','GET',null,'?select=*');
+      if(data) localStorage.setItem('ec_versand',JSON.stringify(data));
+    } else if(table==='settings'){
+      const data=await sbFetch('settings','GET',null,'?select=*');
+      if(data) data.forEach(s=>{
+        if(s.key==='verkaufsprovision') localStorage.setItem('ec_verkaufsprovision',s.value);
+        if(s.key==='ret_zustaende') localStorage.setItem('ec_ret_zustaende',s.value);
+      });
+    } else if(table==='rechnungen'){
+      const data=await sbFetch('rechnungen','GET',null,'?select=*&order=id.desc');
+      if(data) localStorage.setItem('ec_rechnungen',JSON.stringify(data));
+      const page=document.querySelector('.page.active');
+      if(page?.id==='page-eingabe') renderRechnungen();
+    }
+    if(syncEl){syncEl.textContent='✓ Aktualisiert';setTimeout(()=>syncEl.style.opacity='0',2000);}
+  };
+
+  realtimeSocket.onclose=()=>{
+    console.log('Realtime getrennt — reconnect in 5s');
+    setTimeout(initRealtime, 5000);
+  };
+
+  realtimeSocket.onerror=(e)=>console.warn('Realtime Fehler:', e);
+}
+
 async function initApp(){
   const today=new Date().toISOString().split('T')[0];
   document.getElementById('rech-datum').value=today;
@@ -4856,6 +4945,7 @@ async function initApp(){
   if(syncEl){syncEl.style.opacity='1';syncEl.textContent='⟳ Synchronisiere...';}
   await syncFromSupabase();
   if(syncEl){syncEl.textContent=dbSynced?'✓ Online':'⚠ Offline-Modus';setTimeout(()=>syncEl.style.opacity='0',3000);}
+  if(dbSynced) initRealtime();
   populateDateFilters();
   populateMkFilters();
   populateCfFilters();

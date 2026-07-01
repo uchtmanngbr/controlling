@@ -4839,42 +4839,39 @@ async function importLocalData(event){
 
 /* ── REALTIME ── */
 let realtimeSocket=null;
+let realtimeRef=1;
 function initRealtime(){
   const wsUrl=`wss://byazoaixpovvtfmmphin.supabase.co/realtime/v1/websocket?apikey=${SUPABASE_KEY}&vsn=1.0.0`;
   realtimeSocket=new WebSocket(wsUrl);
 
   realtimeSocket.onopen=()=>{
-    // Join realtime channel for all DB changes
-    realtimeSocket.send(JSON.stringify({
-      topic:'realtime:public',
-      event:'phx_join',
-      payload:{config:{broadcast:{self:false},presence:{key:''},postgres_changes:[
-        {event:'*',schema:'public',table:'orders'},
-        {event:'*',schema:'public',table:'fixkosten'},
-        {event:'*',schema:'public',table:'marketing'},
-        {event:'*',schema:'public',table:'mpg'},
-        {event:'*',schema:'public',table:'versand'},
-        {event:'*',schema:'public',table:'settings'},
-        {event:'*',schema:'public',table:'rechnungen'},
-      ]}},
-      ref:'1'
-    }));
     console.log('✓ Supabase Realtime verbunden');
+    // Join channel for each table
+    const tables=['orders','fixkosten','marketing','mpg','versand','settings','rechnungen'];
+    tables.forEach((table,i)=>{
+      realtimeSocket.send(JSON.stringify({
+        topic:`realtime:public:${table}`,
+        event:'phx_join',
+        payload:{config:{postgres_changes:[{event:'*',schema:'public',table}]}},
+        ref:String(++realtimeRef)
+      }));
+    });
+    // Heartbeat every 30s
+    setInterval(()=>{
+      if(realtimeSocket.readyState===WebSocket.OPEN){
+        realtimeSocket.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:String(++realtimeRef)}));
+      }
+    },30000);
   };
 
   realtimeSocket.onmessage=async(e)=>{
     const msg=JSON.parse(e.data);
-    // Heartbeat
-    if(msg.event==='heartbeat'||msg.topic==='phoenix'){
-      realtimeSocket.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:'hb'}));
-      return;
-    }
-    if(msg.event!=='postgres_changes') return;
-    const table=msg.payload?.data?.table;
-    if(!table) return;
+    if(msg.event==='phx_reply'||msg.event==='phx_close') return;
 
-    // Sync only the changed table
-    console.log(`↻ Realtime: ${table} geändert`);
+    const table=msg.payload?.data?.table||msg.topic?.split(':')?.[2];
+    if(!table||msg.event==='heartbeat') return;
+
+    console.log(`↻ Realtime: ${table} geändert`, msg.event);
     const syncEl=document.getElementById('sync-indicator');
     if(syncEl){syncEl.style.opacity='1';syncEl.textContent='↻ Synchronisiere...';}
 

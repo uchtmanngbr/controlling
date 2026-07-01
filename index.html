@@ -3671,25 +3671,37 @@ function _renderDashboard(){
   const cfg=chartConfigs[chartType]||chartConfigs.db;
   const titleEl=document.getElementById('dash-chart-title');
   if(titleEl) titleEl.textContent=cfg.title;
-  if(lineInst) lineInst.destroy();
-  lineInst=new Chart(document.getElementById('lineChart'),{
-    type:'bar',
-    data:{labels:dailyLabels,datasets:[{data:cfg.data,backgroundColor:cfg.colors,borderRadius:3,borderSkipped:false}]},
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{
-        title:items=>{const dateObj=new Date(year,month-1,parseInt(items[0].label));return dateObj.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit'});},
-        label:cfg.tooltip,
-      }}},
-      scales:{
-        x:{grid:{display:false},ticks:{color:'#888780',font:{size:10},maxTicksLimit:16}},
-        y:{grid:{color:'rgba(200,200,192,0.4)'},ticks:{color:'#888780',font:{size:11},callback:cfg.yTick},
-          min:cfg.pad?undefined:0,
-          afterDataLimits:cfg.pad?(axis=>{const r=Math.abs((axis.max||0)-(axis.min||0))*0.15||50;axis.min-=r;axis.max+=r;}):undefined,
+  const canvas=document.getElementById('lineChart');
+  if(lineInst && lineInst.config.type==='bar'){
+    lineInst.data.labels=dailyLabels;
+    lineInst.data.datasets[0].data=cfg.data;
+    lineInst.data.datasets[0].backgroundColor=cfg.colors;
+    lineInst.options.scales.y.min=cfg.pad?undefined:0;
+    lineInst.options.scales.y.afterDataLimits=cfg.pad?(axis=>{const r=Math.abs((axis.max||0)-(axis.min||0))*0.15||50;axis.min-=r;axis.max+=r;}):undefined;
+    lineInst.options.plugins.tooltip.callbacks.label=cfg.tooltip;
+    lineInst.options.plugins.tooltip.callbacks.title=items=>{const dateObj=new Date(year,month-1,parseInt(items[0].label));return dateObj.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit'});};
+    lineInst.update('none');
+  } else {
+    if(lineInst) lineInst.destroy();
+    lineInst=new Chart(canvas,{
+      type:'bar',
+      data:{labels:dailyLabels,datasets:[{data:cfg.data,backgroundColor:cfg.colors,borderRadius:3,borderSkipped:false}]},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{
+          title:items=>{const dateObj=new Date(year,month-1,parseInt(items[0].label));return dateObj.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit'});},
+          label:cfg.tooltip,
+        }}},
+        scales:{
+          x:{grid:{display:false},ticks:{color:'#888780',font:{size:10},maxTicksLimit:16}},
+          y:{grid:{color:'rgba(200,200,192,0.4)'},ticks:{color:'#888780',font:{size:11},callback:cfg.yTick},
+            min:cfg.pad?undefined:0,
+            afterDataLimits:cfg.pad?(axis=>{const r=Math.abs((axis.max||0)-(axis.min||0))*0.15||50;axis.min-=r;axis.max+=r;}):undefined,
+          }
         }
       }
-    }
-  })
+    });
+  }
 }
 
 

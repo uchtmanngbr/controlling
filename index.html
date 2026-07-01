@@ -3565,7 +3565,12 @@ function showEingabeSub(sub){
   if(sub==='rechnung'){populateRechFilters();renderRechnungen();}
 }
 
+let _dashDebounce=null;
 function renderDashboard(){
+  if(_dashDebounce) clearTimeout(_dashDebounce);
+  _dashDebounce=setTimeout(_renderDashboard, 80);
+}
+function _renderDashboard(){
   const month=parseInt(document.getElementById('dash-month').value);
   const year=parseInt(document.getElementById('dash-year').value);
   if(!month||!year) return;

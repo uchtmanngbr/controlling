@@ -3848,6 +3848,7 @@ async function syncProdukteFromSupabase(){
   localStorage.setItem('ec_produkte',JSON.stringify(mapped));
 }
 
+let _dashDebounce=null;
 function renderDashboard(){
   if(_dashDebounce) clearTimeout(_dashDebounce);
   _dashDebounce=setTimeout(_renderDashboard, 80);

@@ -1480,6 +1480,7 @@ tr:last-child td{border-bottom:none;}
         <input type="text" id="prod-search" placeholder="SKU, ASIN oder Name suchen..." oninput="renderProdukte()"
           style="font-size:13px;padding:6px 12px;border:0.5px solid #c8c8c0;border-radius:8px;width:240px;outline:none;">
         <button class="btn" onclick="document.getElementById('prod-csv-input').click()" style="font-size:12px;">⬆ CSV Import</button>
+        <button class="btn" onclick="downloadProduktCSVTemplate()" style="font-size:12px;">⬇ CSV Leerdatei</button>
         <input type="file" id="prod-csv-input" accept=".csv" style="display:none;" onchange="importProduktCSV(event)">
         <button class="btn primary" onclick="openProdForm()">+ Neues Produkt</button>
       </div>
@@ -1492,14 +1493,13 @@ tr:last-child td{border-bottom:none;}
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1rem;">
           <div class="field"><label>SKU *</label><input type="text" id="prod-sku" placeholder="z.B. KOPFH-001"></div>
           <div class="field"><label>ASIN / Marktplatz-ID</label><input type="text" id="prod-asin" placeholder="z.B. B08XYZ"></div>
-          <div class="field" style="grid-column:1/-1;"><label>Artikelname *</label><input type="text" id="prod-name" placeholder="z.B. Kopfhörer XY Schwarz"></div>
-          <div class="field"><label>Einkaufspreis (€)</label><input type="number" id="prod-ek" min="0" step="0.01" placeholder="0.00"></div>
+          <div class="field"><label>Artikelname *</label><input type="text" id="prod-name" placeholder="z.B. Kopfhörer XY Schwarz"></div>
+          <div class="field"><label>Netto EK (€)</label><input type="number" id="prod-ek" min="0" step="0.01" placeholder="0.00"></div>
           <div class="field"><label>Versandprofil</label>
             <select id="prod-versand-profil" style="width:100%;">
               <option value="">Kein Profil</option>
             </select>
           </div>
-          <div class="field"><label>Kategorie</label><input type="text" id="prod-kategorie" placeholder="z.B. Elektronik"></div>
           <div class="field"><label>Status</label>
             <select id="prod-aktiv" style="width:100%;">
               <option value="true">Aktiv</option>
@@ -1523,16 +1523,15 @@ tr:last-child td{border-bottom:none;}
     <div class="form-card" style="padding:0;overflow:hidden;">
       <table style="width:100%;border-collapse:collapse;">
         <thead><tr style="border-bottom:0.5px solid #ddddd5;">
-          <th style="padding:10px 12px;text-align:left;color:#888780;font-weight:400;font-size:12px;">SKU</th>
-          <th style="padding:10px 8px;text-align:left;color:#888780;font-weight:400;font-size:12px;">ASIN</th>
-          <th style="padding:10px 8px;text-align:left;color:#888780;font-weight:400;font-size:12px;">Artikelname</th>
-          <th style="padding:10px 8px;text-align:right;color:#888780;font-weight:400;font-size:12px;">EK</th>
-          <th style="padding:10px 8px;text-align:left;color:#888780;font-weight:400;font-size:12px;">Versandprofil</th>
-          <th style="padding:10px 8px;text-align:left;color:#888780;font-weight:400;font-size:12px;">Kategorie</th>
-          <th style="padding:10px 8px;text-align:left;color:#888780;font-weight:400;font-size:12px;">Status</th>
+          <th style="padding:10px 12px;text-align:center;color:#888780;font-weight:400;font-size:12px;">SKU</th>
+          <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400;font-size:12px;">ASIN</th>
+          <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400;font-size:12px;">Artikelname</th>
+          <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400;font-size:12px;">Netto EK</th>
+          <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400;font-size:12px;">Versandprofil</th>
+          <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400;font-size:12px;">Status</th>
           <th style="padding:10px 12px;"></th>
         </tr></thead>
-        <tbody id="prod-tbody"><tr><td colspan="8" class="empty">Noch keine Produkte angelegt</td></tr></tbody>
+        <tbody id="prod-tbody"><tr><td colspan="7" class="empty">Noch keine Produkte angelegt</td></tr></tbody>
       </table>
     </div>
     <div id="prod-count" style="font-size:12px;color:#888780;margin-top:8px;text-align:right;"></div>
@@ -3641,6 +3640,16 @@ function showEingabeSub(sub){
 }
 
 /* ── PRODUKTE ── */
+function downloadProduktCSVTemplate(){
+  const csv='SKU;ASIN;Name;EK;Versandprofil\nKOPFH-001;B08XYZ1234;Kopfhörer XY Schwarz;8.50;DHL Päckchen M\nKABEL-USB-002;B07ABC5678;USB-C Ladekabel 1m;2.20;Deutsche Post Warensendung';
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=window.URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='profitviewer_produkte_import.csv';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{document.body.removeChild(a);window.URL.revokeObjectURL(url);},100);
+}
+
 function getProdukte(){try{return JSON.parse(localStorage.getItem('ec_produkte')||'[]');}catch{return[];}}
 function saveProdukte(arr){
   localStorage.setItem('ec_produkte',JSON.stringify(arr));
@@ -3695,7 +3704,6 @@ function openProdForm(sku=null){
     document.getElementById('prod-name').value=p.name||'';
     document.getElementById('prod-ek').value=p.ek||'';
     document.getElementById('prod-versand-profil').value=p.versandProfilId||'';
-    document.getElementById('prod-kategorie').value=p.kategorie||'';
     document.getElementById('prod-aktiv').value=String(p.aktiv!==false);
   } else {
     title.textContent='Neues Produkt';
@@ -3705,7 +3713,6 @@ function openProdForm(sku=null){
     document.getElementById('prod-name').value='';
     document.getElementById('prod-ek').value='';
     document.getElementById('prod-versand-profil').value='';
-    document.getElementById('prod-kategorie').value='';
     document.getElementById('prod-aktiv').value='true';
   }
   document.getElementById('prod-save-msg').style.display='none';
@@ -3733,7 +3740,6 @@ function saveProdForm(){
     sku, asin:document.getElementById('prod-asin').value.trim(),
     name, ek:parseFloat(document.getElementById('prod-ek').value)||0,
     versandProfilId:document.getElementById('prod-versand-profil').value||null,
-    kategorie:document.getElementById('prod-kategorie').value.trim(),
     aktiv:document.getElementById('prod-aktiv').value==='true',
   };
 
@@ -3769,20 +3775,19 @@ function renderProdukte(){
   const tbody=document.getElementById('prod-tbody');
   if(!tbody) return;
   if(!produkte.length){
-    tbody.innerHTML=`<tr><td colspan="8" class="empty">${search?'Keine Produkte gefunden':'Noch keine Produkte angelegt'}</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="7" class="empty">${search?'Keine Produkte gefunden':'Noch keine Produkte angelegt'}</td></tr>`;
     document.getElementById('prod-count').textContent='';
     return;
   }
   tbody.innerHTML=produkte.map(p=>{
-    const vp=profiles.find(v=>v.id===p.versandProfilId);
+    const vp=profiles.find(v=>String(v.id)===String(p.versandProfilId));
     return `<tr style="border-bottom:0.5px solid #f5f5f3;" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
-      <td style="padding:9px 12px;font-size:13px;font-weight:500;font-family:monospace;">${p.sku}</td>
-      <td style="padding:9px 8px;font-size:12px;color:#888780;">${p.asin||'—'}</td>
-      <td style="padding:9px 8px;font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name||'—'}</td>
-      <td style="padding:9px 8px;font-size:13px;text-align:right;">${p.ek?fmt(p.ek):'—'}</td>
-      <td style="padding:9px 8px;font-size:12px;color:#888780;">${vp?(vp.name||vp.carrier):'—'}</td>
-      <td style="padding:9px 8px;font-size:12px;color:#888780;">${p.kategorie||'—'}</td>
-      <td style="padding:9px 8px;">
+      <td style="padding:9px 12px;font-size:13px;font-weight:500;font-family:monospace;text-align:center;">${p.sku}</td>
+      <td style="padding:9px 8px;font-size:12px;color:#888780;text-align:center;">${p.asin||'—'}</td>
+      <td style="padding:9px 8px;font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;">${p.name||'—'}</td>
+      <td style="padding:9px 8px;font-size:13px;text-align:center;">${p.ek?fmt(p.ek):'—'}</td>
+      <td style="padding:9px 8px;font-size:12px;color:#888780;text-align:center;">${vp?(vp.name||vp.carrier):'—'}</td>
+      <td style="padding:9px 8px;text-align:center;">
         <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${p.aktiv!==false?'#e8f7f2':'#f5f5f3'};color:${p.aktiv!==false?'#1D9E75':'#888780'};">
           ${p.aktiv!==false?'Aktiv':'Inaktiv'}
         </span>

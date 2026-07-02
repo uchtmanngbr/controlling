@@ -159,6 +159,7 @@ tr:last-child td{border-bottom:none;}
     <button class="tab" onclick="showPage('marketing')">Marketing</button>
     <button class="tab" onclick="showPage('kennzahlen')">Kennzahlen</button>
     <button class="tab" onclick="showPage('praeferenzen')" style="display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.92c.04-.34.07-.69.07-1.08s-.03-.73-.07-1.08l2.32-1.81c.21-.16.27-.46.13-.7l-2.2-3.81c-.13-.24-.42-.33-.67-.24l-2.74 1.1c-.57-.44-1.18-.8-1.85-1.08l-.42-2.92C14.54 2.18 14.29 2 14 2h-4c-.29 0-.54.18-.58.44l-.42 2.92c-.67.28-1.28.65-1.85 1.08L4.41 5.35c-.25-.1-.54 0-.67.24L1.54 9.4c-.14.24-.08.54.13.7l2.32 1.81C3.93 12.27 3.9 12.62 3.9 13s.03.73.07 1.08L1.67 15.9c-.21.16-.27.46-.13.7l2.2 3.81c.13.24.42.33.67.24l2.74-1.1c.57.44 1.18.8 1.85 1.08l.42 2.92c.04.26.29.44.58.44h4c.29 0 .54-.18.58-.44l.42-2.92c.67-.28 1.28-.65 1.85-1.08l2.74 1.1c.25.1.54 0 .67-.24l2.2-3.81c.14-.24.08-.54-.13-.7l-2.32-1.82z"/></svg>Präferenzen</button>
+    <button class="tab" onclick="showPage('produkte')">Produkte</button>
     <button class="tab" onclick="showPage('import')">CSV Import</button>
   </div>
 
@@ -1471,6 +1472,72 @@ tr:last-child td{border-bottom:none;}
   <div class="page" id="page-versand" style="display:none!important;"></div>
 
 <!-- CSV IMPORT -->
+  <!-- PRODUKTE -->
+  <div class="page" id="page-produkte">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px;">
+      <div class="section-title" style="margin:0;">Produktstamm</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="text" id="prod-search" placeholder="SKU, ASIN oder Name suchen..." oninput="renderProdukte()"
+          style="font-size:13px;padding:6px 12px;border:0.5px solid #c8c8c0;border-radius:8px;width:240px;outline:none;">
+        <button class="btn" onclick="document.getElementById('prod-csv-input').click()" style="font-size:12px;">⬆ CSV Import</button>
+        <input type="file" id="prod-csv-input" accept=".csv" style="display:none;" onchange="importProduktCSV(event)">
+        <button class="btn primary" onclick="openProdForm()">+ Neues Produkt</button>
+      </div>
+    </div>
+
+    <!-- FORMULAR -->
+    <div id="prod-form-wrap" style="display:none;margin-bottom:1.5rem;">
+      <div class="form-card" style="margin-bottom:0;">
+        <div class="section-title" id="prod-form-title">Neues Produkt</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1rem;">
+          <div class="field"><label>SKU *</label><input type="text" id="prod-sku" placeholder="z.B. KOPFH-001"></div>
+          <div class="field"><label>ASIN / Marktplatz-ID</label><input type="text" id="prod-asin" placeholder="z.B. B08XYZ"></div>
+          <div class="field" style="grid-column:1/-1;"><label>Artikelname *</label><input type="text" id="prod-name" placeholder="z.B. Kopfhörer XY Schwarz"></div>
+          <div class="field"><label>Einkaufspreis (€)</label><input type="number" id="prod-ek" min="0" step="0.01" placeholder="0.00"></div>
+          <div class="field"><label>Versandprofil</label>
+            <select id="prod-versand-profil" style="width:100%;">
+              <option value="">Kein Profil</option>
+            </select>
+          </div>
+          <div class="field"><label>Kategorie</label><input type="text" id="prod-kategorie" placeholder="z.B. Elektronik"></div>
+          <div class="field"><label>Status</label>
+            <select id="prod-aktiv" style="width:100%;">
+              <option value="true">Aktiv</option>
+              <option value="false">Inaktiv</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn primary" onclick="saveProdForm()">Speichern</button>
+          <button class="btn" onclick="closeProdForm()">Abbrechen</button>
+          <span id="prod-save-msg" style="font-size:12px;color:#1D9E75;display:none;">✓ Gespeichert</span>
+          <span id="prod-err-msg" style="font-size:12px;color:#E24B4A;display:none;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- IMPORT STATUS -->
+    <div id="prod-import-status" style="display:none;margin-bottom:1rem;"></div>
+
+    <!-- TABELLE -->
+    <div class="form-card" style="padding:0;overflow:hidden;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="border-bottom:0.5px solid #ddddd5;">
+          <th style="padding:10px 12px;text-align:left;color:#888780;font-weight:400;font-size:12px;">SKU</th>
+          <th style="padding:10px 8px;text-align:left;color:#888780;font-weight:400;font-size:12px;">ASIN</th>
+          <th style="padding:10px 8px;text-align:left;color:#888780;font-weight:400;font-size:12px;">Artikelname</th>
+          <th style="padding:10px 8px;text-align:right;color:#888780;font-weight:400;font-size:12px;">EK</th>
+          <th style="padding:10px 8px;text-align:left;color:#888780;font-weight:400;font-size:12px;">Versandprofil</th>
+          <th style="padding:10px 8px;text-align:left;color:#888780;font-weight:400;font-size:12px;">Kategorie</th>
+          <th style="padding:10px 8px;text-align:left;color:#888780;font-weight:400;font-size:12px;">Status</th>
+          <th style="padding:10px 12px;"></th>
+        </tr></thead>
+        <tbody id="prod-tbody"><tr><td colspan="8" class="empty">Noch keine Produkte angelegt</td></tr></tbody>
+      </table>
+    </div>
+    <div id="prod-count" style="font-size:12px;color:#888780;margin-top:8px;text-align:right;"></div>
+  </div>
+
   <div class="page" id="page-import">
     <div class="form-card">
       <div class="section-title">CSV Import</div>
@@ -1566,7 +1633,7 @@ let dbSynced=false;
 
 async function syncFromSupabase(){
   try{
-    const [orders,fixkosten,marketing,mpg,rechnungen,versand,settings]=await Promise.all([
+    const [orders,fixkosten,marketing,mpg,rechnungen,versand,settings,products]=await Promise.all([
       sbFetch('orders','GET',null,'?select=*&order=id.desc'),
       sbFetch('fixkosten','GET',null,'?select=*'),
       sbFetch('marketing','GET',null,'?select=*'),
@@ -1574,6 +1641,7 @@ async function syncFromSupabase(){
       sbFetch('rechnungen','GET',null,'?select=*&order=id.desc'),
       sbFetch('versand','GET',null,'?select=*'),
       sbFetch('settings','GET',null,'?select=*'),
+      sbFetch('products','GET',null,'?select=*'),
     ]);
     if(orders) localStorage.setItem('ec_orders',JSON.stringify(orders));
     if(fixkosten) localStorage.setItem('ec_fixkosten_v2',JSON.stringify(fixkosten));
@@ -1590,6 +1658,13 @@ async function syncFromSupabase(){
         if(s.key==='verkaufsprovision') localStorage.setItem('ec_verkaufsprovision',s.value);
         if(s.key==='ret_zustaende') localStorage.setItem('ec_ret_zustaende',s.value);
       });
+    }
+    if(products&&products.length){
+      const mapped=products.map(p=>({
+        sku:p.sku, asin:p.asin||'', name:p.name||'', ek:p.ek||0,
+        versandProfilId:p.versand_profil_id||null, kategorie:p.kategorie||'', aktiv:p.aktiv!==false
+      }));
+      localStorage.setItem('ec_produkte',JSON.stringify(mapped));
     }
     dbSynced=true;
     console.log('✓ Supabase sync complete');
@@ -2848,7 +2923,7 @@ function showPage(p){
   if(p==='bestellungen') renderOrders();
   if(p==='fixkosten') { renderFixkosten(); }
   if(p==='marketing') { populateMkFilters(); renderMarketing(); }
-  if(p==='kennzahlen'){ showKennzahlen('berichte'); }
+  if(p==='produkte'){ populateProdVersandDropdown(); renderProdukte(); }
   if(p==='berichte') { showPage('kennzahlen'); setTimeout(()=>showKennzahlen('berichte'),50); return; }
   if(p==='praeferenzen'){
     renderVersandProfiles();
@@ -3565,7 +3640,214 @@ function showEingabeSub(sub){
   if(sub==='rechnung'){populateRechFilters();renderRechnungen();}
 }
 
-let _dashDebounce=null;
+/* ── PRODUKTE ── */
+function getProdukte(){try{return JSON.parse(localStorage.getItem('ec_produkte')||'[]');}catch{return[];}}
+function saveProdukte(arr){
+  localStorage.setItem('ec_produkte',JSON.stringify(arr));
+  if(typeof dbSynced!=='undefined'&&dbSynced) saveProdukteToSupabase(arr).catch(e=>console.warn('Supabase produkte:',e));
+}
+
+async function saveProdukteToSupabase(arr){
+  // Upsert all products
+  if(!arr.length) return;
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/products`,{
+    method:'POST',
+    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,
+      'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+    body:JSON.stringify(arr.map(p=>({
+      sku:p.sku, asin:p.asin||'', name:p.name||'', ek:p.ek||0,
+      versand_profil_id:p.versandProfilId||null, kategorie:p.kategorie||'', aktiv:p.aktiv!==false
+    })))
+  });
+  if(!res.ok) console.error('Supabase produkte error:', await res.text());
+}
+
+async function deleteProdukteFromSupabase(sku){
+  await fetch(`${SUPABASE_URL}/rest/v1/products?sku=eq.${encodeURIComponent(sku)}`,{
+    method:'DELETE',
+    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+  });
+}
+
+function populateProdVersandDropdown(){
+  const sel=document.getElementById('prod-versand-profil');
+  if(!sel) return;
+  const profiles=getVersandProfile();
+  const cur=sel.value;
+  sel.innerHTML='<option value="">Kein Profil</option>';
+  profiles.forEach(p=>sel.innerHTML+=`<option value="${p.id}">${p.name||p.carrier}</option>`);
+  if(cur) sel.value=cur;
+}
+
+let editProdSku=null;
+function openProdForm(sku=null){
+  editProdSku=sku;
+  const wrap=document.getElementById('prod-form-wrap');
+  const title=document.getElementById('prod-form-title');
+  populateProdVersandDropdown();
+  if(sku){
+    const p=getProdukte().find(p=>p.sku===sku);
+    if(!p) return;
+    title.textContent='Produkt bearbeiten';
+    document.getElementById('prod-sku').value=p.sku;
+    document.getElementById('prod-sku').disabled=true;
+    document.getElementById('prod-asin').value=p.asin||'';
+    document.getElementById('prod-name').value=p.name||'';
+    document.getElementById('prod-ek').value=p.ek||'';
+    document.getElementById('prod-versand-profil').value=p.versandProfilId||'';
+    document.getElementById('prod-kategorie').value=p.kategorie||'';
+    document.getElementById('prod-aktiv').value=String(p.aktiv!==false);
+  } else {
+    title.textContent='Neues Produkt';
+    document.getElementById('prod-sku').value='';
+    document.getElementById('prod-sku').disabled=false;
+    document.getElementById('prod-asin').value='';
+    document.getElementById('prod-name').value='';
+    document.getElementById('prod-ek').value='';
+    document.getElementById('prod-versand-profil').value='';
+    document.getElementById('prod-kategorie').value='';
+    document.getElementById('prod-aktiv').value='true';
+  }
+  document.getElementById('prod-save-msg').style.display='none';
+  document.getElementById('prod-err-msg').style.display='none';
+  wrap.style.display='block';
+  document.getElementById('prod-sku').focus();
+}
+
+function closeProdForm(){
+  document.getElementById('prod-form-wrap').style.display='none';
+  editProdSku=null;
+}
+
+function saveProdForm(){
+  const sku=document.getElementById('prod-sku').value.trim();
+  const name=document.getElementById('prod-name').value.trim();
+  const errEl=document.getElementById('prod-err-msg');
+  if(!sku){errEl.textContent='SKU ist Pflichtfeld';errEl.style.display='inline';return;}
+  if(!name){errEl.textContent='Artikelname ist Pflichtfeld';errEl.style.display='inline';return;}
+  errEl.style.display='none';
+
+  const produkte=getProdukte();
+  const existing=produkte.findIndex(p=>p.sku===sku);
+  const prod={
+    sku, asin:document.getElementById('prod-asin').value.trim(),
+    name, ek:parseFloat(document.getElementById('prod-ek').value)||0,
+    versandProfilId:document.getElementById('prod-versand-profil').value||null,
+    kategorie:document.getElementById('prod-kategorie').value.trim(),
+    aktiv:document.getElementById('prod-aktiv').value==='true',
+  };
+
+  if(editProdSku){
+    if(existing>=0) produkte[existing]=prod;
+  } else {
+    if(existing>=0){errEl.textContent='SKU existiert bereits';errEl.style.display='inline';return;}
+    produkte.unshift(prod);
+  }
+  saveProdukte(produkte);
+  document.getElementById('prod-save-msg').style.display='inline';
+  setTimeout(()=>{document.getElementById('prod-save-msg').style.display='none';},1800);
+  renderProdukte();
+  if(!editProdSku) closeProdForm();
+}
+
+function deleteProdukt(sku){
+  if(!confirm(`Produkt "${sku}" löschen?`)) return;
+  saveProdukte(getProdukte().filter(p=>p.sku!==sku));
+  if(typeof dbSynced!=='undefined'&&dbSynced) deleteProdukteFromSupabase(sku).catch(e=>console.warn(e));
+  renderProdukte();
+}
+
+function renderProdukte(){
+  const search=(document.getElementById('prod-search')?.value||'').toLowerCase().trim();
+  const profiles=getVersandProfile();
+  let produkte=getProdukte();
+  if(search) produkte=produkte.filter(p=>
+    (p.sku||'').toLowerCase().includes(search)||
+    (p.asin||'').toLowerCase().includes(search)||
+    (p.name||'').toLowerCase().includes(search)
+  );
+  const tbody=document.getElementById('prod-tbody');
+  if(!tbody) return;
+  if(!produkte.length){
+    tbody.innerHTML=`<tr><td colspan="8" class="empty">${search?'Keine Produkte gefunden':'Noch keine Produkte angelegt'}</td></tr>`;
+    document.getElementById('prod-count').textContent='';
+    return;
+  }
+  tbody.innerHTML=produkte.map(p=>{
+    const vp=profiles.find(v=>v.id===p.versandProfilId);
+    return `<tr style="border-bottom:0.5px solid #f5f5f3;" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
+      <td style="padding:9px 12px;font-size:13px;font-weight:500;font-family:monospace;">${p.sku}</td>
+      <td style="padding:9px 8px;font-size:12px;color:#888780;">${p.asin||'—'}</td>
+      <td style="padding:9px 8px;font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name||'—'}</td>
+      <td style="padding:9px 8px;font-size:13px;text-align:right;">${p.ek?fmt(p.ek):'—'}</td>
+      <td style="padding:9px 8px;font-size:12px;color:#888780;">${vp?(vp.name||vp.carrier):'—'}</td>
+      <td style="padding:9px 8px;font-size:12px;color:#888780;">${p.kategorie||'—'}</td>
+      <td style="padding:9px 8px;">
+        <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${p.aktiv!==false?'#e8f7f2':'#f5f5f3'};color:${p.aktiv!==false?'#1D9E75':'#888780'};">
+          ${p.aktiv!==false?'Aktiv':'Inaktiv'}
+        </span>
+      </td>
+      <td style="padding:9px 12px;text-align:right;white-space:nowrap;">
+        <button class="btn" style="height:26px;padding:0 10px;font-size:12px;margin-right:4px;" onclick="openProdForm('${p.sku}')">✏ Bearbeiten</button>
+        <button class="btn" style="height:26px;padding:0 10px;font-size:12px;color:#E24B4A;border-color:#E24B4A;" onclick="deleteProdukt('${p.sku}')">Löschen</button>
+      </td>
+    </tr>`;
+  }).join('');
+  document.getElementById('prod-count').textContent=`${produkte.length} Produkt${produkte.length!==1?'e':''}`;
+}
+
+function importProduktCSV(event){
+  const file=event.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const lines=e.target.result.split('\n').map(l=>l.trim()).filter(Boolean);
+    if(!lines.length) return;
+    const header=lines[0].split(/[,;]/).map(h=>h.trim().toLowerCase().replace(/"/g,''));
+    const get=(row,keys)=>{for(const k of keys){const i=header.indexOf(k);if(i>=0)return(row[i]||'').replace(/"/g,'').trim();}return'';};
+    const produkte=getProdukte();
+    let added=0,updated=0,errors=[];
+    for(let i=1;i<lines.length;i++){
+      const row=lines[i].split(/[,;]/);
+      const sku=get(row,['sku']);
+      const name=get(row,['name','artikelname','artikel']);
+      if(!sku){errors.push(`Zeile ${i+1}: SKU fehlt`);continue;}
+      const prod={
+        sku, asin:get(row,['asin','marktplatz-id','marketplace_id']),
+        name:name||sku, ek:parseFloat(get(row,['ek','einkaufspreis','einkauf']))||0,
+        versandProfilId:null, kategorie:get(row,['kategorie','category']),
+        aktiv:get(row,['aktiv','active'])!=='false',
+      };
+      const idx=produkte.findIndex(p=>p.sku===sku);
+      if(idx>=0){produkte[idx]={...produkte[idx],...prod};updated++;}
+      else{produkte.unshift(prod);added++;}
+    }
+    saveProdukte(produkte);
+    renderProdukte();
+    const status=document.getElementById('prod-import-status');
+    status.style.display='block';
+    status.innerHTML=`<div class="form-card" style="padding:10px 16px;margin-bottom:0;">
+      <span style="color:#1D9E75;font-size:13px;">✓ ${added} neu, ${updated} aktualisiert</span>
+      ${errors.length?`<div style="font-size:12px;color:#E24B4A;margin-top:6px;">${errors.join('<br>')}</div>`:''}
+    </div>`;
+    setTimeout(()=>status.style.display='none',5000);
+    event.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+function getProduktBySku(sku){return getProdukte().find(p=>p.sku===sku)||null;}
+
+async function syncProdukteFromSupabase(){
+  const data=await sbFetch('products','GET',null,'?select=*');
+  if(!data||!data.length) return;
+  const mapped=data.map(p=>({
+    sku:p.sku, asin:p.asin||'', name:p.name||'', ek:p.ek||0,
+    versandProfilId:p.versand_profil_id||null, kategorie:p.kategorie||'', aktiv:p.aktiv!==false
+  }));
+  localStorage.setItem('ec_produkte',JSON.stringify(mapped));
+}
+
 function renderDashboard(){
   if(_dashDebounce) clearTimeout(_dashDebounce);
   _dashDebounce=setTimeout(_renderDashboard, 80);
@@ -3706,7 +3988,7 @@ function _renderDashboard(){
 
 
 /* ── BESTELLUNGEN ANALYTICS ── */
-let currentOrderPeriod='month';
+let currentOrderPeriod='all';
 
 function onPeriodSelectChange(){
   const val=document.getElementById('op-period-select').value;

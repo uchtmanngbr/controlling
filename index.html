@@ -2962,6 +2962,7 @@ function showPage(p){
   if(p==='marketing') { populateMkFilters(); renderMarketing(); }
   if(p==='produkte'){ populateProdVersandDropdown(); renderProdukte(); }
   if(p==='berichte') { showPage('kennzahlen'); setTimeout(()=>showKennzahlen('berichte'),50); return; }
+  if(p==='kennzahlen'){ setTimeout(()=>showKennzahlen('berichte'),50); }
   if(p==='praeferenzen'){
     renderVersandProfiles();
     const s=getRetSettings();

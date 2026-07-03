@@ -1922,8 +1922,8 @@ function addMkItem(){
   renderMarketing();
 }
 
-function deleteMkItem(id){
-  if(!confirm('Eintrag löschen?')) return;
+async function deleteMkItem(id){
+  if(!await customConfirm('Eintrag löschen?')) return;
   setMkItems(getMkItems().filter(i=>i.id!==id));
   renderMarketing(); renderDashboard();
 }
@@ -2625,8 +2625,8 @@ function closeRechEdit(){
   rechEditId=null;
 }
 
-function deleteRechnung(id){
-  if(!confirm('Rechnung löschen?')) return;
+async function deleteRechnung(id){
+  if(!await customConfirm('Rechnung löschen?')) return;
   setRechnungen(getRechnungen().filter(r=>r.id!==id));
   renderRechnungen(); renderDashboard();
 }
@@ -3022,8 +3022,27 @@ function clearForm(){
   updatePreview(); onKanalChange();
 }
 
-function deleteOrder(id){
-  if(!confirm('Bestellung löschen?')) return;
+/* ── CUSTOM CONFIRM ── */
+let _confirmResolve=null;
+function customConfirm(msg, title='Löschen bestätigen', okLabel='Löschen', okColor='#E24B4A'){
+  return new Promise(resolve=>{
+    _confirmResolve=resolve;
+    document.getElementById('confirm-msg').textContent=msg;
+    document.getElementById('confirm-title').textContent=title;
+    const okBtn=document.getElementById('confirm-ok-btn');
+    okBtn.textContent=okLabel;
+    okBtn.style.background=okColor;
+    okBtn.style.borderColor=okColor;
+    document.getElementById('confirm-modal-bg').style.display='flex';
+  });
+}
+function resolveConfirm(val){
+  document.getElementById('confirm-modal-bg').style.display='none';
+  if(_confirmResolve) { _confirmResolve(val); _confirmResolve=null; }
+}
+
+async function deleteOrder(id){
+  if(!await customConfirm('Bestellung löschen?')) return;
   saveOrders(getOrders().filter(o=>o.id!==id));
   renderOrders(); renderDashboard();
   if(dbSynced) fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`,{
@@ -3031,8 +3050,8 @@ function deleteOrder(id){
     headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
   }).catch(e=>console.warn('Supabase delete error:',e));
 }
-function deleteAll(){
-  if(!confirm('Wirklich alle Bestellungen löschen? Das kann nicht rückgängig gemacht werden.')) return;
+async function deleteAll(){
+  if(!await customConfirm('Wirklich alle Bestellungen löschen?','Alle löschen','Alle löschen')) return;
   saveOrders([]); renderOrders(); renderDashboard();
   if(dbSynced) fetch(`${SUPABASE_URL}/rest/v1/orders?id=gte.0`,{
     method:'DELETE',
@@ -3106,7 +3125,7 @@ function addRetZustand(){
   populateRetZustandSelect();
 }
 
-function deleteRetZustand(id){
+async function deleteRetZustand(id){
   const custom=getCustomRetZustaende().filter(z=>z.id!==id);
   saveCustomRetZustaende(custom);
   renderRetZustaendeList();
@@ -3489,8 +3508,8 @@ function addFkItem(){
   renderFixkosten();
 }
 
-function deleteFkItem(id){
-  if(!confirm('Position löschen?')) return;
+async function deleteFkItem(id){
+  if(!await customConfirm('Position löschen?')) return;
   setFkItems(getFkItems().filter(i=>i.id!==id));
   renderFixkosten();
 }
@@ -3794,8 +3813,8 @@ function saveProdForm(){
   if(!editProdSku) closeProdForm();
 }
 
-function deleteProdukt(sku){
-  if(!confirm(`Produkt "${sku}" löschen?`)) return;
+async function deleteProdukt(sku){
+  if(!await customConfirm(`Produkt "${sku}" löschen?`)) return;
   saveProdukte(getProdukte().filter(p=>p.sku!==sku));
   if(typeof dbSynced!=='undefined'&&dbSynced) deleteProdukteFromSupabase(sku).catch(e=>console.warn(e));
   renderProdukte();
@@ -4398,10 +4417,10 @@ function toggleAllOrders(checked){
   updateSelectedInfo();
 }
 
-function deleteSelected(){
+async function deleteSelected(){
   const checked=[...document.querySelectorAll('.order-check:checked')];
   if(!checked.length) return;
-  if(!confirm(checked.length+' Bestellungen löschen?')) return;
+  if(!await customConfirm(checked.length+' Bestellungen löschen?')) return;
   const ids=new Set(checked.map(cb=>parseInt(cb.dataset.id)));
   saveOrders(getOrders().filter(o=>!ids.has(o.id)));
   renderOrders(); renderDashboard(); renderDay();
@@ -4848,8 +4867,8 @@ function addVersandProfile(){
   populateVersandDropdown();
 }
 
-function deleteVersandProfile(id){
-  if(!confirm('Profil löschen?')) return;
+async function deleteVersandProfile(id){
+  if(!await customConfirm('Profil löschen?')) return;
   setVersandProfile(getVersandProfile().filter(p=>p.id!==id));
   renderVersandProfiles();
   populateVersandDropdown();
@@ -4931,9 +4950,9 @@ function closeVersandEdit(){
   document.getElementById('versand-edit-modal-bg').style.display='none';
 }
 
-function deleteVersandFromEdit(){
+async function deleteVersandFromEdit(){
   const id=parseInt(document.getElementById('vp-edit-id').value);
-  if(!confirm('Versandprofil wirklich löschen?')) return;
+  if(!await customConfirm('Versandprofil wirklich löschen?')) return;
   setVersandProfile(getVersandProfile().filter(p=>p.id!==id));
   closeVersandEdit();
   renderVersandProfiles();
@@ -5305,5 +5324,17 @@ async function initApp(){
 <script>
   window.addEventListener('load', function(){ initApp(); });
 </script>
+
+  <!-- CUSTOM CONFIRM MODAL -->
+  <div id="confirm-modal-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:28px 28px 20px;max-width:380px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.18);">
+      <div style="font-size:15px;font-weight:600;color:#1a1a18;margin-bottom:8px;" id="confirm-title">Löschen bestätigen</div>
+      <div style="font-size:13px;color:#888780;margin-bottom:24px;line-height:1.5;" id="confirm-msg"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn" onclick="resolveConfirm(false)" id="confirm-cancel-btn">Abbrechen</button>
+        <button class="btn" onclick="resolveConfirm(true)" id="confirm-ok-btn" style="background:#E24B4A;color:#fff;border-color:#E24B4A;">Löschen</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

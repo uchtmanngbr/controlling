@@ -2870,13 +2870,15 @@ function autofillFromSku(){
 
   // EK — nur befüllen wenn leer
   const warenEl=document.getElementById('f-waren');
-  if(warenEl&&!warenEl.value) warenEl.value=p.ek||'';
+  if(warenEl&&(!warenEl.value||parseFloat(warenEl.value)===0)) warenEl.value=p.ek||'';
 
   // Versandprofil — nur setzen wenn vorhanden
   if(p.versandProfilId){
     const sel=document.getElementById('f-versand-profil');
-    if(sel&&!sel.value) sel.value=p.versandProfilId;
-    onVersandProfilChange();
+    if(sel){
+      sel.value=String(p.versandProfilId);
+      onVersandProfilChange();
+    }
   }
 
   // Flash-Hinweis
@@ -3818,7 +3820,7 @@ function renderProdukte(){
   tbody.innerHTML=produkte.map(p=>{
     const vp=profiles.find(v=>String(v.id)===String(p.versandProfilId));
     return `<tr style="border-bottom:0.5px solid #f5f5f3;" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
-      <td style="padding:9px 12px;font-size:13px;font-weight:500;font-family:monospace;text-align:center;">${p.sku}</td>
+      <td style="padding:9px 12px;font-size:13px;font-weight:500;text-align:center;">${p.sku}</td>
       <td style="padding:9px 8px;font-size:12px;color:#888780;text-align:center;">${p.asin||'—'}</td>
       <td style="padding:9px 8px;font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;">${p.name||'—'}</td>
       <td style="padding:9px 8px;font-size:13px;text-align:center;">${p.ek?fmt(p.ek):'—'}</td>
@@ -3853,10 +3855,15 @@ function importProduktCSV(event){
       const sku=get(row,['sku']);
       const name=get(row,['name','artikelname','artikel']);
       if(!sku){errors.push(`Zeile ${i+1}: SKU fehlt`);continue;}
+      const versandName=get(row,['versandprofil','versand','shipping']);
+      const profiles=getVersandProfile();
+      const matchedProfile=profiles.find(p=>
+        (p.name||p.carrier||'').toLowerCase()===versandName.toLowerCase()
+      );
       const prod={
         sku, asin:get(row,['asin','marktplatz-id','marketplace_id']),
-        name:name||sku, ek:parseFloat(get(row,['ek','einkaufspreis','einkauf']))||0,
-        versandProfilId:null, kategorie:get(row,['kategorie','category']),
+        name:name||sku, ek:parseFloat(get(row,['ek','einkaufspreis','einkauf']).replace(',','.'))||0,
+        versandProfilId:matchedProfile?String(matchedProfile.id):null,
         aktiv:get(row,['aktiv','active'])!=='false',
       };
       const idx=produkte.findIndex(p=>p.sku===sku);

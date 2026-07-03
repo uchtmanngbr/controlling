@@ -419,7 +419,7 @@ tr:last-child td{border-bottom:none;}
       </div>
 
       <!-- Suche -->
-      <input type="text" id="orders-search" placeholder="🔍 Nach Bestellung suchen..." oninput="renderOrders()" style="font-size:12px;padding:5px 10px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;width:280px;">
+      <div style="position:relative;display:inline-flex;align-items:center;"><span style="position:absolute;left:9px;pointer-events:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="#888780" xmlns="http://www.w3.org/2000/svg"><path d="M10 2.5a7.5 7.5 0 0 1 5.964 12.048l4.743 4.745a1 1 0 0 1-1.32 1.497l-.094-.083-4.745-4.743A7.5 7.5 0 1 1 10 2.5Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg></span><input type="text" id="orders-search" placeholder="Nach Bestellung suchen..." oninput="renderOrders()" style="font-size:12px;padding:5px 10px 5px 30px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;width:280px;"></div>
 
       <!-- Hidden -->
       <select id="filter-month" style="display:none;"></select>
@@ -1480,8 +1480,7 @@ tr:last-child td{border-bottom:none;}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px;">
       <div class="section-title" style="margin:0;">Produktstamm</div>
       <div style="display:flex;gap:8px;align-items:center;">
-        <input type="text" id="prod-search" placeholder="SKU, ASIN oder Name suchen..." oninput="renderProdukte()"
-          style="font-size:13px;padding:6px 12px;border:0.5px solid #c8c8c0;border-radius:8px;width:240px;outline:none;">
+        <div style="position:relative;display:inline-flex;align-items:center;"><span style="position:absolute;left:9px;pointer-events:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="#888780" xmlns="http://www.w3.org/2000/svg"><path d="M10 2.5a7.5 7.5 0 0 1 5.964 12.048l4.743 4.745a1 1 0 0 1-1.32 1.497l-.094-.083-4.745-4.743A7.5 7.5 0 1 1 10 2.5Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg></span><input type="text" id="prod-search" placeholder="SKU, ASIN oder Name suchen..." oninput="renderProdukte()" style="font-size:13px;padding:6px 12px 6px 30px;border:0.5px solid #c8c8c0;border-radius:8px;width:240px;outline:none;"></div>
         <button class="btn" onclick="document.getElementById('prod-csv-input').click()" style="font-size:12px;display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M5.25 3.495h13.498a.75.75 0 0 0 .101-1.493l-.101-.007H5.25a.75.75 0 0 0-.102 1.493l.102.007Zm6.633 18.498L12 22a1 1 0 0 0 .993-.884L13 21V8.41l3.294 3.292a1 1 0 0 0 1.32.083l.094-.083a1 1 0 0 0 .083-1.32l-.083-.094-4.997-4.997a1 1 0 0 0-1.32-.083l-.094.083-5.004 4.996a1 1 0 0 0 1.32 1.499l.094-.083L11 8.415V21a1 1 0 0 0 .883.993Z"/></svg>&nbsp;CSV Import</button>
         <button class="btn" onclick="downloadProduktCSVTemplate()" style="font-size:12px;display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M5.25 20.5h13.498a.75.75 0 0 1 .101 1.493l-.101.007H5.25a.75.75 0 0 1-.102-1.494l.102-.006h13.498H5.25Zm6.633-18.498L12 1.995a1 1 0 0 1 .993.883l.007.117v12.59l3.294-3.293a1 1 0 0 1 1.32-.083l.094.084a1 1 0 0 1 .083 1.32l-.083.094-4.997 4.996a1 1 0 0 1-1.32.084l-.094-.083-5.004-4.997a1 1 0 0 1 1.32-1.498l.094.083L11 15.58V2.995a1 1 0 0 1 .883-.993L12 1.995l-.117.007Z"/></svg>&nbsp;CSV Leerdatei</button>
         <input type="file" id="prod-csv-input" accept=".csv" style="display:none;" onchange="importProduktCSV(event)">
@@ -1923,7 +1922,7 @@ function addMkItem(){
 }
 
 async function deleteMkItem(id){
-  if(!await customConfirm('Diesen Eintrag wirklich unwiderruflich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.','Eintrag löschen')) return;
+  if(!await customConfirm('Diesen Eintrag <strong>wirklich löschen?</strong><br><span style="font-size:12px;">Diese Aktion kann nicht rückgängig gemacht werden.</span>','Eintrag löschen')) return;
   setMkItems(getMkItems().filter(i=>i.id!==id));
   renderMarketing(); renderDashboard();
 }
@@ -2628,7 +2627,7 @@ function closeRechEdit(){
 async function deleteRechnung(id){
   const _r=JSON.parse(localStorage.getItem('ec_rechnungen')||'[]').find(r=>r.id===id);
   const _rnr=_r?(_r.nr||'#'+id):'#'+id;
-  if(!await customConfirm(`Rechnung "${_rnr}" wirklich unwiderruflich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.`,'Rechnung löschen')) return;
+  if(!await customConfirm(`Rechnung <strong>„${_rnr}"</strong> wirklich löschen?<br><span style="font-size:12px;">Diese Aktion kann nicht rückgängig gemacht werden.</span>`,'Rechnung löschen')) return;
   setRechnungen(getRechnungen().filter(r=>r.id!==id));
   renderRechnungen(); renderDashboard();
 }
@@ -3030,7 +3029,7 @@ let _confirmResolve=null;
 function customConfirm(msg, title='Löschen bestätigen', okLabel='Löschen', okColor='#E24B4A'){
   return new Promise(resolve=>{
     _confirmResolve=resolve;
-    document.getElementById('confirm-msg').textContent=msg;
+    document.getElementById('confirm-msg').innerHTML=msg;
     document.getElementById('confirm-title').textContent=title;
     const okBtn=document.getElementById('confirm-ok-btn');
     okBtn.textContent=okLabel;
@@ -3047,7 +3046,7 @@ function resolveConfirm(val){
 async function deleteOrder(id){
   const _o=getOrders().find(o=>o.id===id);
   const _nr=_o?(_o.bestellnr||_o.artikel||'#'+id):'#'+id;
-  if(!await customConfirm(`Bestellung "${_nr}" wirklich unwiderruflich löschen?\n${"Diese Aktion kann nicht rückgängig gemacht werden."}`,'Bestellung löschen')) return;
+  if(!await customConfirm(`Bestellung <strong>„${_nr}"</strong> wirklich löschen?<br><span style="font-size:12px;">Diese Aktion kann nicht rückgängig gemacht werden.</span>`,'Bestellung löschen')) return;
   saveOrders(getOrders().filter(o=>o.id!==id));
   renderOrders(); renderDashboard();
   if(dbSynced) fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`,{
@@ -3056,7 +3055,7 @@ async function deleteOrder(id){
   }).catch(e=>console.warn('Supabase delete error:',e));
 }
 async function deleteAll(){
-  if(!await customConfirm('Alle Bestellungen wirklich unwiderruflich löschen? Diese Aktion kann nicht rückgängig gemacht werden.','Alle Bestellungen löschen','Alle löschen')) return;
+  if(!await customConfirm('<strong>Alle Bestellungen</strong> wirklich löschen?<br><span style="font-size:12px;">Diese Aktion kann nicht rückgängig gemacht werden.</span>','Alle Bestellungen löschen','Alle löschen')) return;
   saveOrders([]); renderOrders(); renderDashboard();
   if(dbSynced) fetch(`${SUPABASE_URL}/rest/v1/orders?id=gte.0`,{
     method:'DELETE',
@@ -3514,7 +3513,7 @@ function addFkItem(){
 }
 
 async function deleteFkItem(id){
-  if(!await customConfirm('Diese Position wirklich unwiderruflich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.','Position löschen')) return;
+  if(!await customConfirm('Diese Position <strong>wirklich löschen?</strong><br><span style="font-size:12px;">Diese Aktion kann nicht rückgängig gemacht werden.</span>','Position löschen')) return;
   setFkItems(getFkItems().filter(i=>i.id!==id));
   renderFixkosten();
 }
@@ -3819,7 +3818,7 @@ function saveProdForm(){
 }
 
 async function deleteProdukt(sku){
-  if(!await customConfirm(`Produkt "${sku}" wirklich unwiderruflich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.`,"Produkt löschen")) return;
+  if(!await customConfirm(`Produkt <strong>„${sku}"</strong> wirklich löschen?<br><span style="font-size:12px;">Diese Aktion kann nicht rückgängig gemacht werden.</span>`,"Produkt löschen")) return;
   saveProdukte(getProdukte().filter(p=>p.sku!==sku));
   if(typeof dbSynced!=='undefined'&&dbSynced) deleteProdukteFromSupabase(sku).catch(e=>console.warn(e));
   renderProdukte();
@@ -4425,7 +4424,7 @@ function toggleAllOrders(checked){
 async function deleteSelected(){
   const checked=[...document.querySelectorAll('.order-check:checked')];
   if(!checked.length) return;
-  if(!await customConfirm(checked.length+' Bestellungen wirklich unwiderruflich löschen? Diese Aktion kann nicht rückgängig gemacht werden.','Bestellungen löschen')) return;
+  if(!await customConfirm('<strong>'+checked.length+' Bestellungen</strong> wirklich löschen?<br><span style="font-size:12px;">Diese Aktion kann nicht rückgängig gemacht werden.</span>','Bestellungen löschen')) return;
   const ids=new Set(checked.map(cb=>parseInt(cb.dataset.id)));
   saveOrders(getOrders().filter(o=>!ids.has(o.id)));
   renderOrders(); renderDashboard(); renderDay();
@@ -4873,7 +4872,7 @@ function addVersandProfile(){
 }
 
 async function deleteVersandProfile(id){
-  if(!await customConfirm('Dieses Versandprofil wirklich unwiderruflich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.','Versandprofil löschen')) return;
+  if(!await customConfirm('Dieses Versandprofil <strong>wirklich löschen?</strong><br><span style="font-size:12px;">Diese Aktion kann nicht rückgängig gemacht werden.</span>','Versandprofil löschen')) return;
   setVersandProfile(getVersandProfile().filter(p=>p.id!==id));
   renderVersandProfiles();
   populateVersandDropdown();
@@ -4957,7 +4956,7 @@ function closeVersandEdit(){
 
 async function deleteVersandFromEdit(){
   const id=parseInt(document.getElementById('vp-edit-id').value);
-  if(!await customConfirm('Dieses Versandprofil wirklich unwiderruflich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.','Versandprofil löschen')) return;
+  if(!await customConfirm('Dieses Versandprofil <strong>wirklich löschen?</strong><br><span style="font-size:12px;">Diese Aktion kann nicht rückgängig gemacht werden.</span>','Versandprofil löschen')) return;
   setVersandProfile(getVersandProfile().filter(p=>p.id!==id));
   closeVersandEdit();
   renderVersandProfiles();
@@ -5332,9 +5331,12 @@ async function initApp(){
 
   <!-- CUSTOM CONFIRM MODAL -->
   <div id="confirm-modal-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:9999;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:16px;padding:28px 28px 20px;max-width:380px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.18);">
-      <div style="font-size:15px;font-weight:600;color:#1a1a18;margin-bottom:8px;text-align:center;" id="confirm-title">Löschen bestätigen</div>
-      <div style="font-size:13px;color:#888780;margin-bottom:24px;line-height:1.5;text-align:center;" id="confirm-msg"></div>
+    <div style="background:#fff;border-radius:16px;padding:28px 28px 22px;max-width:400px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.18);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;justify-content:center;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#f59e0b" xmlns="http://www.w3.org/2000/svg"><path d="M10.909 2.782a2.25 2.25 0 0 1 2.975.74l.083.138 7.759 14.009a2.25 2.25 0 0 1-1.814 3.334l-.154.006H4.242A2.25 2.25 0 0 1 2.2 17.812l.072-.143L10.03 3.66a2.25 2.25 0 0 1 .879-.878ZM12 16.002a.999.999 0 1 0 0 1.997.999.999 0 0 0 0-1.997Zm-.002-8.004a1 1 0 0 0-.993.884L11 8.998 11 14l.007.117a1 1 0 0 0 1.987 0l.006-.117L13 8.998l-.007-.117a1 1 0 0 0-.994-.883Z"/></svg>
+        <div style="font-size:15px;font-weight:600;color:#1a1a18;text-align:center;" id="confirm-title">Löschen bestätigen</div>
+      </div>
+      <div style="font-size:13px;color:#888780;margin-bottom:24px;line-height:1.6;text-align:center;" id="confirm-msg"></div>
       <div style="display:flex;gap:8px;justify-content:center;">
         <button class="btn" onclick="resolveConfirm(false)" id="confirm-cancel-btn">Abbrechen</button>
         <button class="btn" onclick="resolveConfirm(true)" id="confirm-ok-btn" style="background:#E24B4A;color:#fff;border-color:#E24B4A;">Löschen</button>

@@ -220,7 +220,7 @@ tr:last-child td{border-bottom:none;}
         </div>
         <div class="field"><label>Bestellnummer (optional)</label><input type="text" id="f-bestellnr" placeholder="z.B. 123-456"></div>
         <div class="field"><label>Artikel (optional)</label><input type="text" id="f-artikel" placeholder="z.B. Philips Rasierer Series 3"></div>
-        <div class="field"><label>SKU / ASIN (optional)</label><input type="text" id="f-sku" placeholder="z.B. BHS732/00 oder B08N5WRWNW"></div>
+        <div class="field"><label>SKU / ASIN (optional)</label><input type="text" id="f-sku" placeholder="z.B. BHS732/00 oder B08N5WRWNW" onblur="autofillFromSku()"></div>
       </div>
       <div class="form-grid">
         <div class="field">
@@ -2854,6 +2854,39 @@ function calcDB(o){
 }
 
 function onKanalChange(){manualFee=false;autoCalc();populateVersandDropdown();}
+function autofillFromSku(){
+  const val=document.getElementById('f-sku').value.trim();
+  if(!val) return;
+  const produkte=getProdukte();
+  const p=produkte.find(p=>
+    p.sku.toLowerCase()===val.toLowerCase()||
+    (p.asin&&p.asin.toLowerCase()===val.toLowerCase())
+  );
+  if(!p) return;
+
+  // Artikelname — nur befüllen wenn leer
+  const artikelEl=document.getElementById('f-artikel');
+  if(artikelEl&&!artikelEl.value) artikelEl.value=p.name||'';
+
+  // EK — nur befüllen wenn leer
+  const warenEl=document.getElementById('f-waren');
+  if(warenEl&&!warenEl.value) warenEl.value=p.ek||'';
+
+  // Versandprofil — nur setzen wenn vorhanden
+  if(p.versandProfilId){
+    const sel=document.getElementById('f-versand-profil');
+    if(sel&&!sel.value) sel.value=p.versandProfilId;
+    onVersandProfilChange();
+  }
+
+  // Flash-Hinweis
+  const skuEl=document.getElementById('f-sku');
+  skuEl.style.borderColor='#1D9E75';
+  setTimeout(()=>skuEl.style.borderColor='',2000);
+
+  updatePreview();
+}
+
 function autoCalc(){
   const kanal=document.getElementById('f-kanal').value;
   const brutto=parseFloat(document.getElementById('f-brutto').value)||0;

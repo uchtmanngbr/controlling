@@ -3702,6 +3702,30 @@ function showEingabeSub(sub){
 
 /* ── PRODUKTE ── */
 function downloadProduktCSVTemplate(){
+  // Show info modal first
+  _confirmResolve=null;
+  document.getElementById('confirm-title').textContent='Hinweise zur CSV-Datei';
+  document.getElementById('confirm-msg').innerHTML=
+    `Den Netto-EK mit einem <strong>Punkt als Dezimaltrennzeichen</strong> angeben (z.&nbsp;B. <code>12.99</code> statt <code>12,99</code>).<br><br>
+    Das Versandprofil muss <strong>exakt dem Namen</strong> eines gespeicherten Versandprofils entsprechen.`;
+  const okBtn=document.getElementById('confirm-ok-btn');
+  okBtn.textContent='Verstanden';
+  okBtn.style.background='#003265';
+  okBtn.style.borderColor='#003265';
+  okBtn.onclick=()=>{
+    resolveConfirm(false);
+    okBtn.onclick=()=>resolveConfirm(true);
+    okBtn.textContent='Löschen';
+    okBtn.style.background='#E24B4A';
+    okBtn.style.borderColor='#E24B4A';
+    _startCSVDownload();
+  };
+  document.getElementById('confirm-cancel-btn').style.display='none';
+  document.getElementById('confirm-modal-bg').style.display='flex';
+}
+
+function _startCSVDownload(){
+  document.getElementById('confirm-cancel-btn').style.display='';
   const csv='SKU;ASIN;Name;EK;Versandprofil\nKOPFH-001;B08XYZ1234;Kopfhörer XY Schwarz;8.50;DHL Päckchen M\nKABEL-USB-002;B07ABC5678;USB-C Ladekabel 1m;2.20;Deutsche Post Warensendung';
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
   const url=window.URL.createObjectURL(blob);

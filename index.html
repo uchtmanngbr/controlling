@@ -3890,9 +3890,19 @@ function importProduktCSV(event){
   const file=event.target.files[0];
   if(!file) return;
   const reader=new FileReader();
+  // Try UTF-8 first, fall back to Windows-1252 if garbled
   reader.onload=async e=>{
-    const lines=e.target.result.split('\n').map(l=>l.trim()).filter(Boolean);
-    if(!lines.length) return;
+    let text=e.target.result;
+    // Check for replacement chars indicating wrong encoding
+    if(text.includes('\uFFFD')||/[\x80-\x9F]/.test(text)){
+      // Re-read as Windows-1252
+      await new Promise(resolve=>{
+        const r2=new FileReader();
+        r2.onload=ev=>{text=ev.target.result;resolve();};
+        r2.readAsText(file,'windows-1252');
+      });
+    }
+    const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);    if(!lines.length) return;
     const header=lines[0].split(/[,;]/).map(h=>h.trim().toLowerCase().replace(/"/g,''));
     const get=(row,keys)=>{for(const k of keys){const i=header.indexOf(k);if(i>=0)return(row[i]||'').replace(/"/g,'').trim();}return'';};
     const produkte=getProdukte();

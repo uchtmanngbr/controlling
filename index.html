@@ -3866,39 +3866,74 @@ function importProduktCSV(event){
   const file=event.target.files[0];
   if(!file) return;
   const reader=new FileReader();
-  reader.onload=e=>{
+  reader.onload=async e=>{
     const lines=e.target.result.split('\n').map(l=>l.trim()).filter(Boolean);
     if(!lines.length) return;
     const header=lines[0].split(/[,;]/).map(h=>h.trim().toLowerCase().replace(/"/g,''));
     const get=(row,keys)=>{for(const k of keys){const i=header.indexOf(k);if(i>=0)return(row[i]||'').replace(/"/g,'').trim();}return'';};
     const produkte=getProdukte();
-    let added=0,updated=0,errors=[];
+    const profiles=getVersandProfile();
+    let added=0,updated=0,skipped=0,errors=[];
+    const newProds=[];
+
     for(let i=1;i<lines.length;i++){
       const row=lines[i].split(/[,;]/);
       const sku=get(row,['sku']);
       const name=get(row,['name','artikelname','artikel']);
       if(!sku){errors.push(`Zeile ${i+1}: SKU fehlt`);continue;}
       const versandName=get(row,['versandprofil','versand','shipping']);
-      const profiles=getVersandProfile();
-      const matchedProfile=profiles.find(p=>
-        (p.name||p.carrier||'').toLowerCase()===versandName.toLowerCase()
-      );
-      const prod={
+      const matchedProfile=profiles.find(p=>(p.name||p.carrier||'').toLowerCase()===versandName.toLowerCase());
+      newProds.push({
         sku, asin:get(row,['asin','marktplatz-id','marketplace_id']),
         name:name||sku, ek:parseFloat(get(row,['ek','einkaufspreis','einkauf']).replace(',','.'))||0,
         versandProfilId:matchedProfile?String(matchedProfile.id):null,
         aktiv:get(row,['aktiv','active'])!=='false',
-      };
-      const idx=produkte.findIndex(p=>p.sku===sku);
-      if(idx>=0){produkte[idx]={...produkte[idx],...prod};updated++;}
-      else{produkte.unshift(prod);added++;}
+      });
     }
+
+    // Find duplicates
+    const dupes=newProds.filter(p=>produkte.some(ex=>ex.sku===p.sku));
+    let updateDupes=false;
+
+    if(dupes.length>0){
+      updateDupes=await new Promise(resolve=>{
+        _confirmResolve=resolve;
+        document.getElementById('confirm-title').textContent='Doppelte SKUs gefunden';
+        document.getElementById('confirm-msg').innerHTML=
+          `<strong>${dupes.length} SKU${dupes.length>1?'s':''}</strong> aus der CSV ${dupes.length>1?'sind':'ist'} bereits vorhanden:<br>
+          <span style="font-size:12px;color:#003265;">${dupes.map(d=>d.sku).join(', ')}</span><br><br>
+          Was soll mit den doppelten SKUs passieren?`;
+        const okBtn=document.getElementById('confirm-ok-btn');
+        okBtn.textContent='Aktualisieren';
+        okBtn.style.background='#003265';
+        okBtn.style.borderColor='#003265';
+        document.getElementById('confirm-cancel-btn').textContent='Überspringen';
+        document.getElementById('confirm-modal-bg').style.display='flex';
+      });
+      // Reset modal buttons
+      const okBtn=document.getElementById('confirm-ok-btn');
+      okBtn.textContent='Löschen';
+      okBtn.style.background='#E24B4A';
+      okBtn.style.borderColor='#E24B4A';
+      document.getElementById('confirm-cancel-btn').textContent='Abbrechen';
+    }
+
+    for(const prod of newProds){
+      const idx=produkte.findIndex(p=>p.sku===prod.sku);
+      if(idx>=0){
+        if(updateDupes){produkte[idx]={...produkte[idx],...prod};updated++;}
+        else skipped++;
+      } else {
+        produkte.unshift(prod); added++;
+      }
+    }
+
     saveProdukte(produkte);
     renderProdukte();
     const status=document.getElementById('prod-import-status');
     status.style.display='block';
     status.innerHTML=`<div class="form-card" style="padding:10px 16px;margin-bottom:0;">
-      <span style="color:#1D9E75;font-size:13px;">✓ ${added} neu, ${updated} aktualisiert</span>
+      <span style="color:#1D9E75;font-size:13px;">✓ ${added} neu hinzugefügt${updated?`, ${updated} aktualisiert`:''}${skipped?`, ${skipped} übersprungen`:''}</span>
       ${errors.length?`<div style="font-size:12px;color:#E24B4A;margin-top:6px;">${errors.join('<br>')}</div>`:''}
     </div>`;
     setTimeout(()=>status.style.display='none',5000);
@@ -3906,7 +3941,6 @@ function importProduktCSV(event){
   };
   reader.readAsText(file);
 }
-
 function getProduktBySku(sku){return getProdukte().find(p=>p.sku===sku)||null;}
 
 async function syncProdukteFromSupabase(){

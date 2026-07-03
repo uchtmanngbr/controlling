@@ -1923,7 +1923,7 @@ function addMkItem(){
 }
 
 async function deleteMkItem(id){
-  if(!await customConfirm('Eintrag löschen?')) return;
+  if(!await customConfirm('Diesen Eintrag wirklich unwiderruflich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.','Eintrag löschen')) return;
   setMkItems(getMkItems().filter(i=>i.id!==id));
   renderMarketing(); renderDashboard();
 }
@@ -2626,7 +2626,9 @@ function closeRechEdit(){
 }
 
 async function deleteRechnung(id){
-  if(!await customConfirm('Rechnung löschen?')) return;
+  const _r=JSON.parse(localStorage.getItem('ec_rechnungen')||'[]').find(r=>r.id===id);
+  const _rnr=_r?(_r.nr||'#'+id):'#'+id;
+  if(!await customConfirm(`Rechnung "${_rnr}" wirklich unwiderruflich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.`,'Rechnung löschen')) return;
   setRechnungen(getRechnungen().filter(r=>r.id!==id));
   renderRechnungen(); renderDashboard();
 }
@@ -3043,7 +3045,9 @@ function resolveConfirm(val){
 }
 
 async function deleteOrder(id){
-  if(!await customConfirm('Bestellung löschen?')) return;
+  const _o=getOrders().find(o=>o.id===id);
+  const _nr=_o?(_o.bestellnr||_o.artikel||'#'+id):'#'+id;
+  if(!await customConfirm(`Bestellung "${_nr}" wirklich unwiderruflich löschen?\n${"Diese Aktion kann nicht rückgängig gemacht werden."}`,'Bestellung löschen')) return;
   saveOrders(getOrders().filter(o=>o.id!==id));
   renderOrders(); renderDashboard();
   if(dbSynced) fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`,{
@@ -3052,7 +3056,7 @@ async function deleteOrder(id){
   }).catch(e=>console.warn('Supabase delete error:',e));
 }
 async function deleteAll(){
-  if(!await customConfirm('Wirklich alle Bestellungen löschen?','Alle löschen','Alle löschen')) return;
+  if(!await customConfirm('Alle Bestellungen wirklich unwiderruflich löschen? Diese Aktion kann nicht rückgängig gemacht werden.','Alle Bestellungen löschen','Alle löschen')) return;
   saveOrders([]); renderOrders(); renderDashboard();
   if(dbSynced) fetch(`${SUPABASE_URL}/rest/v1/orders?id=gte.0`,{
     method:'DELETE',
@@ -3510,7 +3514,7 @@ function addFkItem(){
 }
 
 async function deleteFkItem(id){
-  if(!await customConfirm('Position löschen?')) return;
+  if(!await customConfirm('Diese Position wirklich unwiderruflich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.','Position löschen')) return;
   setFkItems(getFkItems().filter(i=>i.id!==id));
   renderFixkosten();
 }
@@ -3815,7 +3819,7 @@ function saveProdForm(){
 }
 
 async function deleteProdukt(sku){
-  if(!await customConfirm(`Produkt "${sku}" löschen?`)) return;
+  if(!await customConfirm(`Produkt "${sku}" wirklich unwiderruflich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.`,"Produkt löschen")) return;
   saveProdukte(getProdukte().filter(p=>p.sku!==sku));
   if(typeof dbSynced!=='undefined'&&dbSynced) deleteProdukteFromSupabase(sku).catch(e=>console.warn(e));
   renderProdukte();
@@ -4421,7 +4425,7 @@ function toggleAllOrders(checked){
 async function deleteSelected(){
   const checked=[...document.querySelectorAll('.order-check:checked')];
   if(!checked.length) return;
-  if(!await customConfirm(checked.length+' Bestellungen löschen?')) return;
+  if(!await customConfirm(checked.length+' Bestellungen wirklich unwiderruflich löschen? Diese Aktion kann nicht rückgängig gemacht werden.','Bestellungen löschen')) return;
   const ids=new Set(checked.map(cb=>parseInt(cb.dataset.id)));
   saveOrders(getOrders().filter(o=>!ids.has(o.id)));
   renderOrders(); renderDashboard(); renderDay();
@@ -4869,7 +4873,7 @@ function addVersandProfile(){
 }
 
 async function deleteVersandProfile(id){
-  if(!await customConfirm('Profil löschen?')) return;
+  if(!await customConfirm('Dieses Versandprofil wirklich unwiderruflich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.','Versandprofil löschen')) return;
   setVersandProfile(getVersandProfile().filter(p=>p.id!==id));
   renderVersandProfiles();
   populateVersandDropdown();
@@ -4953,7 +4957,7 @@ function closeVersandEdit(){
 
 async function deleteVersandFromEdit(){
   const id=parseInt(document.getElementById('vp-edit-id').value);
-  if(!await customConfirm('Versandprofil wirklich löschen?')) return;
+  if(!await customConfirm('Dieses Versandprofil wirklich unwiderruflich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.','Versandprofil löschen')) return;
   setVersandProfile(getVersandProfile().filter(p=>p.id!==id));
   closeVersandEdit();
   renderVersandProfiles();
@@ -5329,9 +5333,9 @@ async function initApp(){
   <!-- CUSTOM CONFIRM MODAL -->
   <div id="confirm-modal-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:9999;align-items:center;justify-content:center;">
     <div style="background:#fff;border-radius:16px;padding:28px 28px 20px;max-width:380px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.18);">
-      <div style="font-size:15px;font-weight:600;color:#1a1a18;margin-bottom:8px;" id="confirm-title">Löschen bestätigen</div>
-      <div style="font-size:13px;color:#888780;margin-bottom:24px;line-height:1.5;" id="confirm-msg"></div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <div style="font-size:15px;font-weight:600;color:#1a1a18;margin-bottom:8px;text-align:center;" id="confirm-title">Löschen bestätigen</div>
+      <div style="font-size:13px;color:#888780;margin-bottom:24px;line-height:1.5;text-align:center;" id="confirm-msg"></div>
+      <div style="display:flex;gap:8px;justify-content:center;">
         <button class="btn" onclick="resolveConfirm(false)" id="confirm-cancel-btn">Abbrechen</button>
         <button class="btn" onclick="resolveConfirm(true)" id="confirm-ok-btn" style="background:#E24B4A;color:#fff;border-color:#E24B4A;">Löschen</button>
       </div>

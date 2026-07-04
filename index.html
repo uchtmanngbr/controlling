@@ -4360,10 +4360,10 @@ function renderOrders(){
   let orders=getOrders().filter(o=>{
     const matchKanal=!kanal||o.kanal===kanal;
     let matchTime;
-    if(search){
-      matchTime=true;
-    } else if(range){
+    if(range){
       matchTime=o.datum>=range.from&&o.datum<=range.to;
+    } else if(currentOrderPeriod==='all'){
+      matchTime=true;
     } else {
       const d=new Date(o.datum);
       matchTime=d.getMonth()+1===month&&d.getFullYear()===year;
@@ -4374,7 +4374,7 @@ function renderOrders(){
       const s=String(v||'');
       return s+' '+s.replace('.',',');
     }).join(' ');
-    const haystack=[o.artikel||'',o.bestellnr||'',o.kanal||'',o.datum||'',numFields,o.notiz||''].join(' ').toLowerCase();
+    const haystack=[o.artikel||'',o.bestellnr||'',o.kanal||'',o.datum||'',o.sku||'',numFields,o.notiz||''].join(' ').toLowerCase();
     return haystack.includes(search)||haystack.includes(searchNorm);
   }).sort((a,b)=>b.datum.localeCompare(a.datum)||b.id-a.id);
 

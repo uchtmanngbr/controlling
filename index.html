@@ -5307,42 +5307,17 @@ async function importLocalData(event){
 }
 
 /* ── REALTIME ── */
-let realtimeSocket=null;
-let realtimeRef=1;
+let supabaseClient=null;
+
 function initRealtime(){
-  const wsUrl=`wss://byazoaixpovvtfmmphin.supabase.co/realtime/v1/websocket?apikey=${SUPABASE_KEY}&vsn=1.0.0`;
-  realtimeSocket=new WebSocket(wsUrl);
+  if(!window.supabase){console.warn('Supabase JS nicht geladen');return;}
 
-  realtimeSocket.onopen=()=>{
-    console.log('✓ Supabase Realtime verbunden');
-    // Join channel for each table
-    const tables=['orders','fixkosten','marketing','mpg','versand','settings','rechnungen'];
-    tables.forEach((table,i)=>{
-      realtimeSocket.send(JSON.stringify({
-        topic:`realtime:public:${table}`,
-        event:'phx_join',
-        payload:{config:{postgres_changes:[{event:'*',schema:'public',table}]}},
-        ref:String(++realtimeRef)
-      }));
-    });
-    // Heartbeat every 30s
-    setInterval(()=>{
-      if(realtimeSocket.readyState===WebSocket.OPEN){
-        realtimeSocket.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:String(++realtimeRef)}));
-      }
-    },30000);
-  };
+  supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-  realtimeSocket.onmessage=async(e)=>{
-    const msg=JSON.parse(e.data);
-    if(msg.event==='phx_reply'||msg.event==='phx_close') return;
-
-    const table=msg.payload?.data?.table||msg.topic?.split(':')?.[2];
-    if(!table||msg.event==='heartbeat') return;
-
-    console.log(`↻ Realtime: ${table} geändert`, msg.event);
+  async function handleChange(table){
     const syncEl=document.getElementById('sync-indicator');
     if(syncEl){syncEl.style.opacity='1';syncEl.textContent='↻ Synchronisiere...';}
+    console.log(`↻ Realtime: ${table} geändert`);
 
     if(table==='orders'){
       const data=await sbFetch('orders','GET',null,'?select=*&order=id.desc');
@@ -5380,18 +5355,26 @@ function initRealtime(){
       if(data) localStorage.setItem('ec_rechnungen',JSON.stringify(data));
       const page=document.querySelector('.page.active');
       if(page?.id==='page-eingabe') renderRechnungen();
+    } else if(table==='products'){
+      const data=await sbFetch('products','GET',null,'?select=*');
+      if(data){const mapped=data.map(p=>({sku:p.sku,asin:p.asin||'',name:p.name||'',ek:p.ek||0,versandProfilId:p.versand_profil_id||null,aktiv:p.aktiv!==false}));localStorage.setItem('ec_produkte',JSON.stringify(mapped));}
+      const page=document.querySelector('.page.active');
+      if(page?.id==='page-produkte') renderProdukte();
     }
+
     if(syncEl){syncEl.textContent='✓ Aktualisiert';setTimeout(()=>syncEl.style.opacity='0',2000);}
-  };
+  }
 
-  realtimeSocket.onclose=()=>{
-    console.log('Realtime getrennt — reconnect in 5s');
-    setTimeout(initRealtime, 5000);
-  };
-
-  realtimeSocket.onerror=(e)=>console.warn('Realtime Fehler:', e);
+  const tables=['orders','fixkosten','marketing','mpg','versand','settings','rechnungen','products'];
+  tables.forEach(table=>{
+    supabaseClient
+      .channel(`realtime:${table}`)
+      .on('postgres_changes',{event:'*',schema:'public',table},()=>handleChange(table))
+      .subscribe(status=>{
+        if(status==='SUBSCRIBED') console.log(`✓ Realtime: ${table} abonniert`);
+      });
+  });
 }
-
 async function initApp(){
   const today=new Date().toISOString().split('T')[0];
   document.getElementById('rech-datum').value=today;
@@ -5423,6 +5406,7 @@ async function initApp(){
 }
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/de.js"></script>
 <script>

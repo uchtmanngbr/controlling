@@ -1935,8 +1935,8 @@ function addMkItem(){
   const betrag=parseFloat(document.getElementById('mk-betrag').value)||0;
   const month=parseInt(document.getElementById('mk-month').value);
   const year=parseInt(document.getElementById('mk-year').value);
-  if(!kanal){alert('Bitte einen Kanal eingeben.');return;}
-  if(betrag<=0){alert('Bitte einen Betrag eingeben.');return;}
+  if(!kanal){showToast('Bitte einen Kanal eingeben.');return;}
+  if(betrag<=0){showToast('Bitte einen Betrag eingeben.');return;}
   const items=getMkItems();
   items.push({id:Date.now(),kanal,betrag,month,year,updatedAt:Date.now()});
   setMkItems(items);
@@ -2576,8 +2576,8 @@ function clearRechForm(){
 function saveRechnung(){
   const netto=parseFloat(document.getElementById('rech-netto').value)||0;
   const datum=document.getElementById('rech-datum').value;
-  if(!datum){alert('Bitte ein Datum eingeben.');return;}
-  if(netto<=0){alert('Bitte einen Betrag eingeben.');return;}
+  if(!datum){showToast('Bitte ein Datum eingeben.');return;}
+  if(netto<=0){showToast('Bitte einen Betrag eingeben.');return;}
   const mwstRate=parseInt(document.getElementById('rech-mwst').value)||0;
   const brutto=parseFloat((netto*(1+mwstRate/100)).toFixed(2));
   const rechnung={
@@ -2618,6 +2618,8 @@ function editRechnung(id){
   document.getElementById('re-kategorie').value=r.kategorie||'Dienstleistung';
   document.getElementById('re-notiz').value=r.notiz||'';
   reUpdatePreview();
+  const _fp_redat=document.getElementById('re-datum');
+  if(_fp_redat&&!_fp_redat._flatpickr&&window.flatpickr) flatpickr(_fp_redat,{locale:'de',dateFormat:'Y-m-d',allowInput:true,disableMobile:true});
   document.getElementById('rech-edit-modal-bg').style.display='flex';
   setTimeout(()=>{document.getElementById('re-netto').focus();document.getElementById('re-netto').select();},50);
 }
@@ -2800,6 +2802,8 @@ function editOrder(id){
   document.getElementById('ed-fee-hint').innerHTML='';
   document.getElementById('ed-retoure-banner').style.display=isR?'block':'none';
   edUpdatePreview();
+  const _fp_eddatum=document.getElementById('ed-datum');
+  if(_fp_eddatum&&!_fp_eddatum._flatpickr&&window.flatpickr) flatpickr(_fp_eddatum,{locale:'de',dateFormat:'Y-m-d',allowInput:true,disableMobile:true});
   document.getElementById('edit-modal-bg').style.display='flex';
   setTimeout(()=>{
     const emptyFields=['ed-waren','ed-versand','ed-brutto','ed-artikel'];
@@ -3562,8 +3566,8 @@ function addFkItem(){
   const name=document.getElementById('fk-name').value.trim();
   const betrag=parseFloat(document.getElementById('fk-betrag').value)||0;
   const bereich=document.getElementById('fk-bereich').value;
-  if(!name){alert('Bitte eine Bezeichnung eingeben.');return;}
-  if(betrag<=0){alert('Bitte einen Betrag eingeben.');return;}
+  if(!name){showToast('Bitte eine Bezeichnung eingeben.');return;}
+  if(betrag<=0){showToast('Bitte einen Betrag eingeben.');return;}
   const item={
     id:Date.now(), name, betrag, bereich,
     intervall:bereich==='variabel'?'einmalig':document.getElementById('fk-intervall').value,
@@ -4060,6 +4064,22 @@ async function syncProdukteFromSupabase(){
   localStorage.setItem('ec_produkte',JSON.stringify(mapped));
 }
 
+function showToast(msg, type='error'){
+  let toast=document.getElementById('pv-toast');
+  if(!toast){
+    toast=document.createElement('div');
+    toast.id='pv-toast';
+    toast.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;z-index:99999;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,0.15);';
+    document.body.appendChild(toast);
+  }
+  toast.textContent=msg;
+  toast.style.background=type==='error'?'#E24B4A':type==='success'?'#1D9E75':'#003265';
+  toast.style.color='#fff';
+  toast.style.opacity='1';
+  clearTimeout(toast._t);
+  toast._t=setTimeout(()=>toast.style.opacity='0',3000);
+}
+
 let _dashDebounce=null;
 function renderDashboard(){
   if(_dashDebounce) clearTimeout(_dashDebounce);
@@ -4518,6 +4538,8 @@ function openBulkEdit(){
   document.getElementById('bulk-kanal').value='';
   document.getElementById('bulk-modal-count').textContent='— '+checked.length+' Bestellungen';
   document.getElementById('bulk-save-btn').textContent='Auf '+checked.length+' Bestellungen anwenden';
+  const _fp_bulkdatum=document.getElementById('bulk-datum');
+  if(_fp_bulkdatum&&!_fp_bulkdatum._flatpickr&&window.flatpickr) flatpickr(_fp_bulkdatum,{locale:'de',dateFormat:'Y-m-d',allowInput:true,disableMobile:true});
   document.getElementById('bulk-modal-bg').style.display='flex';
   document.getElementById('bulk-waren').focus();
 }
@@ -4537,7 +4559,7 @@ function saveBulkEdit(){
   const kanal=document.getElementById('bulk-kanal').value;
   const datum=document.getElementById('bulk-datum').value;
   const hasChanges=[waren,versand,provision,retoure,kanal,datum].some(v=>v!=='');
-  if(!hasChanges){ alert('Bitte mindestens ein Feld ausfüllen.'); return; }
+  if(!hasChanges){ showToast('Bitte mindestens ein Feld ausfüllen.'); return; }
   const orders=getOrders();
   let count=0;
   orders.forEach(o=>{
@@ -4847,7 +4869,7 @@ document.addEventListener('change', e => {
 
 function confirmImport() {
   const checked = [...document.querySelectorAll('.imp-row-check:checked')].map(cb => parseInt(cb.dataset.idx));
-  if (!checked.length) { alert('Keine Bestellungen ausgewählt.'); return; }
+  if (!checked.length) { showToast('Keine Bestellungen ausgewählt.'); return; }
   const orders = getOrders();
   const existingNrs = new Set(orders.filter(o=>o.bestellnr).map(o => o.bestellnr.trim()));
   let added = 0, skipped = 0;
@@ -5062,6 +5084,8 @@ function editVersandProfile(id){
   document.getElementById('vpe-lagerkosten').value=p.lagerkosten||'';
   document.getElementById('vpe-gueltig-ab').value=p.gueltigAb||'';
   updateVpeSumme();
+  const _fp_vpegueltigab=document.getElementById('vpe-gueltig-ab');
+  if(_fp_vpegueltigab&&!_fp_vpegueltigab._flatpickr&&window.flatpickr) flatpickr(_fp_vpegueltigab,{locale:'de',dateFormat:'Y-m-d',allowInput:true,disableMobile:true});
   document.getElementById('versand-edit-modal-bg').style.display='flex';
   setTimeout(()=>document.getElementById('vpe-carrier').focus(),50);
 }

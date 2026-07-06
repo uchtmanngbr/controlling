@@ -962,7 +962,7 @@ tr:last-child td{border-bottom:none;}
         </div>
         <div class="field"><label>Bestellnummer</label><input type="text" id="ed-bestellnr"></div>
         <div class="field"><label>Artikel</label><input type="text" id="ed-artikel"></div>
-        <div class="field"><label>SKU / ASIN</label><input type="text" id="ed-sku"></div>
+        <div class="field"><label>SKU / ASIN</label><input type="text" id="ed-sku" onblur="autofillFromSkuEdit()"></div>
         <div class="field"><label>Verkaufspreis brutto (€)</label><input type="number" id="ed-brutto" min="0" step="0.01" oninput="edAutoCalc()"></div>
         <div class="field"><label>Warenkosten netto (€)</label><input type="number" id="ed-waren" min="0" step="0.01" oninput="edUpdatePreview()"></div>
         <div class="field"><label>Versandprofil</label>
@@ -2079,9 +2079,12 @@ function showKennzahlen(sub){
     if(el) el.style.display=s===sub?'block':'none';
     if(btn) btn.classList.toggle('op-active',s===sub);
   });
-  if(sub==='berichte'){populateBerFilters();renderBerichte();}
-  if(sub==='cashflow'){populateCfFilters();renderCashflow();}
-  if(sub==='jahresverlauf'){renderJahresverlauf();}
+  // Wait for DOM to be visible before rendering charts
+  requestAnimationFrame(()=>{
+    if(sub==='berichte'){populateBerFilters();renderBerichte();}
+    if(sub==='cashflow'){populateCfFilters();renderCashflow();}
+    if(sub==='jahresverlauf'){renderJahresverlauf();}
+  });
 }
 
 function renderBerichte(){
@@ -2756,6 +2759,24 @@ function toggleEdRetoure(){
   edUpdatePreview();
 }
 
+function autofillFromSkuEdit(){
+  const val=document.getElementById('ed-sku').value.trim();
+  if(!val) return;
+  const p=getProdukte().find(p=>p.sku.toLowerCase()===val.toLowerCase()||(p.asin&&p.asin.toLowerCase()===val.toLowerCase()));
+  if(!p) return;
+  const artikelEl=document.getElementById('ed-artikel');
+  if(artikelEl&&!artikelEl.value) artikelEl.value=p.name||'';
+  const warenEl=document.getElementById('ed-waren');
+  if(warenEl&&(!warenEl.value||parseFloat(warenEl.value)===0)) warenEl.value=p.ek||'';
+  if(p.versandProfilId){
+    const sel=document.getElementById('ed-versand-profil');
+    if(sel) sel.value=String(p.versandProfilId);
+  }
+  document.getElementById('ed-sku').style.borderColor='#1D9E75';
+  setTimeout(()=>document.getElementById('ed-sku').style.borderColor='',2000);
+  edUpdatePreview();
+}
+
 function editOrder(id){
   const o=getOrders().find(o=>o.id===id);
   if(!o) return;
@@ -2993,7 +3014,7 @@ function showPage(p){
   if(p==='marketing') { populateMkFilters(); renderMarketing(); }
   if(p==='produkte'){ populateProdVersandDropdown(); renderProdukte(); }
   if(p==='berichte') { showPage('kennzahlen'); setTimeout(()=>showKennzahlen('berichte'),50); return; }
-  if(p==='kennzahlen'){ setTimeout(()=>showKennzahlen('berichte'),50); }
+  if(p==='kennzahlen'){ requestAnimationFrame(()=>showKennzahlen('berichte')); }
   if(p==='praeferenzen'){
     renderVersandProfiles();
     const s=getRetSettings();
@@ -3707,7 +3728,7 @@ function renderDay(){
     <span class="day-order-db ${(r.gewinn||0)>=0?'pos':'neg'}">${fmt(r.gewinn||0)}</span>
   </div>`);
   const combined=[...allRows,...rechRowsList];
-  const LIMIT_1=10, LIMIT_2=15;
+  const LIMIT_1=20, LIMIT_2=50;
   const showMore=combined.length>LIMIT_1;
   const showAll=combined.length>LIMIT_2;
   const visibleRows=combined.slice(0,LIMIT_1).join('');
@@ -4842,10 +4863,24 @@ function confirmImport() {
   document.getElementById('imp-preview-wrap').style.display = 'none';
   document.getElementById('imp-file').value = '';
   impRows = [];
-  let msg = `✓ ${added} Bestellung${added!==1?'en':''} importiert.`;
-  if(skipped>0) msg += `\n⚠ ${skipped} Duplikat${skipped!==1?'e':''} übersprungen (Bestellnummer bereits vorhanden).`;
-  msg += '\n\nHinweis: Warenkosten sind auf 0 € gesetzt — bitte im Tab „Bestellungen" nachtragen.';
-  alert(msg);
+  // Show result via custom modal (info style)
+  let msgHtml = `<strong>${added} Bestellung${added!==1?'en':''}</strong> erfolgreich importiert.`;
+  if(skipped>0) msgHtml += `<br>⚠ <strong>${skipped} Duplikat${skipped!==1?'e':''}</strong> übersprungen — Bestellnummer bereits vorhanden.`;
+  msgHtml += '<br><br><span style="font-size:11px;">Warenkosten sind auf 0 € gesetzt — bitte unter Bestellungen nachtragen.</span>';
+  _confirmResolve=null;
+  document.getElementById('confirm-title').textContent='Import abgeschlossen';
+  document.getElementById('confirm-msg').innerHTML=msgHtml;
+  const okBtn=document.getElementById('confirm-ok-btn');
+  okBtn.textContent='Verstanden';
+  okBtn.style.background='#003265'; okBtn.style.borderColor='#003265';
+  okBtn.onclick=()=>{
+    resolveConfirm(false);
+    okBtn.onclick=()=>resolveConfirm(true);
+    okBtn.textContent='Löschen'; okBtn.style.background='#E24B4A'; okBtn.style.borderColor='#E24B4A';
+    document.getElementById('confirm-cancel-btn').style.display='';
+  };
+  document.getElementById('confirm-cancel-btn').style.display='none';
+  document.getElementById('confirm-modal-bg').style.display='flex';
 }
 
 function cancelImport() {

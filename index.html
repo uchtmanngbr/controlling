@@ -429,7 +429,7 @@ tr:last-child td{border-bottom:none;}
 
       <!-- Zeitraum Dropdown -->
       <select id="op-period-select" onchange="onPeriodSelectChange()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none">
-        <option value="month">Dieser Monat</option>
+        <option value="month" selected>Dieser Monat</option>
         <option value="today">Heute</option>
         <option value="yesterday">Gestern</option>
         <option value="7days">Letzte 7 Tage</option>
@@ -4201,7 +4201,7 @@ function _renderDashboard(){
 
 
 /* ── BESTELLUNGEN ANALYTICS ── */
-let currentOrderPeriod='all';
+let currentOrderPeriod='month';
 
 function onPeriodSelectChange(){
   const val=document.getElementById('op-period-select').value;

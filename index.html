@@ -3016,10 +3016,32 @@ function saveOrder(){
   const brutto=parseFloat(document.getElementById('f-brutto').value)||0;
   if(!datum) return;
   if(brutto<=0) return;
+  const bestellnr=document.getElementById('f-bestellnr').value.trim();
+
+  // Duplikatsschutz
+  if(bestellnr){
+    const existing=getOrders().find(o=>o.bestellnr&&o.bestellnr.trim()===bestellnr);
+    if(existing){
+      const el=document.getElementById('f-bestellnr');
+      el.style.borderColor='#E24B4A';
+      setTimeout(()=>el.style.borderColor='',3000);
+      // Show inline error
+      let errEl=document.getElementById('bestellnr-dupe-msg');
+      if(!errEl){
+        errEl=document.createElement('span');
+        errEl.id='bestellnr-dupe-msg';
+        errEl.style.cssText='font-size:11px;color:#E24B4A;margin-left:8px;';
+        el.parentNode.appendChild(errEl);
+      }
+      errEl.textContent=`⚠ Bestellnummer bereits vorhanden (${existing.datum})`;
+      setTimeout(()=>errEl.textContent='',4000);
+      return;
+    }
+  }
   const order={
     id:Date.now(),datum,
     kanal:document.getElementById('f-kanal').value,
-    bestellnr:document.getElementById('f-bestellnr').value,
+    bestellnr:bestellnr,
     artikel:document.getElementById('f-artikel').value,
     sku:document.getElementById('f-sku').value,
     umsatzBrutto:brutto,
@@ -4806,12 +4828,13 @@ function confirmImport() {
   const checked = [...document.querySelectorAll('.imp-row-check:checked')].map(cb => parseInt(cb.dataset.idx));
   if (!checked.length) { alert('Keine Bestellungen ausgewählt.'); return; }
   const orders = getOrders();
-  const existingNrs = new Set(orders.map(o => o.bestellnr));
-  let added = 0;
+  const existingNrs = new Set(orders.filter(o=>o.bestellnr).map(o => o.bestellnr.trim()));
+  let added = 0, skipped = 0;
   checked.forEach(i => {
     const o = impRows[i];
-    if (existingNrs.has(o.bestellnr)) return;
+    if (o.bestellnr && existingNrs.has(o.bestellnr.trim())) { skipped++; return; }
     orders.push({ ...o, id: Date.now() + Math.random() });
+    existingNrs.add(o.bestellnr?.trim());
     added++;
   });
   saveOrders(orders);
@@ -4819,7 +4842,10 @@ function confirmImport() {
   document.getElementById('imp-preview-wrap').style.display = 'none';
   document.getElementById('imp-file').value = '';
   impRows = [];
-  alert(`✓ ${added} Bestellungen importiert.\n\nHinweis: Warenkosten sind auf 0 € gesetzt — bitte im Tab "Bestellungen" nachtragen.`);
+  let msg = `✓ ${added} Bestellung${added!==1?'en':''} importiert.`;
+  if(skipped>0) msg += `\n⚠ ${skipped} Duplikat${skipped!==1?'e':''} übersprungen (Bestellnummer bereits vorhanden).`;
+  msg += '\n\nHinweis: Warenkosten sind auf 0 € gesetzt — bitte im Tab „Bestellungen" nachtragen.';
+  alert(msg);
 }
 
 function cancelImport() {

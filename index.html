@@ -185,8 +185,7 @@ tr:last-child td{border-bottom:none;}
     <button class="tab" onclick="showPage('eingabe')">Umsatz erfassen</button>
     <button class="tab" onclick="showPage('bestellungen')">Bestellungen</button>
     <button class="tab" onclick="showPage('retouren')">Retouren</button>
-    <button class="tab" onclick="showPage('fixkosten')">Fixkosten</button>
-    <button class="tab" onclick="showPage('marketing')">Marketing</button>
+    <button class="tab" onclick="showPage('kosten')">Kosten</button>
     <button class="tab" onclick="showPage('kennzahlen')" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M5.25 4.25a1 1 0 0 0-2 0v14a2.5 2.5 0 0 0 2.5 2.5h14a1 1 0 1 0 0-2h-14a.5.5 0 0 1-.5-.5v-14ZM14 7a1 1 0 0 1 1-1h4.502a1 1 0 0 1 1 1l-.002 4.5a1 1 0 1 1-2 0V9.414l-4.543 4.543a1 1 0 0 1-1.414 0l-1.793-1.793-2.543 2.543a1 1 0 0 1-1.414-1.414l3.25-3.25a1 1 0 0 1 1.414 0l1.793 1.793L17.086 8H15a1 1 0 0 1-1-1Z"/></svg>Kennzahlen</button>
     <button class="tab" onclick="showPage('praeferenzen')" style="display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M8.75 13.5a3.251 3.251 0 0 1 3.163 2.5h9.337a.75.75 0 0 1 .102 1.493l-.102.007h-9.337a3.251 3.251 0 0 1-6.326 0H2.75a.75.75 0 0 1-.102-1.493L2.75 16h2.837a3.251 3.251 0 0 1 3.163-2.5Zm6.5-9.5a3.251 3.251 0 0 1 3.163 2.5h2.837a.75.75 0 0 1 .102 1.493L21.25 8h-2.837a3.251 3.251 0 0 1-6.326 0H2.75a.75.75 0 0 1-.102-1.493L2.75 6.5h9.337A3.251 3.251 0 0 1 15.25 4Z"/></svg>Präferenzen</button>
     <button class="tab" onclick="showPage('produkte')">Produkte</button>
@@ -232,7 +231,7 @@ tr:last-child td{border-bottom:none;}
   <div class="page" id="page-eingabe">
     <div style="display:flex;gap:4px;background:#f5f5f3;border-radius:10px;padding:3px;margin-bottom:1.5rem;width:fit-content">
       <button id="ein-btn-bestellung" class="op-btn op-active" onclick="showEingabeSub('bestellung')" style="font-size:14px;padding:8px 20px">Bestellung</button>
-      <button id="ein-btn-rechnung" class="op-btn" onclick="showEingabeSub('rechnung')" style="font-size:14px;padding:8px 20px">Rechnung</button>
+      <button id="ein-btn-rechnung" class="op-btn" onclick="showEingabeSub('rechnung')" style="font-size:14px;padding:8px 20px">Ausgangsrechnung</button>
     </div>
     <div id="ein-sub-bestellung">
     <div class="form-card">
@@ -334,10 +333,10 @@ tr:last-child td{border-bottom:none;}
         <div class="form-grid" style="grid-template-columns:1fr 1fr">
           <div class="field">
             <label>Typ</label>
-            <select id="rech-typ" onchange="updateRechPreview()">
-              <option value="einnahme">Einnahme (wir sind Absender)</option>
-              <option value="ausgabe">Ausgabe (wir sind Empfänger)</option>
+            <select id="rech-typ" onchange="updateRechPreview()" style="display:none">
+              <option value="einnahme" selected>Einnahme (wir sind Absender)</option>
             </select>
+            <div style="font-size:12px;color:#888780;">Ausgangsrechnung (Einnahme)</div>
           </div>
           <div class="field">
             <label>Datum</label>
@@ -587,9 +586,18 @@ tr:last-child td{border-bottom:none;}
     </div>
   </div>
 
-  <div class="page" id="page-fixkosten">
-
-    <!-- HEADER -->
+  <!-- KOSTEN -->
+  <div class="page" id="page-kosten">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:1.5rem;">
+      <div class="section-title" style="margin:0;">Kosten</div>
+    </div>
+    <div style="display:flex;gap:4px;background:#f5f5f3;border-radius:10px;padding:3px;margin-bottom:1.5rem;width:fit-content;">
+      <button onclick="showKosten('fixkosten')" id="kosten-btn-fixkosten" class="op-btn op-active" style="font-size:14px;padding:8px 20px;">Fixkosten</button>
+      <button onclick="showKosten('marketing')" id="kosten-btn-marketing" class="op-btn" style="font-size:14px;padding:8px 20px;">Marketing</button>
+      <button onclick="showKosten('eingangsrechnungen')" id="kosten-btn-eingangsrechnungen" class="op-btn" style="font-size:14px;padding:8px 20px;">Eingangsrechnungen</button>
+    </div>
+    <div id="kosten-fixkosten">
+<!-- HEADER -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
       <div class="section-title" style="margin:0">Kosten & Gebühren</div>
       <div style="display:flex;align-items:center;gap:16px">
@@ -997,12 +1005,9 @@ tr:last-child td{border-bottom:none;}
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- MARKETING -->
-  <div class="page" id="page-marketing">
-
-    <!-- HEADER mit Monatsfilter -->
+    </div>
+    <div id="kosten-marketing" style="display:none;">
+<!-- HEADER mit Monatsfilter -->
     <div class="dash-controls" style="margin-bottom:1rem">
       <div class="section-title" style="margin:0">Marketing-Kosten</div>
       <div style="display:flex;gap:8px;align-items:center">
@@ -1048,11 +1053,99 @@ tr:last-child td{border-bottom:none;}
       </div>
       <div id="mk-year-legend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;justify-content:center"></div>
     </div>
+    </div>
+    <div id="kosten-eingangsrechnungen" style="display:none;">
+      <!-- HEADER -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="section-title" style="margin:0">Eingangsrechnungen</div>
+          <select id="erech-filter-month" onchange="renderEingangsrechnungen()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#1a1a18;outline:none"></select>
+          <select id="erech-filter-year" onchange="renderEingangsrechnungen()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#1a1a18;outline:none"></select>
+        </div>
+        <button class="btn primary" onclick="toggleErechForm()" id="erech-toggle-btn">+ Neue Eingangsrechnung</button>
+      </div>
+
+      <!-- FORMULAR -->
+      <div id="erech-form-wrap" style="display:none;margin-bottom:1.5rem">
+        <div class="form-card" style="margin-bottom:0">
+          <div class="section-title">Neue Eingangsrechnung erfassen</div>
+          <div id="erech-upload-area" style="border:1.5px dashed #c8c8c0;border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;margin-bottom:14px;transition:background .15s;" onclick="document.getElementById('erech-file-input').click()" ondragover="event.preventDefault();this.style.background='#eeeee8'" ondragleave="this.style.background=''" ondrop="handleErechDrop(event)">
+            <input type="file" id="erech-file-input" accept=".pdf" style="display:none;" onchange="handleErechFile(event)">
+            <div id="erech-upload-label">
+              <div style="font-size:24px;margin-bottom:6px">📄</div>
+              <div style="color:#888780">PDF hier ablegen oder klicken</div>
+            </div>
+            <iframe id="erech-pdf-preview" style="display:none;width:100%;height:200px;border:none;border-radius:6px;" title="Rechnungsvorschau"></iframe>
+          </div>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr">
+            <div class="field">
+              <label>Datum</label>
+              <input type="date" id="erech-datum">
+            </div>
+            <div class="field">
+              <label>Rechnungsnummer</label>
+              <input type="text" id="erech-nr" placeholder="z.B. RE-2026-042">
+            </div>
+            <div class="field">
+              <label>Absender (Lieferant)</label>
+              <input type="text" id="erech-partner" placeholder="Firmenname oder Person">
+            </div>
+            <div class="field">
+              <label>Betrag netto (€)</label>
+              <input type="number" id="erech-netto" min="0" step="0.01" placeholder="0.00" oninput="updateErechPreview()">
+            </div>
+            <div class="field">
+              <label>MwSt. (%)</label>
+              <select id="erech-mwst" onchange="updateErechPreview()">
+                <option value="19">19%</option>
+                <option value="7">7%</option>
+                <option value="0">0% (keine MwSt.)</option>
+              </select>
+            </div>
+            <div class="field" style="background:#f5f5f3;border-radius:8px;padding:10px 12px">
+              <div class="text-xs" style="margin-bottom:3px">Brutto</div>
+              <div style="font-size:18px;font-weight:500;" id="erech-brutto-preview">0,00 €</div>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:12px">
+            <label>Notiz (optional)</label>
+            <input type="text" id="erech-notiz" placeholder="z.B. Lieferant, Projekt...">
+          </div>
+          <div class="btn-row">
+            <button class="btn primary" onclick="saveErechnung()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
+            <button class="btn" onclick="clearErechForm()">Zurücksetzen</button>
+            <span id="erech-save-msg" style="font-size:12px;color:#1D9E75;display:none">✓ Gespeichert!</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- LISTE -->
+      <div class="form-card">
+        <div class="section-title">Alle Eingangsrechnungen</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr>
+              <th style="text-align:left;padding:8px 0;color:#888780;font-weight:400">Datum</th>
+              <th style="text-align:left;padding:8px;color:#888780;font-weight:400">Nr.</th>
+              <th style="text-align:left;padding:8px;color:#888780;font-weight:400">Absender</th>
+              <th style="text-align:right;padding:8px;color:#888780;font-weight:400">Netto</th>
+              <th style="text-align:right;padding:8px;color:#888780;font-weight:400">Brutto</th>
+              <th style="padding:8px 0"></th>
+            </tr></thead>
+            <tbody id="erech-tbody"><tr><td colspan="6" class="empty">Noch keine Eingangsrechnungen</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
   </div>
 
-  <!-- BERICHTE -->
-  <!-- KENNZAHLEN -->
+  <!-- FIXKOSTEN (versteckt für Kompatibilität) -->
+  <div class="page" id="page-fixkosten" style="display:none!important;"></div>
+
+  <!-- MARKETING (versteckt für Kompatibilität) -->
+  <div class="page" id="page-marketing" style="display:none!important;"></div>
+
   <div class="page" id="page-kennzahlen">
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:1.5rem">
       <div class="section-title" style="margin:0">Kennzahlen</div>
@@ -1374,6 +1467,7 @@ tr:last-child td{border-bottom:none;}
       <button onclick="showPraef('versand')" id="praef-btn-versand" class="op-btn op-active" style="font-size:14px;padding:8px 20px">Versandprofile</button>
       <button onclick="showPraef('retouren')" id="praef-btn-retouren" class="op-btn" style="font-size:14px;padding:8px 20px">Retoureneinstellungen</button>
       <button onclick="showPraef('marktplaetze')" id="praef-btn-marktplaetze" class="op-btn" style="font-size:14px;padding:8px 20px">Verkaufsprovision</button>
+      <button onclick="showPraef('dashboard')" id="praef-btn-dashboard" class="op-btn" style="font-size:14px;padding:8px 20px">Dashboard</button>
     </div>
 
     <!-- VERSAND INHALT -->
@@ -1456,6 +1550,37 @@ tr:last-child td{border-bottom:none;}
         <div id="praef-mpg-rows"></div>
       </div>
       <div style="font-size:11px;color:#888780">Änderungen wirken sich auf neue Berechnungen aus. Bestehende Bestellungen mit manuell eingetragenen Gebühren bleiben unverändert.</div>
+    </div>
+
+
+    <!-- DASHBOARD PRÄFERENZEN -->
+    <div id="praef-dashboard" style="display:none">
+      <div class="form-card">
+        <div class="section-title">Kanal-Kacheln im Dashboard</div>
+        <div style="color:#888780;font-size:12px;margin-bottom:16px;">Wähle welche Marktplätze als Kacheln im Dashboard angezeigt werden.</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:#1a1a18;">
+            <input type="checkbox" id="dash-show-amazon" onchange="saveDashChannels()" style="width:16px;height:16px;accent-color:#003265;">
+            <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#378ADD;display:inline-block;"></span>Amazon</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:#1a1a18;">
+            <input type="checkbox" id="dash-show-ebay" onchange="saveDashChannels()" style="width:16px;height:16px;accent-color:#003265;">
+            <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#E24B4A;display:inline-block;"></span>eBay</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:#1a1a18;">
+            <input type="checkbox" id="dash-show-otto" onchange="saveDashChannels()" style="width:16px;height:16px;accent-color:#003265;">
+            <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#EF9F27;display:inline-block;"></span>Otto</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:#1a1a18;">
+            <input type="checkbox" id="dash-show-shopify" onchange="saveDashChannels()" style="width:16px;height:16px;accent-color:#003265;">
+            <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#1D9E75;display:inline-block;"></span>Shopify</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:#1a1a18;">
+            <input type="checkbox" id="dash-show-rechnungen" onchange="saveDashChannels()" style="width:16px;height:16px;accent-color:#003265;">
+            <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#9B59B6;display:inline-block;"></span>Ausgangsrechnungen</span>
+          </label>
+        </div>
+      </div>
     </div>
 
     <!-- RETOUREN EINSTELLUNGEN INHALT -->    <div id="praef-retouren" style="display:none">
@@ -2117,6 +2242,13 @@ function renderBerichte(){
     if(byChannel[o.kanal]){byChannel[o.kanal].db+=db;byChannel[o.kanal].netto+=(o.umsatzNetto||0);byChannel[o.kanal].n++;}
   });
   rechnungen.forEach(r=>{totalDB+=(r.gewinn||0);});
+  // Eingangsrechnungen als Kosten abziehen
+  const eingangsRechB=getEingangsrechnungen().filter(r=>{
+    const d=r.datum?.split('-');
+    return d&&parseInt(d[1])===month&&parseInt(d[0])===year;
+  });
+  const eingangsRechTotalB=eingangsRechB.reduce((s,r)=>s+(r.brutto||0),0);
+  totalDB-=eingangsRechTotalB;
 
   const rechGewinn=totalRechGewinnForMonth(month,year);
   const cashflow=totalDB-fix-mkTotal-totalMpg;
@@ -2286,12 +2418,19 @@ function getMonthStats(month, year){
   const mkTotal=totalMkForMonth(month,year);
   const mpgData=getMpg();
   const totalMpg=MPG_MARKETS.reduce((s,ch)=>s+(mpgData[ch]?.betrag||0),0);
+  // Eingangsrechnungen als Kosten
+  const eingangsRech=getEingangsrechnungen().filter(r=>{
+    const d=r.datum?.split('-');
+    return d&&parseInt(d[1])===month&&parseInt(d[0])===year;
+  });
+  const eingangsRechTotal=eingangsRech.reduce((s,r)=>s+(r.brutto||0),0);
+  db-=eingangsRechTotal;
   const rechGewinn=totalRechGewinnForMonth(month,year);
   const cashflow=db-fix-mkTotal-totalMpg;
   const roi=waren>0?((db/waren)*100):null;
   const dbMarge=umsatzNetto>0?((db/umsatzNetto)*100):null;
   const warenQuote=umsatzNetto>0?((waren/umsatzNetto)*100):null;
-  const fixTotal=fix+mkTotal+totalMpg;
+  const fixTotal=fix+mkTotal+totalMpg+eingangsRechTotal;
   const beNeeded=dbMarge>0?(fixTotal/(dbMarge/100)-umsatzNetto):null;
   const beWaren=beNeeded!==null&&warenQuote!==null?(beNeeded*(warenQuote/100)):null;
   const tageImMonat=new Date(year,month,0).getDate();
@@ -3015,8 +3154,9 @@ function showPage(p){
   document.querySelectorAll('.tab').forEach(el=>{if(el.getAttribute('onclick').includes("'"+p+"'")) el.classList.add('active');});
   if(p==='dashboard') {renderDashboard(); renderDay();}
   if(p==='bestellungen') renderOrders();
-  if(p==='fixkosten') { renderFixkosten(); }
-  if(p==='marketing') { populateMkFilters(); renderMarketing(); }
+  if(p==='kosten'){ requestAnimationFrame(()=>showKosten('fixkosten')); }
+  if(p==='fixkosten'){ showPage('kosten'); setTimeout(()=>showKosten('fixkosten'),50); return; }
+  if(p==='marketing'){ showPage('kosten'); setTimeout(()=>showKosten('marketing'),50); return; }
   if(p==='produkte'){ populateProdVersandDropdown(); renderProdukte(); }
   if(p==='berichte') { showPage('kennzahlen'); setTimeout(()=>showKennzahlen('berichte'),50); return; }
   if(p==='kennzahlen'){ requestAnimationFrame(()=>showKennzahlen('berichte')); }
@@ -4082,6 +4222,159 @@ function showToast(msg, type='error'){
 }
 
 let _dashDebounce=null;
+function showKosten(sub){
+  ['fixkosten','marketing','eingangsrechnungen'].forEach(s=>{
+    const el=document.getElementById('kosten-'+s);
+    const btn=document.getElementById('kosten-btn-'+s);
+    if(el) el.style.display=s===sub?'block':'none';
+    if(btn) btn.classList.toggle('op-active',s===sub);
+  });
+  if(sub==='fixkosten') renderFixkosten();
+  if(sub==='marketing'){populateMkFilters();renderMarketing();}
+  if(sub==='eingangsrechnungen'){populateErechFilters();renderEingangsrechnungen();}
+}
+
+/* ── EINGANGSRECHNUNGEN ── */
+function getEingangsrechnungen(){try{return JSON.parse(localStorage.getItem('ec_eingangsrechnungen')||'[]');}catch{return[];}}
+function saveEingangsrechnungen(arr){
+  localStorage.setItem('ec_eingangsrechnungen',JSON.stringify(arr));
+}
+async function deleteEingangsrechnungFromSupabase(id){
+  if(!dbSynced) return;
+  await sbFetch('eingangsrechnungen','DELETE',null,`?id=eq.${id}`);
+}
+
+function populateErechFilters(){
+  const now=new Date();
+  const all=getEingangsrechnungen();
+  const years=[...new Set(all.map(r=>r.datum?.split('-')[0]).filter(Boolean))].sort().reverse();
+  if(!years.includes(String(now.getFullYear()))) years.unshift(String(now.getFullYear()));
+  ['erech-filter-month','erech-filter-year'].forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    if(id.includes('year')){
+      el.innerHTML=years.map(y=>`<option value="${y}" ${y===String(now.getFullYear())?'selected':''}>${y}</option>`).join('');
+    } else {
+      el.innerHTML=MONTHS.map((m,i)=>`<option value="${i+1}" ${i===now.getMonth()?'selected':''}>${m}</option>`).join('');
+    }
+  });
+}
+
+function renderEingangsrechnungen(){
+  const month=parseInt(document.getElementById('erech-filter-month')?.value)||new Date().getMonth()+1;
+  const year=parseInt(document.getElementById('erech-filter-year')?.value)||new Date().getFullYear();
+  const all=getEingangsrechnungen().filter(r=>{
+    const d=r.datum?.split('-');
+    return d&&parseInt(d[1])===month&&parseInt(d[0])===year;
+  });
+  const tbody=document.getElementById('erech-tbody');
+  if(!tbody) return;
+  if(!all.length){tbody.innerHTML=`<tr><td colspan="6" class="empty">Keine Eingangsrechnungen in diesem Monat</td></tr>`;return;}
+  tbody.innerHTML=all.map(r=>`<tr style="border-bottom:0.5px solid #f5f5f3;">
+    <td style="padding:8px 0;font-size:12px;">${r.datum?r.datum.split('-').reverse().join('.'):'—'}</td>
+    <td style="padding:8px;font-size:12px;color:#888780;">${r.nr||'—'}</td>
+    <td style="padding:8px;font-size:12px;">${r.partner||'—'}</td>
+    <td style="padding:8px;text-align:right;font-size:12px;">${fmt(r.netto||0)}</td>
+    <td style="padding:8px;text-align:right;font-size:12px;font-weight:500;">${fmt(r.brutto||0)}</td>
+    <td style="padding:8px 0;text-align:right;white-space:nowrap;">
+      <button class="btn danger" style="height:26px;padding:0 8px;" onclick="deleteErechnung(${r.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="#E24B4A" xmlns="http://www.w3.org/2000/svg"><path d="M21.5 6a1 1 0 0 1-.883.993L20.5 7h-.845l-1.231 12.52A2.75 2.75 0 0 1 15.687 22H8.313a2.75 2.75 0 0 1-2.737-2.48L4.345 7H3.5a1 1 0 0 1 0-2h5a3.5 3.5 0 1 1 7 0h5a1 1 0 0 1 1 1Zm-7.25 3.25a.75.75 0 0 0-.743.648L13.5 10v7l.007.102a.75.75 0 0 0 1.486 0L15 17v-7l-.007-.102a.75.75 0 0 0-.743-.648Zm-4.5 0a.75.75 0 0 0-.743.648L9 10v7l.007.102a.75.75 0 0 0 1.486 0L10.5 17v-7l-.007-.102a.75.75 0 0 0-.743-.648ZM12 3.5A1.5 1.5 0 0 0 10.5 5h3A1.5 1.5 0 0 0 12 3.5Z"/></svg></button>
+    </td>
+  </tr>`).join('');
+}
+
+function toggleErechForm(){
+  const wrap=document.getElementById('erech-form-wrap');
+  const btn=document.getElementById('erech-toggle-btn');
+  const isOpen=wrap.style.display!=='none';
+  wrap.style.display=isOpen?'none':'block';
+  btn.textContent=isOpen?'+ Neue Eingangsrechnung':'✕ Schließen';
+  if(!isOpen){
+    const fp=document.getElementById('erech-datum');
+    if(fp&&!fp._flatpickr&&window.flatpickr) flatpickr(fp,{locale:'de',dateFormat:'Y-m-d',allowInput:true,disableMobile:true});
+  }
+}
+
+function updateErechPreview(){
+  const netto=parseFloat(document.getElementById('erech-netto')?.value)||0;
+  const mwst=parseFloat(document.getElementById('erech-mwst')?.value)||0;
+  const brutto=parseFloat((netto*(1+mwst/100)).toFixed(2));
+  const el=document.getElementById('erech-brutto-preview');
+  if(el) el.textContent=fmt(brutto);
+}
+
+async function saveErechnung(){
+  const datum=document.getElementById('erech-datum').value;
+  const netto=parseFloat(document.getElementById('erech-netto').value)||0;
+  if(!datum){showToast('Bitte ein Datum eingeben.');return;}
+  if(netto<=0){showToast('Bitte einen Betrag eingeben.');return;}
+  const mwst=parseFloat(document.getElementById('erech-mwst').value)||0;
+  const brutto=parseFloat((netto*(1+mwst/100)).toFixed(2));
+
+  // Ohne ID — Supabase vergibt bigserial
+  const payload={
+    datum, nr:document.getElementById('erech-nr').value.trim(),
+    partner:document.getElementById('erech-partner').value.trim(),
+    netto, mwst, brutto,
+    notiz:document.getElementById('erech-notiz').value.trim(),
+  };
+
+  let savedRec=null;
+  if(dbSynced){
+    // Insert in Supabase, hole die vergebene ID zurück
+    const result=await sbFetch('eingangsrechnungen','POST',payload,'',{
+      'Prefer':'return=representation'
+    });
+    if(result&&result[0]) savedRec=result[0];
+    else {showToast('Fehler beim Speichern in Supabase.','error');return;}
+  } else {
+    // Offline: temporäre lokale ID, wird bei nächster Sync überschrieben
+    savedRec={...payload, id:Date.now()};
+  }
+
+  const all=getEingangsrechnungen();
+  all.unshift(savedRec);
+  saveEingangsrechnungen(all);
+  clearErechForm();
+  renderEingangsrechnungen();
+  renderDashboard();
+  const msg=document.getElementById('erech-save-msg');
+  if(msg){msg.style.display='inline';setTimeout(()=>msg.style.display='none',2000);}
+}
+
+function clearErechForm(){
+  ['erech-datum','erech-nr','erech-partner','erech-netto','erech-notiz'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('erech-brutto-preview').textContent='0,00 €';
+  document.getElementById('erech-pdf-preview').style.display='none';
+  document.getElementById('erech-upload-label').style.display='block';
+}
+
+async function deleteErechnung(id){
+  if(!await customConfirm(`Eingangsrechnung <strong>wirklich löschen?</strong><br><span style="font-size:11px;">Diese Aktion kann nicht rückgängig gemacht werden.</span>`,'Eingangsrechnung löschen')) return;
+  saveEingangsrechnungen(getEingangsrechnungen().filter(r=>r.id!==id));
+  deleteEingangsrechnungFromSupabase(id);
+  renderEingangsrechnungen();
+}
+
+function handleErechFile(event){
+  const file=event.target.files[0];
+  if(!file) return;
+  const url=URL.createObjectURL(file);
+  document.getElementById('erech-pdf-preview').src=url;
+  document.getElementById('erech-pdf-preview').style.display='block';
+  document.getElementById('erech-upload-label').style.display='none';
+}
+
+function handleErechDrop(event){
+  event.preventDefault();
+  event.currentTarget.style.background='';
+  const file=event.dataTransfer.files[0];
+  if(file?.type==='application/pdf'){
+    document.getElementById('erech-file-input').files=event.dataTransfer.files;
+    handleErechFile({target:{files:event.dataTransfer.files}});
+  }
+}
+
 function renderDashboard(){
   if(_dashDebounce) clearTimeout(_dashDebounce);
   _dashDebounce=setTimeout(_renderDashboard, 80);
@@ -4105,12 +4398,16 @@ function _renderDashboard(){
   const mpgData=getMpg();
   const totalMpg=MPG_MARKETS.reduce((s,ch)=>s+(mpgData[ch]?.betrag||0),0);
   const rechGewinn=totalRechGewinnForMonth(month,year);
-  const rechEinnahmen=getRechForMonth(month,year).filter(r=>r.typ==='einnahme').reduce((s,r)=>s+r.netto,0);
-  const rechAusgaben=getRechForMonth(month,year).filter(r=>r.typ==='ausgabe').reduce((s,r)=>s+r.netto,0);
-  const rechCount=getRechForMonth(month,year).length;
-  const gewinn=totalDB-fix-mkTotal-totalMpg;
+  const rechEinnahmen=getRechForMonth(month,year).filter(r=>r.typ==='einnahme'||r.gewinn>0).reduce((s,r)=>s+r.netto,0);
+  const rechCount=getRechForMonth(month,year).filter(r=>r.typ==='einnahme'||r.gewinn>0).length;
   const mkItems=getMkForMonth(month,year);
-  const gesamtkosten=fix+mkTotal+totalMpg;
+  const eingangsRechDash=getEingangsrechnungen().filter(r=>{
+    const d=r.datum?.split('-');
+    return d&&parseInt(d[1])===month&&parseInt(d[0])===year;
+  });
+  const eingangsRechDashTotal=eingangsRechDash.reduce((s,r)=>s+(r.brutto||0),0);
+  const gewinn=totalDB-fix-mkTotal-totalMpg-eingangsRechDashTotal;
+  const gesamtkosten=fix+mkTotal+totalMpg+eingangsRechDashTotal;
   document.getElementById('dash-metrics').innerHTML=`
     <div class="metric"><div class="metric-label">Bruttoumsatz</div><div class="metric-value neu">${fmtS(totalBrutto)}</div></div>
     <div class="metric"><div class="metric-label">Deckungsbeitrag</div><div class="metric-value ${totalDB>=0?'pos':'neg'}">${fmtS(totalDB)}</div></div>
@@ -4120,7 +4417,8 @@ function _renderDashboard(){
     </div>
     <div class="metric"><div class="metric-label">Monatskosten</div><div class="metric-value neg">−${fmtS(gesamtkosten)}</div></div>
     <div class="metric"><div class="metric-label">Bestellungen</div><div class="metric-value neu">${orders.length}</div></div>`;
-  document.getElementById('dash-channels').innerHTML=Object.entries(byChannel).map(([ch,d])=>{
+  const dashCfg=getDashChannels()||{Amazon:true,eBay:true,Otto:true,Shopify:true,Rechnungen:true};
+  document.getElementById('dash-channels').innerHTML=Object.entries(byChannel).filter(([ch])=>dashCfg[ch]!==false).map(([ch,d])=>{
     const mpgBetrag=mpgData[ch]?.betrag||0;
     const chMkItems=getMkForChannel(mkItems,ch);
     const chMkTotal=chMkItems.reduce((s,i)=>s+i.betrag,0);
@@ -4145,13 +4443,11 @@ function _renderDashboard(){
       <div class="ch-row"><span>Bestellungen</span><span>${d.n}</span></div>
       ${abzugBlock}
     </div>`;
-  }).join('')+`<div class="ch-card">
-    <div class="ch-card-name"><span class="ch-dot" style="background:${COLORS['Rechnungen']}"></span>Rechnungen</div>
+  }).join('')+(dashCfg.Rechnungen!==false?`<div class="ch-card">
+    <div class="ch-card-name"><span class="ch-dot" style="background:${COLORS['Rechnungen']}"></span>Ausgangsrechnungen</div>
     <div class="ch-row"><span>Einnahmen netto</span><span class="pos">${fmtS(rechEinnahmen)}</span></div>
-    <div class="ch-row"><span>Ausgaben netto</span><span class="neg">− ${fmtS(rechAusgaben)}</span></div>
-    <div class="ch-row"><span>Gewinn / Verlust</span><span class="${rechGewinn>=0?'pos':'neg'}" style="font-weight:500">${fmtS(rechGewinn)}</span></div>
-    <div class="ch-row"><span>Rechnungen</span><span>${rechCount}</span></div>
-  </div>`;
+    <div class="ch-row"><span>Anzahl</span><span>${rechCount}</span></div>
+  </div>`:'');
   const daysInMonth=new Date(year,month,0).getDate();
   const allOrders=getOrders();
   const allRechnungen=getRechnungen();
@@ -5168,7 +5464,7 @@ function fmtDate(d){
 }
 
 function showPraef(sub){
-  ['versand','retouren','marktplaetze'].forEach(s=>{
+  ['versand','retouren','marktplaetze','dashboard'].forEach(s=>{
     const el=document.getElementById('praef-'+s);
     const btn=document.getElementById('praef-btn-'+s);
     if(el) el.style.display=s===sub?'block':'none';
@@ -5182,6 +5478,30 @@ function showPraef(sub){
     if(el) el.value=s.labelDefault||'';
     renderRetZustaendeList();
   }
+  if(sub==='dashboard') loadDashChannels();
+}
+
+function getDashChannels(){
+  try{return JSON.parse(localStorage.getItem('ec_dash_channels')||'null');}catch{return null;}
+}
+function saveDashChannels(){
+  const cfg={
+    Amazon:document.getElementById('dash-show-amazon')?.checked,
+    eBay:document.getElementById('dash-show-ebay')?.checked,
+    Otto:document.getElementById('dash-show-otto')?.checked,
+    Shopify:document.getElementById('dash-show-shopify')?.checked,
+    Rechnungen:document.getElementById('dash-show-rechnungen')?.checked,
+  };
+  localStorage.setItem('ec_dash_channels',JSON.stringify(cfg));
+  renderDashboard();
+}
+function loadDashChannels(){
+  const cfg=getDashChannels()||{Amazon:true,eBay:true,Otto:true,Shopify:true,Rechnungen:true};
+  document.getElementById('dash-show-amazon').checked=cfg.Amazon!==false;
+  document.getElementById('dash-show-ebay').checked=cfg.eBay!==false;
+  document.getElementById('dash-show-otto').checked=cfg.Otto!==false;
+  document.getElementById('dash-show-shopify').checked=cfg.Shopify!==false;
+  document.getElementById('dash-show-rechnungen').checked=cfg.Rechnungen!==false;
 }
 
 /* Verkaufsprovision - separate from Fixkosten Grundgebühren */
@@ -5446,12 +5766,18 @@ function initRealtime(){
       if(data){const mapped=data.map(p=>({sku:p.sku,asin:p.asin||'',name:p.name||'',ek:p.ek||0,versandProfilId:p.versand_profil_id||null,aktiv:p.aktiv!==false}));localStorage.setItem('ec_produkte',JSON.stringify(mapped));}
       const page=document.querySelector('.page.active');
       if(page?.id==='page-produkte') renderProdukte();
+    } else if(table==='eingangsrechnungen'){
+      const data=await sbFetch('eingangsrechnungen','GET',null,'?select=*&order=id.desc');
+      if(data) localStorage.setItem('ec_eingangsrechnungen',JSON.stringify(data));
+      renderDashboard();
+      const page=document.querySelector('.page.active');
+      if(page?.id==='page-kosten') renderEingangsrechnungen();
     }
 
     if(syncEl){syncEl.textContent='✓ Aktualisiert';setTimeout(()=>syncEl.style.opacity='0',2000);}
   }
 
-  const tables=['orders','fixkosten','marketing','mpg','versand','settings','rechnungen','products'];
+  const tables=['orders','fixkosten','marketing','mpg','versand','settings','rechnungen','products','eingangsrechnungen'];
   tables.forEach(table=>{
     supabaseClient
       .channel(`realtime:${table}`)

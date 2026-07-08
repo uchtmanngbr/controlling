@@ -21,10 +21,10 @@
 .flatpickr-day.today:hover{background:#003265;color:#fff;}
 .flatpickr-input{font-family:'Inter',sans-serif;font-size:13px;color:#003265;font-weight:500;}
 
-/* Spinner in Items-Tabelle ausblenden */
-#f-items-table input[type=number]::-webkit-inner-spin-button,
-#f-items-table input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
-#f-items-table input[type=number]{-moz-appearance:textfield;}
+/* Spinner bei allen number inputs ausblenden */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+input[type=number]{-moz-appearance:textfield;}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -74,7 +74,7 @@ th{font-size:11px;font-weight:400;color:#888780;}
 .btn-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px;}
 .orders-table-wrap{overflow-x:auto;}
 .edit-modal-bg{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.35);z-index:1000;display:flex;align-items:center;justify-content:center;}
-.edit-modal{background:#fff;border-radius:14px;padding:1.5rem;width:100%;max-width:540px;box-shadow:0 8px 32px rgba(0,0,0,0.12);}
+.edit-modal{background:#fff;border-radius:14px;padding:1.5rem;width:100%;max-width:720px;box-shadow:0 8px 32px rgba(0,0,0,0.12);}
 .edit-modal-title{font-size:15px;font-weight:600;margin-bottom:1.25rem;color:#003265;}
 .edit-modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;}
 .edit-modal-footer{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:1rem;padding-top:1rem;border-top:0.5px solid #ddddd5;}
@@ -273,8 +273,10 @@ tr:last-child td{border-bottom:none;}
         <div style="text-align:right;margin-top:6px;font-size:12px;color:#888780;">
           Gesamt EK: <span id="f-waren-total" style="font-weight:600;color:#1a1a18;">0,00 €</span>
         </div>
-        <!-- Hidden f-waren für Kompatibilität mit updatePreview/calcDB -->
+        <!-- Hidden fields für Kompatibilität -->
         <input type="hidden" id="f-waren" value="0">
+        <input type="hidden" id="f-artikel" value="">
+        <input type="hidden" id="f-sku" value="">
       </div>
 
       <div class="form-grid">
@@ -547,72 +549,6 @@ tr:last-child td{border-bottom:none;}
 
   </div>
 
-  <!-- RETOURE BEARBEITEN MODAL -->
-  <div class="edit-modal-bg" id="ret-edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeRetEdit()">
-    <div class="edit-modal" style="max-width:460px">
-      <input type="hidden" id="ret-edit-id">
-      <div class="edit-modal-title">Retoure bearbeiten</div>
-
-      <div id="ret-edit-info" style="background:#f5f5f3;border-radius:8px;padding:12px;margin-bottom:1rem"></div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem">
-        <div class="field" style="grid-column:1/-1">
-          <label>Versandkosten der Bestellung (€)</label>
-          <input type="number" id="ret-versand" min="0" step="0.01" readonly style="background:#f5f5f3;color:#888780">
-          <div class="text-xs" style="margin-top:3px">Aus der ursprünglichen Bestellung — fließt als Verlust ein</div>
-        </div>
-        <div class="field" style="grid-column:1/-1">
-          <label>Artikelzustand</label>
-          <select id="ret-zustand" onchange="updateRetAbschreibung()">
-            <option value="0">Einwandfrei (0%)</option>
-            <option value="20">Geöffnet / B-Ware (20%)</option>
-            <option value="50">Beschädigt / teilweise nutzbar (50%)</option>
-            <option value="100">Defekt / unverkäuflich (100%)</option>
-            <option value="custom">Individuell...</option>
-          </select>
-        </div>
-        <div class="field" id="ret-custom-wrap" style="display:none;grid-column:1/-1">
-          <label>Abschreibung (%)</label>
-          <input type="number" id="ret-custom-pct" min="0" max="100" step="1" placeholder="z.B. 30" oninput="updateRetAbschreibung()">
-        </div>
-        <div class="field">
-          <label>EK (€)</label>
-          <input type="number" id="ret-ek" min="0" step="0.01" oninput="updateRetAbschreibung()" placeholder="0.00">
-        </div>
-        <div class="field">
-          <label>Abschreibung (€)</label>
-          <input type="number" id="ret-abschreibung" min="0" step="0.01" readonly style="background:#f5f5f3;color:#E24B4A;font-weight:600">
-        </div>
-        <div class="field" style="grid-column:1/-1">
-          <label>Retourenlabel (€)</label>
-          <input type="number" id="ret-label-kosten" min="0" step="0.01" placeholder="0.00">
-        </div>
-        <div class="field" style="grid-column:1/-1">
-          <label>Notiz</label>
-          <input type="text" id="ret-notiz" placeholder="Optional">
-        </div>
-      </div>
-
-      <div style="background:#f5f5f3;border-radius:8px;padding:12px;margin-bottom:1rem">
-        <div class="text-xs" style="margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Verlustrechnung</div>
-        <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Versandkosten</span><span id="ret-verlust-versand">—</span></div>
-        <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Retourenlabel</span><span id="ret-verlust-label">—</span></div>
-        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:0.5px solid #ddddd5"><span style="color:#888780">Abschreibung</span><span id="ret-verlust-abschr">—</span></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:4px">
-          <span style="color:#888780">Gesamtverlust</span>
-          <span id="ret-verlust-preview" style="font-size:16px;font-weight:600;color:#E24B4A">—</span>
-        </div>
-      </div>
-
-      <div class="edit-modal-footer">
-        <span></span>
-        <div style="display:flex;gap:8px">
-          <button class="btn" onclick="closeRetEdit()">Abbrechen</button>
-          <button class="btn primary" onclick="saveRetEdit()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- KOSTEN -->
   <div class="page" id="page-kosten">
@@ -729,444 +665,6 @@ tr:last-child td{border-bottom:none;}
 
   </div>
 
-  <!-- BESTELLUNG DETAIL MODAL -->
-  <div class="edit-modal-bg" id="order-detail-modal-bg" style="display:none;" onclick="if(event.target===this) closeOrderDetail()">
-    <div class="edit-modal" style="max-width:560px;padding:0;overflow:hidden">
-
-      <!-- HEADER: Bild + Grundinfos -->
-      <div style="display:flex;gap:0;background:#f5f5f3;border-radius:14px 14px 0 0;overflow:hidden">
-        <!-- Bild -->
-        <div id="od-img-wrap" style="width:140px;min-height:140px;flex-shrink:0;background:#eeeee8;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;" onclick="document.getElementById('od-img-input').click()" title="Bild hinzufügen">
-          <img id="od-img" src="" alt="" style="width:100%;height:140px;object-fit:cover;display:none">
-          <div id="od-img-placeholder" style="text-align:center;color:#c8c8c0;font-size:12px;padding:12px">
-            <div style="font-size:28px;margin-bottom:4px">📷</div>
-            <div>Bild hinzufügen</div>
-          </div>
-          <input type="file" id="od-img-input" accept="image/*" style="display:none;" onchange="loadOrderDetailImage(event)">
-        </div>
-        <!-- Grundinfos -->
-        <div style="padding:20px;flex:1">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-            <span id="od-badge" class="badge" style="font-size:11px"></span>
-            <span id="od-datum" style="font-size:12px;color:#888780"></span>
-          </div>
-          <div id="od-artikel" style="font-size:16px;font-weight:600;color:#1a1a18;margin-bottom:6px;line-height:1.3"></div>
-          <div id="od-bestellnr" style="font-size:12px;color:#888780;margin-bottom:4px"></div>
-          <div id="od-sku" style="font-size:12px;color:#888780"></div>
-        </div>
-      </div>
-
-      <!-- KOSTENAUFSTELLUNG -->
-      <div style="padding:20px">
-        <div style="font-size:11px;font-weight:600;color:#003265;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">Kostenaufstellung</div>
-        <div id="od-rows"></div>
-
-        <!-- ERGEBNIS -->
-        <div id="od-result" style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:2px solid #003265">
-          <span style="font-weight:700;font-size:14px;color:#003265">Deckungsbeitrag</span>
-          <span id="od-db" style="font-weight:700;font-size:18px"></span>
-        </div>
-      </div>
-
-      <!-- FOOTER -->
-      <div style="display:flex;justify-content:space-between;padding:16px 20px;border-top:0.5px solid #ddddd5;background:#fff;border-radius:0 0 14px 14px">
-        <button class="btn primary" onclick="openEditFromDetail()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M13.94 5 19 10.06 9.062 20a2.25 2.25 0 0 1-.999.58l-5.116 1.395a.75.75 0 0 1-.92-.921l1.395-5.116a2.25 2.25 0 0 1 .58-.999L13.938 5Zm7.09-2.03a3.578 3.578 0 0 1 0 5.06l-.97.97L15 3.94l.97-.97a3.578 3.578 0 0 1 5.06 0Z"/></svg>&nbsp;Bearbeiten</button>
-        <button class="btn" onclick="closeOrderDetail()">Schließen</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- VERSAND EDIT MODAL -->
-  <div class="edit-modal-bg" id="versand-edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeVersandEdit()">
-    <div class="edit-modal" style="max-width:480px">
-      <input type="hidden" id="vp-edit-id">
-      <div class="edit-modal-title">Versandprofil bearbeiten</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem">
-        <div class="field" style="grid-column:1/-1"><label>Profilname</label>
-          <input type="text" id="vpe-name" placeholder="z.B. DHL Paket Standard">
-        </div>
-        <div class="field"><label>Dienstleister</label>
-          <select id="vpe-carrier">
-            <option value="DHL">DHL</option>
-            <option value="Deutsche Post">Deutsche Post</option>
-            <option value="DPD">DPD</option>
-            <option value="UPS">UPS</option>
-            <option value="Hermes">Hermes</option>
-            <option value="GLS">GLS</option>
-            <option value="FedEx">FedEx</option>
-            <option value="Amazon Logistics">Amazon Logistics</option>
-          </select>
-        </div>
-        <div class="field"><label>Paketart</label>
-          <select id="vpe-paketart">
-            <option value="Päckchen S">Päckchen S</option>
-            <option value="Päckchen M">Päckchen M</option>
-            <option value="Kleinpaket">Kleinpaket</option>
-            <option value="Paket">Paket</option>
-            <option value="Großpaket">Großpaket</option>
-            <option value="Sperrgut">Sperrgut</option>
-            <option value="Brief">Brief</option>
-            <option value="Warensendung">Warensendung</option>
-          </select>
-        </div>
-        <div class="field" style="grid-column:1/-1"><label>Gewicht</label>
-          <div style="display:flex;gap:6px">
-            <input type="number" id="vpe-gewicht" min="0" step="1" placeholder="0" style="flex:1">
-            <select id="vpe-gewicht-einheit" style="width:70px"><option value="g">g</option><option value="kg" selected>kg</option></select>
-          </div>
-        </div>
-        <div class="field"><label>Versandkosten (€)</label><input type="number" id="vpe-versandkosten" min="0" step="0.01" oninput="updateVpeSumme()"></div>
-        <div class="field"><label>Materialkosten (€)</label><input type="number" id="vpe-materialkosten" min="0" step="0.01" oninput="updateVpeSumme()"></div>
-        <div class="field"><label>Verpackungskosten (€)</label><input type="number" id="vpe-verpackungskosten" min="0" step="0.01" oninput="updateVpeSumme()"></div>
-        <div class="field"><label>Lagerkosten (€)</label><input type="number" id="vpe-lagerkosten" min="0" step="0.01" oninput="updateVpeSumme()"></div>
-        <div class="field"><label>Gültig ab</label><input type="date" id="vpe-gueltig-ab"></div>
-        <div class="field" style="grid-column:1/-1;background:#f5f5f3;border-radius:8px;padding:10px 12px">
-          <div class="text-xs" style="margin-bottom:3px">Gesamtkosten</div>
-          <div style="font-size:20px;font-weight:600;color:#003265;" id="vpe-summe-preview">—</div>
-        </div>
-      </div>
-      <div class="edit-modal-footer">
-        <span></span>
-        <div style="display:flex;gap:8px">
-          <button class="btn danger" onclick="deleteVersandFromEdit()">Profil löschen</button>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn" onclick="closeVersandEdit()">Abbrechen</button>
-          <button class="btn primary" onclick="saveVersandEdit()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MPG EDIT MODAL -->
-  <div class="edit-modal-bg" id="mpg-edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeMpgEdit()">
-    <div class="edit-modal" style="max-width:360px">
-      <div class="edit-modal-title">Grundgebühr — <span id="mpg-edit-name"></span></div>
-      <div class="field" style="margin-bottom:1rem">
-        <label>Betrag netto (€/Monat)</label>
-        <input type="number" id="mpg-edit-betrag" min="0" step="0.01" placeholder="0.00" onkeydown="if(event.key==='Enter') saveMpgEdit()">
-      </div>
-      <div class="edit-modal-footer">
-        <span></span>
-        <div style="display:flex;gap:8px">
-          <button class="btn" onclick="closeMpgEdit()">Abbrechen</button>
-          <button class="btn primary" onclick="saveMpgEdit()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- FK EDIT MODAL -->
-  <div class="edit-modal-bg" id="fk-edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeFkEdit()">
-    <div class="edit-modal" style="max-width:420px">
-      <div class="edit-modal-title">Position bearbeiten</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem">
-        <div class="field" style="grid-column:1/-1"><label>Bezeichnung</label><input type="text" id="fke-name"></div>
-        <div class="field"><label>Betrag netto (€)</label><input type="number" id="fke-betrag" min="0" step="0.01" oninput="updateFkePreview()"></div>
-        <div class="field" id="fke-intervall-wrap"><label>Intervall</label>
-          <select id="fke-intervall" onchange="updateFkePreview()">
-            <option value="monatlich">Monatlich</option>
-            <option value="2wochen">Alle 2 Wochen</option>
-            <option value="woechentlich">Wöchentlich</option>
-            <option value="jaehrlich">Jährlich</option>
-          </select>
-        </div>
-        <div class="field" style="grid-column:1/-1"><label>Kategorie</label><select id="fke-cat"></select></div>
-        <div class="field" style="grid-column:1/-1;background:#f5f5f3;border-radius:8px;padding:10px 12px">
-          <div class="text-xs" style="margin-bottom:3px">Pro Monat</div>
-          <div style="font-size:18px;font-weight:500;" id="fke-monthly-preview">—</div>
-        </div>
-      </div>
-      <div class="edit-modal-footer">
-        <span></span>
-        <div style="display:flex;gap:8px">
-          <button class="btn" onclick="closeFkEdit()">Abbrechen</button>
-          <button class="btn primary" onclick="saveFkEdit()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- RECHNUNGEN EDIT MODAL -->
-  <div class="edit-modal-bg" id="rech-edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeRechEdit()">
-    <div class="edit-modal" style="max-width:500px">
-      <div class="edit-modal-title">Rechnung bearbeiten</div>
-      <div class="edit-modal-grid">
-        <div class="field"><label>Typ</label>
-          <select id="re-typ"><option value="einnahme">Einnahme</option><option value="ausgabe">Ausgabe</option></select>
-        </div>
-        <div class="field"><label>Datum</label><input type="date" id="re-datum"></div>
-        <div class="field"><label>Rechnungsnummer</label><input type="text" id="re-nr"></div>
-        <div class="field"><label>Partner</label><input type="text" id="re-partner"></div>
-        <div class="field"><label>Betrag netto (€)</label><input type="number" id="re-netto" min="0" step="0.01" oninput="reUpdatePreview()"></div>
-        <div class="field"><label>MwSt. (%)</label>
-          <select id="re-mwst" onchange="reUpdatePreview()">
-            <option value="19">19%</option><option value="7">7%</option><option value="0">0%</option>
-          </select>
-        </div>
-        <div class="field"><label>Kategorie</label>
-          <select id="re-kategorie">
-            <option value="Dienstleistung">Dienstleistung</option>
-            <option value="Warenverkauf">Warenverkauf</option>
-            <option value="Wareneinkauf">Wareneinkauf</option>
-            <option value="Betriebskosten">Betriebskosten</option>
-            <option value="Sonstiges">Sonstiges</option>
-          </select>
-        </div>
-        <div class="field" style="background:#f5f5f3;border-radius:8px;padding:10px 12px">
-          <div class="text-xs" style="margin-bottom:3px">Brutto</div>
-          <div style="font-size:18px;font-weight:500;" id="re-brutto-preview">—</div>
-        </div>
-      </div>
-      <div class="field" style="margin-bottom:12px"><label>Notiz</label><input type="text" id="re-notiz"></div>
-      <div class="edit-modal-footer">
-        <span class="edit-hint">Änderungen werden sofort gespeichert</span>
-        <div style="display:flex;gap:8px">
-          <button class="btn" onclick="closeRechEdit()">Abbrechen</button>
-          <button class="btn primary" onclick="saveRechEdit()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- SAMMELBEARBEITUNG MODAL -->
-  <div class="edit-modal-bg" id="bulk-modal-bg" style="display:none;" onclick="if(event.target===this) closeBulkEdit()">
-    <div class="edit-modal" style="max-width:480px">
-      <div class="edit-modal-title">Sammelbearbeitung <span id="bulk-modal-count" style="font-weight:400;color:#888780"></span></div>
-
-      <div class="edit-modal-grid">
-        <div class="field">
-          <label>Warenkosten netto (€)</label>
-          <input type="number" id="bulk-waren" min="0" step="0.01">
-        </div>
-        <div class="field">
-          <label>Versandprofil</label>
-          <select id="bulk-versand-profil" onchange="onBulkVersandProfilChange()">
-            <option value="">— nicht ändern —</option>
-          </select>
-          <input type="hidden" id="bulk-versand" value="">
-        </div>
-
-        <div class="field">
-          <label>Marktplatzgebühr (€)</label>
-          <input type="number" id="bulk-provision" min="0" step="0.01">
-        </div>
-        <div class="field">
-          <label>Retoure (€)</label>
-          <input type="number" id="bulk-retoure" min="0" step="0.01">
-        </div>
-        <div class="field">
-          <label>Marktplatz</label>
-          <select id="bulk-kanal">
-            <option value="">— nicht ändern —</option>
-            <option value="Amazon">Amazon</option>
-            <option value="eBay">eBay</option>
-            <option value="Otto">Otto</option>
-            <option value="Shopify">Shopify</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Datum</label>
-          <input type="date" id="bulk-datum">
-        </div>
-      </div>
-      <div class="edit-modal-footer">
-        <div style="display:flex;gap:8px">
-          <button class="btn" onclick="closeBulkEdit()">Abbrechen</button>
-          <button class="btn primary" onclick="saveBulkEdit()" id="bulk-save-btn">Auf alle anwenden</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- EDIT MODAL -->
-  <div class="edit-modal-bg" id="edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeEdit()">
-    <div class="edit-modal">
-      <div class="edit-modal-title">Bestellung bearbeiten</div>
-
-      <!-- RETOURE TOGGLE -->
-      <div id="ed-retoure-banner" style="display:none;background:#FAEEDA;border-radius:8px;padding:10px 14px;margin-bottom:12px;color:#854F0B">
-        ⚠ Retoure — Umsatz wird auf 0 gesetzt, Versandkosten bleiben als Verlust
-      </div>
-
-      <div class="edit-modal-grid" id="ed-fields-normal">
-        <div class="field"><label>Datum</label><input type="date" id="ed-datum"></div>
-        <div class="field"><label>Marktplatz</label>
-          <select id="ed-kanal">
-            <option value="Amazon">Amazon</option><option value="eBay">eBay</option>
-            <option value="Otto">Otto</option><option value="Shopify">Shopify</option>
-          </select>
-        </div>
-        <div class="field"><label>Bestellnummer</label><input type="text" id="ed-bestellnr"></div>
-        <div class="field"><label>Artikel</label><input type="text" id="ed-artikel"></div>
-        <div class="field"><label>SKU / ASIN</label><input type="text" id="ed-sku" onblur="autofillFromSkuEdit()"></div>
-        <div class="field"><label>Verkaufspreis brutto (€)</label><input type="number" id="ed-brutto" min="0" step="0.01" oninput="edAutoCalc()"></div>
-        <div class="field"><label>Warenkosten netto (€)</label><input type="number" id="ed-waren" min="0" step="0.01" oninput="edUpdatePreview()"></div>
-        <div class="field"><label>Versandprofil</label>
-          <select id="ed-versand-profil" onchange="onEdVersandProfilChange()">
-            <option value="">— Profil auswählen —</option>
-          </select>
-          <input type="hidden" id="ed-versand" value="0">
-        </div>
-        <div class="field"><label>Marktplatzgebühr (€)</label><input type="number" id="ed-provision" min="0" step="0.01" oninput="edManualFee()"><span class="fee-hint" id="ed-fee-hint"></span></div>
-        <div class="field" style="justify-content:flex-end">
-          <label for="ed-is-retoure" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f5f5f3;border-radius:8px;cursor:pointer;margin-top:20px">
-            <input type="checkbox" id="ed-is-retoure" style="cursor:pointer;width:15px;height:15px;flex-shrink:0;" onchange="toggleEdRetoure()">
-            <div>
-              <div style="font-weight:500;color:#1a1a18">Als Retoure markieren</div>
-              <div style="font-size:11px;color:#888780">Umsatz = 0 € · nur Versand bleibt</div>
-            </div>
-          </label>
-        </div>
-        <div class="field" style="background:#f5f5f3;border-radius:8px;padding:10px 12px">
-          <div class="text-xs" style="margin-bottom:4px">Deckungsbeitrag (live)</div>
-          <div style="font-size:18px;font-weight:500;" id="ed-db-preview">—</div>
-          <div class="text-xs" style="margin-top:3px;" id="ed-dbpct-preview"></div>
-        </div>
-      </div>
-
-      <div class="edit-modal-footer">
-        <span class="edit-hint">Änderungen werden sofort gespeichert</span>
-        <div style="display:flex;gap:8px">
-          <button class="btn" onclick="closeEdit()">Abbrechen</button>
-          <button class="btn primary" onclick="saveEdit()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
-        </div>
-      </div>
-    </div>
-    </div>
-    <div id="kosten-marketing" style="display:none;">
-<!-- HEADER mit Monatsfilter -->
-    <div class="dash-controls" style="margin-bottom:1rem">
-      <div class="section-title" style="margin:0">Marketing-Kosten</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <select id="mk-filter-month" onchange="renderMarketing()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none"></select>
-        <select id="mk-filter-year" onchange="renderMarketing()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none"></select>
-      </div>
-    </div>
-
-    <!-- NEUE POSITION HINZUFÜGEN -->
-    <div class="form-card">
-      <div class="fk-add-row">
-        <div class="fk-field">
-          <label>Marktplatz</label>
-          <input type="text" id="mk-kanal" placeholder="z.B. idealo, Geizhals, Google Ads...">
-        </div>
-        <div class="fk-field">
-          <label>Betrag netto (€)</label>
-          <input type="number" id="mk-betrag" min="0" step="0.01" placeholder="0.00">
-        </div>
-        <div class="fk-field">
-          <label>Monat / Jahr</label>
-          <div style="display:flex;gap:6px">
-            <select id="mk-month" style="flex:1;padding:0 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;height:36px"></select>
-            <select id="mk-year" style="width:80px;padding:0 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;height:36px"></select>
-          </div>
-        </div>
-        <div class="fk-btn-cell">
-          <div class="fk-btn-spacer"></div>
-          <button class="btn primary" onclick="addMkItem()">+ Hinzufügen</button>
-        </div>
-      </div>
-      <span id="mk-save-flash" style="font-size:12px;color:#1D9E75;display:none;margin-top:6px">✓ Gespeichert</span>
-    </div>
-
-    <!-- MONATSLISTE -->
-    <div id="mk-list-wrap"></div>
-
-    <!-- JAHRESVERLAUF CHART -->
-    <div class="form-card" style="margin-top:0.5rem">
-      <div class="section-title">Marketing-Kosten im Jahresverlauf</div>
-      <div style="position:relative;height:280px">
-        <canvas id="mk-year-chart"></canvas>
-      </div>
-      <div id="mk-year-legend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;justify-content:center"></div>
-    </div>
-    </div>
-    <div id="kosten-eingangsrechnungen" style="display:none;">
-      <!-- HEADER -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-        <div style="display:flex;gap:8px;align-items:center">
-          <div class="section-title" style="margin:0">Eingangsrechnungen</div>
-          <select id="erech-filter-month" onchange="renderEingangsrechnungen()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#1a1a18;outline:none"></select>
-          <select id="erech-filter-year" onchange="renderEingangsrechnungen()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#1a1a18;outline:none"></select>
-        </div>
-        <button class="btn primary" onclick="toggleErechForm()" id="erech-toggle-btn">+ Neue Eingangsrechnung</button>
-      </div>
-
-      <!-- FORMULAR -->
-      <div id="erech-form-wrap" style="display:none;margin-bottom:1.5rem">
-        <div class="form-card" style="margin-bottom:0">
-          <div class="section-title">Neue Eingangsrechnung erfassen</div>
-          <div id="erech-upload-area" style="border:1.5px dashed #c8c8c0;border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;margin-bottom:14px;transition:background .15s;" onclick="document.getElementById('erech-file-input').click()" ondragover="event.preventDefault();this.style.background='#eeeee8'" ondragleave="this.style.background=''" ondrop="handleErechDrop(event)">
-            <input type="file" id="erech-file-input" accept=".pdf" style="display:none;" onchange="handleErechFile(event)">
-            <div id="erech-upload-label">
-              <div style="font-size:24px;margin-bottom:6px">📄</div>
-              <div style="color:#888780">PDF hier ablegen oder klicken</div>
-            </div>
-            <iframe id="erech-pdf-preview" style="display:none;width:100%;height:200px;border:none;border-radius:6px;" title="Rechnungsvorschau"></iframe>
-          </div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr">
-            <div class="field">
-              <label>Datum</label>
-              <input type="date" id="erech-datum">
-            </div>
-            <div class="field">
-              <label>Rechnungsnummer</label>
-              <input type="text" id="erech-nr" placeholder="z.B. RE-2026-042">
-            </div>
-            <div class="field">
-              <label>Absender (Lieferant)</label>
-              <input type="text" id="erech-partner" placeholder="Firmenname oder Person">
-            </div>
-            <div class="field">
-              <label>Betrag netto (€)</label>
-              <input type="number" id="erech-netto" min="0" step="0.01" placeholder="0.00" oninput="updateErechPreview()">
-            </div>
-            <div class="field">
-              <label>MwSt. (%)</label>
-              <select id="erech-mwst" onchange="updateErechPreview()">
-                <option value="19">19%</option>
-                <option value="7">7%</option>
-                <option value="0">0% (keine MwSt.)</option>
-              </select>
-            </div>
-            <div class="field" style="background:#f5f5f3;border-radius:8px;padding:10px 12px">
-              <div class="text-xs" style="margin-bottom:3px">Brutto</div>
-              <div style="font-size:18px;font-weight:500;" id="erech-brutto-preview">0,00 €</div>
-            </div>
-          </div>
-          <div class="field" style="margin-bottom:12px">
-            <label>Notiz (optional)</label>
-            <input type="text" id="erech-notiz" placeholder="z.B. Lieferant, Projekt...">
-          </div>
-          <div class="btn-row">
-            <button class="btn primary" onclick="saveErechnung()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
-            <button class="btn" onclick="clearErechForm()">Zurücksetzen</button>
-            <span id="erech-save-msg" style="font-size:12px;color:#1D9E75;display:none">✓ Gespeichert!</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- LISTE -->
-      <div class="form-card">
-        <div class="section-title">Alle Eingangsrechnungen</div>
-        <div style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse">
-            <thead><tr>
-              <th style="text-align:left;padding:8px 0;color:#888780;font-weight:400">Datum</th>
-              <th style="text-align:left;padding:8px;color:#888780;font-weight:400">Nr.</th>
-              <th style="text-align:left;padding:8px;color:#888780;font-weight:400">Absender</th>
-              <th style="text-align:right;padding:8px;color:#888780;font-weight:400">Netto</th>
-              <th style="text-align:right;padding:8px;color:#888780;font-weight:400">Brutto</th>
-              <th style="padding:8px 0"></th>
-            </tr></thead>
-            <tbody id="erech-tbody"><tr><td colspan="6" class="empty">Noch keine Eingangsrechnungen</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-  </div>
 
   <!-- FIXKOSTEN (versteckt für Kompatibilität) -->
   <div class="page" id="page-fixkosten" style="display:none!important;"></div>
@@ -2987,6 +2485,102 @@ function autofillFromSkuEdit(){
   edUpdatePreview();
 }
 
+/* ── EDIT MODAL ITEMS ── */
+let _edItems=[];
+
+function addEdItemRow(item=null){
+  const idx=_edItems.length;
+  const it=item||{sku:'',name:'',menge:1,ek:0,ek_manuell:false};
+  _edItems.push(it);
+  const tbody=document.getElementById('ed-items-tbody');
+  if(!tbody) return;
+  const tr=document.createElement('tr');
+  tr.dataset.idx=idx;
+  tr.style.borderBottom='0.5px solid #f5f5f3';
+  tr.innerHTML=`
+    <td style="padding:3px 6px 3px 0;">
+      <input type="text" value="${it.sku}" placeholder="SKU / ASIN"
+        style="width:100%;font-size:12px;padding:3px 6px;border:0.5px solid #c8c8c0;border-radius:6px;outline:none;"
+        oninput="_edItems[${idx}].sku=this.value"
+        onblur="autofillEdItemRow(${idx})">
+    </td>
+    <td style="padding:3px 6px;">
+      <input type="text" value="${it.name}" placeholder="Artikelname"
+        style="width:100%;font-size:12px;padding:3px 6px;border:0.5px solid #c8c8c0;border-radius:6px;outline:none;"
+        oninput="_edItems[${idx}].name=this.value">
+    </td>
+    <td style="padding:3px 6px;">
+      <input type="number" value="${it.menge}" min="1" step="1"
+        style="width:100%;font-size:12px;padding:3px 6px;border:0.5px solid #c8c8c0;border-radius:6px;outline:none;text-align:center;-moz-appearance:textfield;"
+        oninput="_edItems[${idx}].menge=parseInt(this.value)||1;updateEdItemsTotal()">
+    </td>
+    <td style="padding:3px 6px;">
+      <input type="number" value="${it.ek||''}" min="0" step="0.01" placeholder="0.00"
+        style="width:100%;font-size:12px;padding:3px 6px;border:0.5px solid #c8c8c0;border-radius:6px;outline:none;text-align:right;-moz-appearance:textfield;"
+        oninput="_edItems[${idx}].ek=parseFloat(this.value)||0;_edItems[${idx}].ek_manuell=true;updateEdItemsTotal()">
+    </td>
+    <td style="padding:3px 0 3px 4px;text-align:center;">
+      <button type="button" onclick="removeEdItemRow(${idx})" style="background:none;border:none;cursor:pointer;padding:2px 4px;" title="Entfernen"><svg width="13" height="13" viewBox="0 0 24 24" fill="#E24B4A" xmlns="http://www.w3.org/2000/svg"><path d="M21.5 6a1 1 0 0 1-.883.993L20.5 7h-.845l-1.231 12.52A2.75 2.75 0 0 1 15.687 22H8.313a2.75 2.75 0 0 1-2.737-2.48L4.345 7H3.5a1 1 0 0 1 0-2h5a3.5 3.5 0 1 1 7 0h5a1 1 0 0 1 1 1Zm-7.25 3.25a.75.75 0 0 0-.743.648L13.5 10v7l.007.102a.75.75 0 0 0 1.486 0L15 17v-7l-.007-.102a.75.75 0 0 0-.743-.648Zm-4.5 0a.75.75 0 0 0-.743.648L9 10v7l.007.102a.75.75 0 0 0 1.486 0L10.5 17v-7l-.007-.102a.75.75 0 0 0-.743-.648ZM12 3.5A1.5 1.5 0 0 0 10.5 5h3A1.5 1.5 0 0 0 12 3.5Z"/></svg></button>
+    </td>`;
+  tbody.appendChild(tr);
+}
+
+function removeEdItemRow(idx){
+  _edItems.splice(idx,1);
+  const tbody=document.getElementById('ed-items-tbody');
+  if(tbody) tbody.innerHTML='';
+  const items=[..._edItems]; _edItems=[];
+  items.forEach(it=>addEdItemRow(it));
+  updateEdItemsTotal();
+}
+
+function updateEdItemsTotal(){
+  const total=_edItems.reduce((s,it)=>s+(it.ek*(it.menge||1)),0);
+  const el=document.getElementById('ed-waren-total');
+  if(el) el.textContent=fmt(total);
+  const hidden=document.getElementById('ed-waren');
+  if(hidden) hidden.value=total.toFixed(2);
+  // Sync hidden artikel/sku strings
+  const artEl=document.getElementById('ed-artikel');
+  const skuEl=document.getElementById('ed-sku');
+  if(artEl) artEl.value=itemsToNameString(_edItems);
+  if(skuEl) skuEl.value=itemsToSkuString(_edItems);
+  edUpdatePreview();
+}
+
+function autofillEdItemRow(idx){
+  const item=_edItems[idx];
+  if(!item?.sku) return;
+  const p=getProdukte().find(p=>
+    p.sku.toLowerCase()===item.sku.toLowerCase()||
+    (p.asin&&p.asin.toLowerCase()===item.sku.toLowerCase())
+  );
+  if(!p) return;
+  const tbody=document.getElementById('ed-items-tbody');
+  const row=tbody?.querySelector(`tr[data-idx="${idx}"]`);
+  if(!item.name&&p.name){
+    item.name=p.name;
+    if(row) row.querySelectorAll('input')[1].value=p.name;
+  }
+  if(!item.ek_manuell&&p.ek){
+    item.ek=p.ek;
+    if(row) row.querySelectorAll('input')[3].value=p.ek;
+  }
+  if(row){
+    const skuInput=row.querySelectorAll('input')[0];
+    skuInput.style.borderColor='#1D9E75';
+    setTimeout(()=>skuInput.style.borderColor='',2000);
+  }
+  updateEdItemsTotal();
+}
+
+function clearEdItems(){
+  _edItems=[];
+  const tbody=document.getElementById('ed-items-tbody');
+  if(tbody) tbody.innerHTML='';
+}
+
+
 function editOrder(id){
   const o=getOrders().find(o=>String(o.id)===String(id));
   if(!o) return;
@@ -2996,19 +2590,24 @@ function editOrder(id){
   document.getElementById('ed-datum').value=o.datum||'';
   document.getElementById('ed-kanal').value=o.kanal||'Shopify';
   document.getElementById('ed-bestellnr').value=o.bestellnr||'';
-  document.getElementById('ed-artikel').value=o.artikel||'';
-  document.getElementById('ed-sku').value=o.sku||'';
   document.getElementById('ed-brutto').value=o.umsatzBrutto||'';
-  document.getElementById('ed-waren').value=o.waren||'';
   populateVersandDropdown();
   document.getElementById('ed-versand').value=o.versand||'';
-  // Pre-select the versand profil if stored
   const edProfSel=document.getElementById('ed-versand-profil');
   edProfSel.value=o.versandProfilId||'';
-  // If profil not found in dropdown (e.g. outdated), keep versand value as-is
   document.getElementById('ed-provision').value=o.provision||'';
   document.getElementById('ed-fee-hint').innerHTML='';
   document.getElementById('ed-retoure-banner').style.display=isR?'block':'none';
+
+  // Items laden
+  clearEdItems();
+  if(o.items&&o.items.length>0){
+    o.items.forEach(it=>addEdItemRow(it));
+  } else {
+    // Alte Bestellung ohne Items → eine Zeile mit bestehendem Artikel/SKU/EK
+    addEdItemRow({sku:o.sku||'',name:o.artikel||'',menge:1,ek:o.waren||0,ek_manuell:true});
+  }
+  updateEdItemsTotal();
   edUpdatePreview();
   const _fp_eddatum=document.getElementById('ed-datum');
   if(_fp_eddatum&&!_fp_eddatum._flatpickr&&window.flatpickr) flatpickr(_fp_eddatum,{locale:'de',dateFormat:'Y-m-d',allowInput:true,disableMobile:true});
@@ -3065,21 +2664,23 @@ function edUpdatePreview(){
 function saveEdit(){
   if(!editId) return;
   const orders=getOrders();
-  const idx=orders.findIndex(o=>o.id===editId);
+  const idx=orders.findIndex(o=>String(o.id)===String(editId));
   if(idx===-1) return;
   const isR=isEdRetoure();
   const brutto=parseFloat(document.getElementById('ed-brutto').value)||0;
   const versand=parseFloat(document.getElementById('ed-versand').value)||0;
+  const waren=_edItems.reduce((s,it)=>s+(it.ek*(it.menge||1)),0);
   orders[idx]={
     ...orders[idx],
     datum: document.getElementById('ed-datum').value,
     kanal: document.getElementById('ed-kanal').value,
     bestellnr: document.getElementById('ed-bestellnr').value,
-    artikel: document.getElementById('ed-artikel').value,
-    sku: document.getElementById('ed-sku').value,
+    items: [..._edItems],
+    artikel: itemsToNameString(_edItems),
+    sku: itemsToSkuString(_edItems),
     umsatzBrutto: brutto,
-    umsatzNetto:  parseFloat(nettoVon(brutto).toFixed(2)),
-    waren:     parseFloat(document.getElementById('ed-waren').value)||0,
+    umsatzNetto: parseFloat(nettoVon(brutto).toFixed(2)),
+    waren: parseFloat(waren.toFixed(2)),
     versand,
     versandProfilId: document.getElementById('ed-versand-profil').value||null,
     provision: parseFloat(document.getElementById('ed-provision').value)||0,
@@ -4855,7 +4456,9 @@ function filterOrdersByRange(orders,range){
 let detailOrderId=null;
 
 function openOrderDetail(id){
-  const o=getOrders().find(o=>String(o.id)===String(id));
+  const orders=getOrders();
+  const o=orders.find(o=>String(o.id)===String(id));
+  console.log('openOrderDetail called, id=',id,'found=',!!o,'orders count=',orders.length);
   if(!o) return;
   detailOrderId=id;
   const db=calcDB(o);
@@ -4868,33 +4471,33 @@ function openOrderDetail(id){
 
   // Grundinfos
   document.getElementById('od-datum').textContent=o.datum?o.datum.split('-').reverse().join('.'):'—';
-  // Bestellnummer
-  document.getElementById('od-bestellnr').textContent=o.bestellnr?'Bestellnr.: '+o.bestellnr:'';
+  // Bestellnummer im Header
+  document.getElementById('od-bestellnr').textContent=o.bestellnr||'Keine Bestellnummer';
 
-  // Artikel: Items-Tabelle wenn vorhanden, sonst einzelner Artikel
-  const odArtikelEl=document.getElementById('od-artikel');
-  const odSkuEl=document.getElementById('od-sku');
+  // Artikelliste
+  const tbody=document.getElementById('od-items-tbody');
+  const artikelEl=document.getElementById('od-artikel');
+  const skuEl=document.getElementById('od-sku');
   if(o.items&&o.items.length>0){
-    odArtikelEl.innerHTML=o.items.map(it=>`
-      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:2px 0;border-bottom:0.5px solid #f0f0ea;font-size:13px;">
-        <span style="flex:1;font-weight:500;">${it.name||it.sku||'—'}</span>
-        <span style="color:#888780;white-space:nowrap;font-size:11px;">${it.sku?it.sku+' ·':''} ${it.menge||1}× · ${fmt(it.ek||0)} EK</span>
-      </div>`).join('');
-    odSkuEl.textContent='';
+    tbody.innerHTML=o.items.map(it=>`
+      <tr style="border-bottom:0.5px solid #f5f5f3;">
+        <td style="padding:6px 8px 6px 0;font-size:12px;color:#888780;">${it.sku||'—'}</td>
+        <td style="padding:6px 8px;font-size:13px;font-weight:500;">${it.name||'—'}</td>
+        <td style="padding:6px 8px;font-size:13px;text-align:center;">${it.menge||1}</td>
+      </tr>`).join('');
+    document.getElementById('od-items-table').style.display='table';
+    artikelEl.style.display='none';
+    skuEl.style.display='none';
   } else {
-    odArtikelEl.textContent=o.artikel||'Kein Artikelname';
-    odSkuEl.textContent=o.sku?'SKU/ASIN: '+o.sku:'';
+    tbody.innerHTML='';
+    document.getElementById('od-items-table').style.display='none';
+    artikelEl.style.display='block';
+    artikelEl.textContent=o.artikel||'Kein Artikelname';
+    skuEl.style.display=o.sku?'block':'none';
+    skuEl.textContent=o.sku?'SKU/ASIN: '+o.sku:'';
   }
 
-  // Bild
-  const img=document.getElementById('od-img');
-  const placeholder=document.getElementById('od-img-placeholder');
-  if(o.imageData){
-    img.src=o.imageData; img.style.display='block'; placeholder.style.display='none';
-  } else {
-    img.style.display='none'; placeholder.style.display='flex';
-    placeholder.style.flexDirection='column'; placeholder.style.alignItems='center';
-  }
+
 
   // Kostenaufstellung
   const rows=[
@@ -5010,7 +4613,7 @@ function renderOrders(){
             <td>${fmt(o.versand)}</td><td>${fmt(o.provision)}</td>
       <td class="${db>=0?'pos':'neg'}" style="font-weight:500;text-align:center">${fmt(db)}</td>
       <td style="display:flex;gap:4px">
-        <button class="btn" style="height:28px;padding:0 8px;font-size:12px;" onclick="openOrderDetail(${o.id})" title="Details"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 9.005a4 4 0 1 1 0 8 4 4 0 0 1 0-8ZM12 5.5c4.613 0 8.596 3.15 9.701 7.564a.75.75 0 1 1-1.455.365 8.503 8.503 0 0 0-16.493.004.75.75 0 0 1-1.455-.363A10.003 10.003 0 0 1 12 5.5Z"/></svg></button>
+        <button class="btn" style="height:28px;padding:0 8px;font-size:12px;" onclick="event.stopPropagation();openOrderDetail(${o.id})" title="Details"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 9.005a4 4 0 1 1 0 8 4 4 0 0 1 0-8ZM12 5.5c4.613 0 8.596 3.15 9.701 7.564a.75.75 0 1 1-1.455.365 8.503 8.503 0 0 0-16.493.004.75.75 0 0 1-1.455-.363A10.003 10.003 0 0 1 12 5.5Z"/></svg></button>
         <button class="btn danger" style="height:28px;padding:0 8px;font-size:12px;" onclick="deleteOrder(${o.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="#E24B4A" xmlns="http://www.w3.org/2000/svg"><path d="M21.5 6a1 1 0 0 1-.883.993L20.5 7h-.845l-1.231 12.52A2.75 2.75 0 0 1 15.687 22H8.313a2.75 2.75 0 0 1-2.737-2.48L4.345 7H3.5a1 1 0 0 1 0-2h5a3.5 3.5 0 1 1 7 0h5a1 1 0 0 1 1 1Zm-7.25 3.25a.75.75 0 0 0-.743.648L13.5 10v7l.007.102a.75.75 0 0 0 1.486 0L15 17v-7l-.007-.102a.75.75 0 0 0-.743-.648Zm-4.5 0a.75.75 0 0 0-.743.648L9 10v7l.007.102a.75.75 0 0 0 1.486 0L10.5 17v-7l-.007-.102a.75.75 0 0 0-.743-.648ZM12 3.5A1.5 1.5 0 0 0 10.5 5h3A1.5 1.5 0 0 0 12 3.5Z"/></svg></button>
       </td>
     </tr>`;
@@ -6098,5 +5701,537 @@ async function initApp(){
       </div>
     </div>
   </div>
+
+
+
+  <!-- VERSAND EDIT MODAL -->
+  <div class="edit-modal-bg" id="versand-edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeVersandEdit()">
+    <div class="edit-modal" style="max-width:480px">
+      <input type="hidden" id="vp-edit-id">
+      <div class="edit-modal-title">Versandprofil bearbeiten</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem">
+        <div class="field" style="grid-column:1/-1"><label>Profilname</label>
+          <input type="text" id="vpe-name" placeholder="z.B. DHL Paket Standard">
+        </div>
+        <div class="field"><label>Dienstleister</label>
+          <select id="vpe-carrier">
+            <option value="DHL">DHL</option>
+            <option value="Deutsche Post">Deutsche Post</option>
+            <option value="DPD">DPD</option>
+            <option value="UPS">UPS</option>
+            <option value="Hermes">Hermes</option>
+            <option value="GLS">GLS</option>
+            <option value="FedEx">FedEx</option>
+            <option value="Amazon Logistics">Amazon Logistics</option>
+          </select>
+        </div>
+        <div class="field"><label>Paketart</label>
+          <select id="vpe-paketart">
+            <option value="Päckchen S">Päckchen S</option>
+            <option value="Päckchen M">Päckchen M</option>
+            <option value="Kleinpaket">Kleinpaket</option>
+            <option value="Paket">Paket</option>
+            <option value="Großpaket">Großpaket</option>
+            <option value="Sperrgut">Sperrgut</option>
+            <option value="Brief">Brief</option>
+            <option value="Warensendung">Warensendung</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column:1/-1"><label>Gewicht</label>
+          <div style="display:flex;gap:6px">
+            <input type="number" id="vpe-gewicht" min="0" step="1" placeholder="0" style="flex:1">
+            <select id="vpe-gewicht-einheit" style="width:70px"><option value="g">g</option><option value="kg" selected>kg</option></select>
+          </div>
+        </div>
+        <div class="field"><label>Versandkosten (€)</label><input type="number" id="vpe-versandkosten" min="0" step="0.01" oninput="updateVpeSumme()"></div>
+        <div class="field"><label>Materialkosten (€)</label><input type="number" id="vpe-materialkosten" min="0" step="0.01" oninput="updateVpeSumme()"></div>
+        <div class="field"><label>Verpackungskosten (€)</label><input type="number" id="vpe-verpackungskosten" min="0" step="0.01" oninput="updateVpeSumme()"></div>
+        <div class="field"><label>Lagerkosten (€)</label><input type="number" id="vpe-lagerkosten" min="0" step="0.01" oninput="updateVpeSumme()"></div>
+        <div class="field"><label>Gültig ab</label><input type="date" id="vpe-gueltig-ab"></div>
+        <div class="field" style="grid-column:1/-1;background:#f5f5f3;border-radius:8px;padding:10px 12px">
+          <div class="text-xs" style="margin-bottom:3px">Gesamtkosten</div>
+          <div style="font-size:20px;font-weight:600;color:#003265;" id="vpe-summe-preview">—</div>
+        </div>
+      </div>
+      <div class="edit-modal-footer">
+        <span></span>
+        <div style="display:flex;gap:8px">
+          <button class="btn danger" onclick="deleteVersandFromEdit()">Profil löschen</button>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="closeVersandEdit()">Abbrechen</button>
+          <button class="btn primary" onclick="saveVersandEdit()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MPG EDIT MODAL -->
+  <div class="edit-modal-bg" id="mpg-edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeMpgEdit()">
+    <div class="edit-modal" style="max-width:360px">
+      <div class="edit-modal-title">Grundgebühr — <span id="mpg-edit-name"></span></div>
+      <div class="field" style="margin-bottom:1rem">
+        <label>Betrag netto (€/Monat)</label>
+        <input type="number" id="mpg-edit-betrag" min="0" step="0.01" placeholder="0.00" onkeydown="if(event.key==='Enter') saveMpgEdit()">
+      </div>
+      <div class="edit-modal-footer">
+        <span></span>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="closeMpgEdit()">Abbrechen</button>
+          <button class="btn primary" onclick="saveMpgEdit()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FK EDIT MODAL -->
+  <div class="edit-modal-bg" id="fk-edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeFkEdit()">
+    <div class="edit-modal" style="max-width:420px">
+      <div class="edit-modal-title">Position bearbeiten</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem">
+        <div class="field" style="grid-column:1/-1"><label>Bezeichnung</label><input type="text" id="fke-name"></div>
+        <div class="field"><label>Betrag netto (€)</label><input type="number" id="fke-betrag" min="0" step="0.01" oninput="updateFkePreview()"></div>
+        <div class="field" id="fke-intervall-wrap"><label>Intervall</label>
+          <select id="fke-intervall" onchange="updateFkePreview()">
+            <option value="monatlich">Monatlich</option>
+            <option value="2wochen">Alle 2 Wochen</option>
+            <option value="woechentlich">Wöchentlich</option>
+            <option value="jaehrlich">Jährlich</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column:1/-1"><label>Kategorie</label><select id="fke-cat"></select></div>
+        <div class="field" style="grid-column:1/-1;background:#f5f5f3;border-radius:8px;padding:10px 12px">
+          <div class="text-xs" style="margin-bottom:3px">Pro Monat</div>
+          <div style="font-size:18px;font-weight:500;" id="fke-monthly-preview">—</div>
+        </div>
+      </div>
+      <div class="edit-modal-footer">
+        <span></span>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="closeFkEdit()">Abbrechen</button>
+          <button class="btn primary" onclick="saveFkEdit()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECHNUNGEN EDIT MODAL -->
+  <div class="edit-modal-bg" id="rech-edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeRechEdit()">
+    <div class="edit-modal" style="max-width:500px">
+      <div class="edit-modal-title">Rechnung bearbeiten</div>
+      <div class="edit-modal-grid">
+        <div class="field"><label>Typ</label>
+          <select id="re-typ"><option value="einnahme">Einnahme</option><option value="ausgabe">Ausgabe</option></select>
+        </div>
+        <div class="field"><label>Datum</label><input type="date" id="re-datum"></div>
+        <div class="field"><label>Rechnungsnummer</label><input type="text" id="re-nr"></div>
+        <div class="field"><label>Partner</label><input type="text" id="re-partner"></div>
+        <div class="field"><label>Betrag netto (€)</label><input type="number" id="re-netto" min="0" step="0.01" oninput="reUpdatePreview()"></div>
+        <div class="field"><label>MwSt. (%)</label>
+          <select id="re-mwst" onchange="reUpdatePreview()">
+            <option value="19">19%</option><option value="7">7%</option><option value="0">0%</option>
+          </select>
+        </div>
+        <div class="field"><label>Kategorie</label>
+          <select id="re-kategorie">
+            <option value="Dienstleistung">Dienstleistung</option>
+            <option value="Warenverkauf">Warenverkauf</option>
+            <option value="Wareneinkauf">Wareneinkauf</option>
+            <option value="Betriebskosten">Betriebskosten</option>
+            <option value="Sonstiges">Sonstiges</option>
+          </select>
+        </div>
+        <div class="field" style="background:#f5f5f3;border-radius:8px;padding:10px 12px">
+          <div class="text-xs" style="margin-bottom:3px">Brutto</div>
+          <div style="font-size:18px;font-weight:500;" id="re-brutto-preview">—</div>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:12px"><label>Notiz</label><input type="text" id="re-notiz"></div>
+      <div class="edit-modal-footer">
+        <span class="edit-hint">Änderungen werden sofort gespeichert</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="closeRechEdit()">Abbrechen</button>
+          <button class="btn primary" onclick="saveRechEdit()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SAMMELBEARBEITUNG MODAL -->
+  <div class="edit-modal-bg" id="bulk-modal-bg" style="display:none;" onclick="if(event.target===this) closeBulkEdit()">
+    <div class="edit-modal" style="max-width:480px">
+      <div class="edit-modal-title">Sammelbearbeitung <span id="bulk-modal-count" style="font-weight:400;color:#888780"></span></div>
+
+      <div class="edit-modal-grid">
+        <div class="field">
+          <label>Warenkosten netto (€)</label>
+          <input type="number" id="bulk-waren" min="0" step="0.01">
+        </div>
+        <div class="field">
+          <label>Versandprofil</label>
+          <select id="bulk-versand-profil" onchange="onBulkVersandProfilChange()">
+            <option value="">— nicht ändern —</option>
+          </select>
+          <input type="hidden" id="bulk-versand" value="">
+        </div>
+
+        <div class="field">
+          <label>Marktplatzgebühr (€)</label>
+          <input type="number" id="bulk-provision" min="0" step="0.01">
+        </div>
+        <div class="field">
+          <label>Retoure (€)</label>
+          <input type="number" id="bulk-retoure" min="0" step="0.01">
+        </div>
+        <div class="field">
+          <label>Marktplatz</label>
+          <select id="bulk-kanal">
+            <option value="">— nicht ändern —</option>
+            <option value="Amazon">Amazon</option>
+            <option value="eBay">eBay</option>
+            <option value="Otto">Otto</option>
+            <option value="Shopify">Shopify</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Datum</label>
+          <input type="date" id="bulk-datum">
+        </div>
+      </div>
+      <div class="edit-modal-footer">
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="closeBulkEdit()">Abbrechen</button>
+          <button class="btn primary" onclick="saveBulkEdit()" id="bulk-save-btn">Auf alle anwenden</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT MODAL -->
+  <div class="edit-modal-bg" id="edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeEdit()">
+    <div class="edit-modal">
+      <div class="edit-modal-title">Bestellung bearbeiten</div>
+
+      <!-- RETOURE TOGGLE -->
+      <div id="ed-retoure-banner" style="display:none;background:#FAEEDA;border-radius:8px;padding:10px 14px;margin-bottom:12px;color:#854F0B">
+        ⚠ Retoure — Umsatz wird auf 0 gesetzt, Versandkosten bleiben als Verlust
+      </div>
+
+      <div class="edit-modal-grid" id="ed-fields-normal">
+        <div class="field"><label>Datum</label><input type="date" id="ed-datum"></div>
+        <div class="field"><label>Marktplatz</label>
+          <select id="ed-kanal">
+            <option value="Amazon">Amazon</option><option value="eBay">eBay</option>
+            <option value="Otto">Otto</option><option value="Shopify">Shopify</option>
+          </select>
+        </div>
+        <div class="field"><label>Bestellnummer</label><input type="text" id="ed-bestellnr"></div>
+        <div class="field"><label>Verkaufspreis brutto (€)</label><input type="number" id="ed-brutto" min="0" step="0.01" oninput="edAutoCalc()"></div>
+        <!-- ARTIKEL POSITIONEN -->
+        <div class="field" style="grid-column:1/-1;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <label style="margin:0;">Artikel / Positionen</label>
+            <button type="button" class="btn" onclick="addEdItemRow()" style="height:26px;padding:0 10px;font-size:12px;">+ Artikel</button>
+          </div>
+          <table style="width:100%;border-collapse:collapse;" id="ed-items-table">
+            <thead><tr style="border-bottom:0.5px solid #ddddd5;">
+              <th style="text-align:left;padding:4px 6px 6px 0;font-weight:400;color:#888780;width:130px;">SKU / ASIN</th>
+              <th style="text-align:left;padding:4px 6px 6px;font-weight:400;color:#888780;">Artikelname</th>
+              <th style="text-align:center;padding:4px 6px 6px;font-weight:400;color:#888780;width:55px;">Menge</th>
+              <th style="text-align:right;padding:4px 6px 6px;font-weight:400;color:#888780;width:85px;">EK (€)</th>
+              <th style="width:28px;"></th>
+            </tr></thead>
+            <tbody id="ed-items-tbody"></tbody>
+          </table>
+          <div style="text-align:right;margin-top:6px;font-size:12px;color:#888780;">
+            Gesamt EK: <span id="ed-waren-total" style="font-weight:600;color:#1a1a18;">0,00 €</span>
+          </div>
+          <input type="hidden" id="ed-waren" value="0">
+          <input type="hidden" id="ed-artikel" value="">
+          <input type="hidden" id="ed-sku" value="">
+        </div>
+        <div class="field"><label>Versandprofil</label>
+          <select id="ed-versand-profil" onchange="onEdVersandProfilChange()">
+            <option value="">— Profil auswählen —</option>
+          </select>
+          <input type="hidden" id="ed-versand" value="0">
+        </div>
+        <div class="field"><label>Marktplatzgebühr (€)</label><input type="number" id="ed-provision" min="0" step="0.01" oninput="edManualFee()"><span class="fee-hint" id="ed-fee-hint"></span></div>
+        <div class="field" style="justify-content:flex-end">
+          <label for="ed-is-retoure" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f5f5f3;border-radius:8px;cursor:pointer;margin-top:20px">
+            <input type="checkbox" id="ed-is-retoure" style="cursor:pointer;width:15px;height:15px;flex-shrink:0;" onchange="toggleEdRetoure()">
+            <div>
+              <div style="font-weight:500;color:#1a1a18">Als Retoure markieren</div>
+              <div style="font-size:11px;color:#888780">Umsatz = 0 € · nur Versand bleibt</div>
+            </div>
+          </label>
+        </div>
+        <div class="field" style="background:#f5f5f3;border-radius:8px;padding:10px 12px">
+          <div class="text-xs" style="margin-bottom:4px">Deckungsbeitrag (live)</div>
+          <div style="font-size:18px;font-weight:500;" id="ed-db-preview">—</div>
+          <div class="text-xs" style="margin-top:3px;" id="ed-dbpct-preview"></div>
+        </div>
+      </div>
+
+      <div class="edit-modal-footer">
+        <span class="edit-hint">Änderungen werden sofort gespeichert</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="closeEdit()">Abbrechen</button>
+          <button class="btn primary" onclick="saveEdit()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
+        </div>
+      </div>
+    </div>
+    </div>
+    <div id="kosten-marketing" style="display:none;">
+<!-- HEADER mit Monatsfilter -->
+    <div class="dash-controls" style="margin-bottom:1rem">
+      <div class="section-title" style="margin:0">Marketing-Kosten</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="mk-filter-month" onchange="renderMarketing()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none"></select>
+        <select id="mk-filter-year" onchange="renderMarketing()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none"></select>
+      </div>
+    </div>
+
+    <!-- NEUE POSITION HINZUFÜGEN -->
+    <div class="form-card">
+      <div class="fk-add-row">
+        <div class="fk-field">
+          <label>Marktplatz</label>
+          <input type="text" id="mk-kanal" placeholder="z.B. idealo, Geizhals, Google Ads...">
+        </div>
+        <div class="fk-field">
+          <label>Betrag netto (€)</label>
+          <input type="number" id="mk-betrag" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="fk-field">
+          <label>Monat / Jahr</label>
+          <div style="display:flex;gap:6px">
+            <select id="mk-month" style="flex:1;padding:0 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;height:36px"></select>
+            <select id="mk-year" style="width:80px;padding:0 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;height:36px"></select>
+          </div>
+        </div>
+        <div class="fk-btn-cell">
+          <div class="fk-btn-spacer"></div>
+          <button class="btn primary" onclick="addMkItem()">+ Hinzufügen</button>
+        </div>
+      </div>
+      <span id="mk-save-flash" style="font-size:12px;color:#1D9E75;display:none;margin-top:6px">✓ Gespeichert</span>
+    </div>
+
+    <!-- MONATSLISTE -->
+    <div id="mk-list-wrap"></div>
+
+    <!-- JAHRESVERLAUF CHART -->
+    <div class="form-card" style="margin-top:0.5rem">
+      <div class="section-title">Marketing-Kosten im Jahresverlauf</div>
+      <div style="position:relative;height:280px">
+        <canvas id="mk-year-chart"></canvas>
+      </div>
+      <div id="mk-year-legend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;justify-content:center"></div>
+    </div>
+    </div>
+    <div id="kosten-eingangsrechnungen" style="display:none;">
+      <!-- HEADER -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="section-title" style="margin:0">Eingangsrechnungen</div>
+          <select id="erech-filter-month" onchange="renderEingangsrechnungen()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#1a1a18;outline:none"></select>
+          <select id="erech-filter-year" onchange="renderEingangsrechnungen()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#1a1a18;outline:none"></select>
+        </div>
+        <button class="btn primary" onclick="toggleErechForm()" id="erech-toggle-btn">+ Neue Eingangsrechnung</button>
+      </div>
+
+      <!-- FORMULAR -->
+      <div id="erech-form-wrap" style="display:none;margin-bottom:1.5rem">
+        <div class="form-card" style="margin-bottom:0">
+          <div class="section-title">Neue Eingangsrechnung erfassen</div>
+          <div id="erech-upload-area" style="border:1.5px dashed #c8c8c0;border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;margin-bottom:14px;transition:background .15s;" onclick="document.getElementById('erech-file-input').click()" ondragover="event.preventDefault();this.style.background='#eeeee8'" ondragleave="this.style.background=''" ondrop="handleErechDrop(event)">
+            <input type="file" id="erech-file-input" accept=".pdf" style="display:none;" onchange="handleErechFile(event)">
+            <div id="erech-upload-label">
+              <div style="font-size:24px;margin-bottom:6px">📄</div>
+              <div style="color:#888780">PDF hier ablegen oder klicken</div>
+            </div>
+            <iframe id="erech-pdf-preview" style="display:none;width:100%;height:200px;border:none;border-radius:6px;" title="Rechnungsvorschau"></iframe>
+          </div>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr">
+            <div class="field">
+              <label>Datum</label>
+              <input type="date" id="erech-datum">
+            </div>
+            <div class="field">
+              <label>Rechnungsnummer</label>
+              <input type="text" id="erech-nr" placeholder="z.B. RE-2026-042">
+            </div>
+            <div class="field">
+              <label>Absender (Lieferant)</label>
+              <input type="text" id="erech-partner" placeholder="Firmenname oder Person">
+            </div>
+            <div class="field">
+              <label>Betrag netto (€)</label>
+              <input type="number" id="erech-netto" min="0" step="0.01" placeholder="0.00" oninput="updateErechPreview()">
+            </div>
+            <div class="field">
+              <label>MwSt. (%)</label>
+              <select id="erech-mwst" onchange="updateErechPreview()">
+                <option value="19">19%</option>
+                <option value="7">7%</option>
+                <option value="0">0% (keine MwSt.)</option>
+              </select>
+            </div>
+            <div class="field" style="background:#f5f5f3;border-radius:8px;padding:10px 12px">
+              <div class="text-xs" style="margin-bottom:3px">Brutto</div>
+              <div style="font-size:18px;font-weight:500;" id="erech-brutto-preview">0,00 €</div>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:12px">
+            <label>Notiz (optional)</label>
+            <input type="text" id="erech-notiz" placeholder="z.B. Lieferant, Projekt...">
+          </div>
+          <div class="btn-row">
+            <button class="btn primary" onclick="saveErechnung()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
+            <button class="btn" onclick="clearErechForm()">Zurücksetzen</button>
+            <span id="erech-save-msg" style="font-size:12px;color:#1D9E75;display:none">✓ Gespeichert!</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- LISTE -->
+      <div class="form-card">
+        <div class="section-title">Alle Eingangsrechnungen</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr>
+              <th style="text-align:left;padding:8px 0;color:#888780;font-weight:400">Datum</th>
+              <th style="text-align:left;padding:8px;color:#888780;font-weight:400">Nr.</th>
+              <th style="text-align:left;padding:8px;color:#888780;font-weight:400">Absender</th>
+              <th style="text-align:right;padding:8px;color:#888780;font-weight:400">Netto</th>
+              <th style="text-align:right;padding:8px;color:#888780;font-weight:400">Brutto</th>
+              <th style="padding:8px 0"></th>
+            </tr></thead>
+            <tbody id="erech-tbody"><tr><td colspan="6" class="empty">Noch keine Eingangsrechnungen</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BESTELLUNG DETAIL MODAL -->
+  <div class="edit-modal-bg" id="order-detail-modal-bg" style="display:none;" onclick="if(event.target===this) closeOrderDetail()">
+    <div class="edit-modal" style="max-width:520px;padding:0;overflow:hidden">
+
+      <!-- HEADER -->
+      <div style="background:#003265;padding:20px 24px 16px;border-radius:14px 14px 0 0;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span id="od-badge" class="badge" style="font-size:11px;"></span>
+          <span id="od-datum" style="font-size:12px;color:#CCE5FF;"></span>
+        </div>
+        <div id="od-bestellnr" style="font-size:18px;font-weight:600;color:#fff;letter-spacing:.01em;"></div>
+      </div>
+
+      <!-- ARTIKELLISTE -->
+      <div style="padding:16px 24px;border-bottom:0.5px solid #ddddd5;">
+        <div style="font-size:11px;font-weight:600;color:#003265;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Artikel</div>
+        <table style="width:100%;border-collapse:collapse;" id="od-items-table">
+          <thead>
+            <tr style="border-bottom:0.5px solid #ddddd5;">
+              <th style="text-align:left;padding:4px 8px 6px 0;font-weight:400;color:#888780;font-size:11px;width:120px;">SKU / ASIN</th>
+              <th style="text-align:left;padding:4px 8px 6px;font-weight:400;color:#888780;font-size:11px;">Artikelname</th>
+              <th style="text-align:center;padding:4px 8px 6px;font-weight:400;color:#888780;font-size:11px;width:50px;">Menge</th>
+            </tr>
+          </thead>
+          <tbody id="od-items-tbody"></tbody>
+        </table>
+        <!-- Fallback für alte Bestellungen ohne Items -->
+        <div id="od-artikel" style="display:none;font-size:13px;color:#1a1a18;"></div>
+        <div id="od-sku" style="display:none;font-size:12px;color:#888780;margin-top:2px;"></div>
+      </div>
+
+      <!-- KOSTENAUFSTELLUNG -->
+      <div style="padding:16px 24px;">
+        <div style="font-size:11px;font-weight:600;color:#003265;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Kostenaufstellung</div>
+        <div id="od-rows"></div>
+        <div id="od-result" style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:2px solid #003265">
+          <span style="font-weight:700;font-size:14px;color:#003265">Deckungsbeitrag</span>
+          <span id="od-db" style="font-weight:700;font-size:18px"></span>
+        </div>
+      </div>
+
+      <!-- FOOTER -->
+      <div style="display:flex;justify-content:space-between;padding:14px 24px;border-top:0.5px solid #ddddd5;background:#fff;border-radius:0 0 14px 14px;">
+        <button class="btn primary" onclick="openEditFromDetail()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M13.94 5 19 10.06 9.062 20a2.25 2.25 0 0 1-.999.58l-5.116 1.395a.75.75 0 0 1-.92-.921l1.395-5.116a2.25 2.25 0 0 1 .58-.999L13.938 5Zm7.09-2.03a3.578 3.578 0 0 1 0 5.06l-.97.97L15 3.94l.97-.97a3.578 3.578 0 0 1 5.06 0Z"/></svg>&nbsp;Bearbeiten</button>
+        <button class="btn" onclick="closeOrderDetail()">Schließen</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- RETOURE BEARBEITEN MODAL -->
+  <div class="edit-modal-bg" id="ret-edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeRetEdit()">
+    <div class="edit-modal" style="max-width:460px">
+      <input type="hidden" id="ret-edit-id">
+      <div class="edit-modal-title">Retoure bearbeiten</div>
+
+      <div id="ret-edit-info" style="background:#f5f5f3;border-radius:8px;padding:12px;margin-bottom:1rem"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem">
+        <div class="field" style="grid-column:1/-1">
+          <label>Versandkosten der Bestellung (€)</label>
+          <input type="number" id="ret-versand" min="0" step="0.01" readonly style="background:#f5f5f3;color:#888780">
+          <div class="text-xs" style="margin-top:3px">Aus der ursprünglichen Bestellung — fließt als Verlust ein</div>
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label>Artikelzustand</label>
+          <select id="ret-zustand" onchange="updateRetAbschreibung()">
+            <option value="0">Einwandfrei (0%)</option>
+            <option value="20">Geöffnet / B-Ware (20%)</option>
+            <option value="50">Beschädigt / teilweise nutzbar (50%)</option>
+            <option value="100">Defekt / unverkäuflich (100%)</option>
+            <option value="custom">Individuell...</option>
+          </select>
+        </div>
+        <div class="field" id="ret-custom-wrap" style="display:none;grid-column:1/-1">
+          <label>Abschreibung (%)</label>
+          <input type="number" id="ret-custom-pct" min="0" max="100" step="1" placeholder="z.B. 30" oninput="updateRetAbschreibung()">
+        </div>
+        <div class="field">
+          <label>EK (€)</label>
+          <input type="number" id="ret-ek" min="0" step="0.01" oninput="updateRetAbschreibung()" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label>Abschreibung (€)</label>
+          <input type="number" id="ret-abschreibung" min="0" step="0.01" readonly style="background:#f5f5f3;color:#E24B4A;font-weight:600">
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label>Retourenlabel (€)</label>
+          <input type="number" id="ret-label-kosten" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label>Notiz</label>
+          <input type="text" id="ret-notiz" placeholder="Optional">
+        </div>
+      </div>
+
+      <div style="background:#f5f5f3;border-radius:8px;padding:12px;margin-bottom:1rem">
+        <div class="text-xs" style="margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Verlustrechnung</div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Versandkosten</span><span id="ret-verlust-versand">—</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Retourenlabel</span><span id="ret-verlust-label">—</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:0.5px solid #ddddd5"><span style="color:#888780">Abschreibung</span><span id="ret-verlust-abschr">—</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:4px">
+          <span style="color:#888780">Gesamtverlust</span>
+          <span id="ret-verlust-preview" style="font-size:16px;font-weight:600;color:#E24B4A">—</span>
+        </div>
+      </div>
+
+      <div class="edit-modal-footer">
+        <span></span>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="closeRetEdit()">Abbrechen</button>
+          <button class="btn primary" onclick="saveRetEdit()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

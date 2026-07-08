@@ -20,6 +20,11 @@
 .flatpickr-day.today{border-color:#003265;}
 .flatpickr-day.today:hover{background:#003265;color:#fff;}
 .flatpickr-input{font-family:'Inter',sans-serif;font-size:13px;color:#003265;font-weight:500;}
+
+/* Spinner in Items-Tabelle ausblenden */
+#f-items-table input[type=number]::-webkit-inner-spin-button,
+#f-items-table input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+#f-items-table input[type=number]{-moz-appearance:textfield;}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -245,16 +250,40 @@ tr:last-child td{border-bottom:none;}
           </select>
         </div>
         <div class="field"><label>Bestellnummer (optional)</label><input type="text" id="f-bestellnr" placeholder="z.B. 123-456"></div>
-        <div class="field"><label>Artikel (optional)</label><input type="text" id="f-artikel" placeholder="z.B. Philips Rasierer Series 3"></div>
-        <div class="field"><label>SKU / ASIN (optional)</label><input type="text" id="f-sku" placeholder="z.B. BHS732/00 oder B08N5WRWNW" onblur="autofillFromSku()"></div>
+        </div>
+
+      <!-- POSITIONEN -->
+      <div style="margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <label style="margin:0;">Artikel / Positionen</label>
+          <button type="button" class="btn" onclick="addItemRow()" style="height:28px;padding:0 10px;font-size:12px;">+ Artikel</button>
+        </div>
+        <table style="width:100%;border-collapse:collapse;" id="f-items-table">
+          <thead>
+            <tr style="border-bottom:0.5px solid #ddddd5;">
+              <th style="text-align:left;padding:4px 6px 6px 0;font-weight:400;color:#888780;width:140px;">SKU / ASIN</th>
+              <th style="text-align:left;padding:4px 6px 6px;font-weight:400;color:#888780;">Artikelname</th>
+              <th style="text-align:center;padding:4px 6px 6px;font-weight:400;color:#888780;width:60px;">Menge</th>
+              <th style="text-align:right;padding:4px 6px 6px;font-weight:400;color:#888780;width:90px;">EK netto (€)</th>
+              <th style="width:32px;"></th>
+            </tr>
+          </thead>
+          <tbody id="f-items-tbody"></tbody>
+        </table>
+        <div style="text-align:right;margin-top:6px;font-size:12px;color:#888780;">
+          Gesamt EK: <span id="f-waren-total" style="font-weight:600;color:#1a1a18;">0,00 €</span>
+        </div>
+        <!-- Hidden f-waren für Kompatibilität mit updatePreview/calcDB -->
+        <input type="hidden" id="f-waren" value="0">
       </div>
+
       <div class="form-grid">
         <div class="field">
           <label>Bruttoverkaufspreis (€)</label>
           <input type="number" id="f-brutto" min="0" step="0.01" placeholder="0.00" oninput="autoCalc()">
           <span class="fee-hint" id="hint-netto"></span>
         </div>
-        <div class="field"><label>Warenkosten netto (€)</label><input type="number" id="f-waren" min="0" step="0.01" placeholder="0.00" oninput="updatePreview()"></div>
+        <div class="field" style="display:none"><label>Warenkosten (intern)</label><input type="number" id="f-waren-legacy" style="display:none"></div>
         <div class="field"><label>Versandprofil</label>
           <select id="f-versand-profil" onchange="onVersandProfilChange()" style="height:36px">
             <option value="">— Profil auswählen —</option>
@@ -266,7 +295,7 @@ tr:last-child td{border-bottom:none;}
           <input type="number" id="f-provision" min="0" step="0.01" placeholder="0.00" oninput="onManualFee()">
           <span class="fee-hint" id="hint-fee"></span>
         </div>
-        <div class="field"><label>Retoure (€)</label><input type="number" id="f-retoure" min="0" step="0.01" placeholder="0.00" oninput="updatePreview()"></div>
+        
       </div>
       <div class="preview-box">
         <div class="preview-rows">
@@ -277,7 +306,6 @@ tr:last-child td{border-bottom:none;}
           <div class="preview-row"><span>− Warenkosten</span><span id="prev-waren" class="neg">0,00 €</span></div>
           <div class="preview-row"><span>− Versandkosten</span><span id="prev-versand" class="neg">0,00 €</span></div>
           <div class="preview-row"><span>− Verkaufsprovision</span><span id="prev-fee" class="neg">0,00 €</span></div>
-          <div class="preview-row"><span>− Retoure</span><span id="prev-retoure" class="neg">0,00 €</span></div>
           <hr class="preview-divider">
           <div class="preview-total"><span>Deckungsbeitrag</span><span id="prev-db">0,00 €</span></div>
           <div class="preview-row"><span>DB-Marge (auf Netto)</span><span id="prev-pct">—</span></div>
@@ -1786,8 +1814,9 @@ let dbSynced=false;
 
 async function syncFromSupabase(){
   try{
-    const [orders,fixkosten,marketing,mpg,rechnungen,versand,settings,products]=await Promise.all([
+    const [orders,orderItems,fixkosten,marketing,mpg,rechnungen,versand,settings,products]=await Promise.all([
       sbFetch('orders','GET',null,'?select=*&order=id.desc'),
+      sbFetch('order_items','GET',null,'?select=*'),
       sbFetch('fixkosten','GET',null,'?select=*'),
       sbFetch('marketing','GET',null,'?select=*'),
       sbFetch('mpg','GET',null,'?select=*'),
@@ -1796,7 +1825,24 @@ async function syncFromSupabase(){
       sbFetch('settings','GET',null,'?select=*'),
       sbFetch('products','GET',null,'?select=*'),
     ]);
-    if(orders) localStorage.setItem('ec_orders',JSON.stringify(orders));
+    if(orders){
+      // Items den Orders zuordnen
+      const itemsByOrder={};
+      (orderItems||[]).forEach(it=>{
+        if(!itemsByOrder[it.order_id]) itemsByOrder[it.order_id]=[];
+        itemsByOrder[it.order_id].push({
+          sku:it.sku||'',name:it.name||'',
+          menge:it.menge||1,ek:it.ek||0,
+          ek_manuell:it.ek_manuell||false,
+          position:it.position||0,
+        });
+      });
+      const enriched=orders.map(o=>({
+        ...o,
+        items:(itemsByOrder[o.id]||[]).sort((a,b)=>a.position-b.position),
+      }));
+      localStorage.setItem('ec_orders',JSON.stringify(enriched));
+    }
     if(fixkosten) localStorage.setItem('ec_fixkosten_v2',JSON.stringify(fixkosten));
     if(marketing) localStorage.setItem('ec_marketing',JSON.stringify(marketing));
     if(mpg){
@@ -1859,7 +1905,7 @@ async function saveOrdersToSupabase(orders){
       imageData:o.imageData||null,
     };
   });
-  // Upsert in Batches von 50
+  // Upsert orders in Batches von 50
   const batchSize=50;
   for(let i=0;i<normalized.length;i+=batchSize){
     const batch=normalized.slice(i,i+batchSize);
@@ -1875,6 +1921,28 @@ async function saveOrdersToSupabase(orders){
     });
     if(!res.ok){const e=await res.text();console.error('Batch',i/batchSize+1,'error:',e);}
     else console.log(`Batch ${i/batchSize+1} OK (${batch.length} orders)`);
+  }
+  // Upsert order_items für alle Orders die Items haben
+  const allItems=orders.flatMap(o=>(o.items||[]).map((it,idx)=>({
+    order_id:Math.round(o.id),
+    position:idx,
+    sku:it.sku||'',
+    name:it.name||'',
+    menge:it.menge||1,
+    ek:it.ek||0,
+    ek_manuell:it.ek_manuell||false,
+  })));
+  if(allItems.length>0){
+    await fetch(`${SUPABASE_URL}/rest/v1/order_items`,{
+      method:'POST',
+      headers:{
+        'apikey':SUPABASE_KEY,
+        'Authorization':'Bearer '+SUPABASE_KEY,
+        'Content-Type':'application/json',
+        'Prefer':'resolution=merge-duplicates',
+      },
+      body:JSON.stringify(allItems),
+    });
   }
 }
 async function saveRechnungenToSupabase(r){
@@ -3114,7 +3182,7 @@ function updatePreview(){
   const waren=parseFloat(document.getElementById('f-waren').value)||0;
   const versand=parseFloat(document.getElementById('f-versand').value)||0;
   const fee=parseFloat(document.getElementById('f-provision').value)||0;
-  const retoure=parseFloat(document.getElementById('f-retoure').value)||0;
+  const retoure=0; // Retoure wird über Retouren-Tab erfasst
   const db=netto-waren-versand-fee-retoure;
   const pct=netto>0?(db/netto*100):null;
   document.getElementById('prev-brutto').textContent=fmt(brutto);
@@ -3123,7 +3191,6 @@ function updatePreview(){
   document.getElementById('prev-waren').textContent='− '+fmt(waren);
   document.getElementById('prev-versand').textContent='− '+fmt(versand);
   document.getElementById('prev-fee').textContent='− '+fmt(fee);
-  document.getElementById('prev-retoure').textContent='− '+fmt(retoure);
   const dbEl=document.getElementById('prev-db');
   dbEl.textContent=fmt(db); dbEl.className=db>=0?'pos':'neg';
   const pctEl=document.getElementById('prev-pct');
@@ -3177,11 +3244,14 @@ function showPage(p){
   if(p==='import') { document.getElementById('imp-preview-wrap').style.display='none'; }
 }
 
-function saveOrder(){
+async function saveOrder(){
   const datum=document.getElementById('f-datum').value;
   const brutto=parseFloat(document.getElementById('f-brutto').value)||0;
-  if(!datum) return;
-  if(brutto<=0) return;
+  if(!datum){showToast('Bitte ein Datum eingeben.');return;}
+  if(brutto<=0){showToast('Bitte einen Verkaufspreis eingeben.');return;}
+  if(_formItems.length===0||_formItems.every(it=>!it.sku&&!it.name)){
+    showToast('Bitte mindestens eine Position eintragen.');return;
+  }
   const bestellnr=document.getElementById('f-bestellnr').value.trim();
 
   // Duplikatsschutz
@@ -3191,7 +3261,6 @@ function saveOrder(){
       const el=document.getElementById('f-bestellnr');
       el.style.borderColor='#E24B4A';
       setTimeout(()=>el.style.borderColor='',3000);
-      // Show inline error
       let errEl=document.getElementById('bestellnr-dupe-msg');
       if(!errEl){
         errEl=document.createElement('span');
@@ -3204,33 +3273,41 @@ function saveOrder(){
       return;
     }
   }
+
+  // EK aus Positionen summieren
+  const waren=parseFloat(getItemsWarenTotal().toFixed(2));
+
   const order={
-    id:Date.now(),datum,
+    id:Date.now(), datum,
     kanal:document.getElementById('f-kanal').value,
-    bestellnr:bestellnr,
-    artikel:document.getElementById('f-artikel').value,
-    sku:document.getElementById('f-sku').value,
+    bestellnr,
+    // Für Anzeige + Suche: alle SKUs und Namen
+    artikel:itemsToNameString(_formItems),
+    sku:itemsToSkuString(_formItems),
+    // Positionen
+    items:[..._formItems],
     umsatzBrutto:brutto,
     umsatzNetto:parseFloat(nettoVon(brutto).toFixed(2)),
-    waren:parseFloat(document.getElementById('f-waren').value)||0,
+    waren,
     versand:parseFloat(document.getElementById('f-versand').value)||0,
     versandProfilId:document.getElementById('f-versand-profil').value||null,
     provision:parseFloat(document.getElementById('f-provision').value)||0,
-    retoure:parseFloat(document.getElementById('f-retoure').value)||0,
+    retoure:0, // Retoure wird über Retouren-Tab erfasst
   };
   const orders=getOrders(); orders.push(order); saveOrders(orders);
   const msg=document.getElementById('save-msg');
   msg.style.display='inline'; setTimeout(()=>msg.style.display='none',2000);
   clearForm(); populateDateFilters();
-  // Focus nach clearForm+onKanalChange gesetzt — 150ms reicht damit alles abgeschlossen ist
-  setTimeout(()=>{
-    const el=document.getElementById('f-bestellnr');
-    if(el){ el.focus(); el.select(); }
-  },150);
+  setTimeout(()=>document.getElementById('f-datum')?.focus(),150);
+  renderDashboard();
+  if(dbSynced) saveOrdersToSupabase([order]);
 }
 
 function clearForm(){
-  ['f-bestellnr','f-artikel','f-sku','f-brutto','f-waren','f-retoure'].forEach(id=>document.getElementById(id).value='');
+  ['f-bestellnr','f-brutto'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('f-waren').value='0';
   document.getElementById('f-versand').value='0';
   document.getElementById('f-versand-profil').value='';
   document.getElementById('f-datum').value=new Date().toISOString().split('T')[0];
@@ -3239,10 +3316,137 @@ function clearForm(){
   document.getElementById('f-provision').classList.remove('auto-filled');
   document.getElementById('hint-netto').innerHTML='';
   document.getElementById('hint-fee').innerHTML='';
+  clearFormItems(); // Items zurücksetzen + erste leere Zeile
   updatePreview(); onKanalChange();
 }
 
-/* ── CUSTOM CONFIRM ── */
+/* ── ORDER ITEMS ── */
+// In-memory state für die aktuelle Bestellung im Formular
+let _formItems=[];
+
+function addItemRow(item=null){
+  // Neue leere Position oder vorhandene befüllen
+  const idx=_formItems.length;
+  const it=item||{sku:'',name:'',menge:1,ek:0,ek_manuell:false};
+  _formItems.push(it);
+  const tbody=document.getElementById('f-items-tbody');
+  if(!tbody) return;
+  const tr=document.createElement('tr');
+  tr.dataset.idx=idx;
+  tr.style.borderBottom='0.5px solid #f5f5f3';
+  tr.innerHTML=`
+    <td style="padding:4px 6px 4px 0;">
+      <input type="text" value="${it.sku}" placeholder="SKU / ASIN"
+        style="width:100%;font-size:12px;padding:4px 6px;border:0.5px solid #c8c8c0;border-radius:6px;outline:none;"
+        oninput="_formItems[${idx}].sku=this.value"
+        onblur="autofillItemRow(${idx})">
+    </td>
+    <td style="padding:4px 6px;">
+      <input type="text" value="${it.name}" placeholder="Artikelname"
+        style="width:100%;font-size:12px;padding:4px 6px;border:0.5px solid #c8c8c0;border-radius:6px;outline:none;"
+        oninput="_formItems[${idx}].name=this.value">
+    </td>
+    <td style="padding:4px 6px;">
+      <input type="number" value="${it.menge}" min="1" step="1"
+        style="width:100%;font-size:12px;padding:4px 6px;border:0.5px solid #c8c8c0;border-radius:6px;outline:none;text-align:center;"
+        oninput="_formItems[${idx}].menge=parseInt(this.value)||1;updateItemsTotal()">
+    </td>
+    <td style="padding:4px 6px;">
+      <input type="number" value="${it.ek||''}" min="0" step="0.01" placeholder="0.00"
+        style="width:100%;font-size:12px;padding:4px 6px;border:0.5px solid #c8c8c0;border-radius:6px;outline:none;text-align:right;"
+        oninput="_formItems[${idx}].ek=parseFloat(this.value)||0;_formItems[${idx}].ek_manuell=true;updateItemsTotal()">
+    </td>
+    <td style="padding:4px 0 4px 4px;text-align:center;">
+      <button type="button" onclick="removeItemRow(${idx})" style="background:none;border:none;cursor:pointer;padding:2px 4px;" title="Entfernen"><svg width="13" height="13" viewBox="0 0 24 24" fill="#E24B4A" xmlns="http://www.w3.org/2000/svg"><path d="M21.5 6a1 1 0 0 1-.883.993L20.5 7h-.845l-1.231 12.52A2.75 2.75 0 0 1 15.687 22H8.313a2.75 2.75 0 0 1-2.737-2.48L4.345 7H3.5a1 1 0 0 1 0-2h5a3.5 3.5 0 1 1 7 0h5a1 1 0 0 1 1 1Zm-7.25 3.25a.75.75 0 0 0-.743.648L13.5 10v7l.007.102a.75.75 0 0 0 1.486 0L15 17v-7l-.007-.102a.75.75 0 0 0-.743-.648Zm-4.5 0a.75.75 0 0 0-.743.648L9 10v7l.007.102a.75.75 0 0 0 1.486 0L10.5 17v-7l-.007-.102a.75.75 0 0 0-.743-.648ZM12 3.5A1.5 1.5 0 0 0 10.5 5h3A1.5 1.5 0 0 0 12 3.5Z"/></svg></button>
+    </td>`;
+  tbody.appendChild(tr);
+  // Focus auf SKU der neuen Zeile
+  tr.querySelector('input').focus();
+}
+
+function removeItemRow(idx){
+  _formItems.splice(idx,1);
+  // Neu rendern
+  const tbody=document.getElementById('f-items-tbody');
+  if(tbody) tbody.innerHTML='';
+  const items=[..._formItems];
+  _formItems=[];
+  items.forEach(it=>addItemRow(it));
+  updateItemsTotal();
+}
+
+function updateItemsTotal(){
+  const total=_formItems.reduce((s,it)=>s+(it.ek*(it.menge||1)),0);
+  const el=document.getElementById('f-waren-total');
+  if(el) el.textContent=fmt(total);
+  // Sync hidden field für updatePreview()
+  const hidden=document.getElementById('f-waren');
+  if(hidden){hidden.value=total.toFixed(2);}
+  updatePreview();
+}
+
+function autofillItemRow(idx){
+  const item=_formItems[idx];
+  if(!item?.sku) return;
+  const p=getProdukte().find(p=>
+    p.sku.toLowerCase()===item.sku.toLowerCase()||
+    (p.asin&&p.asin.toLowerCase()===item.sku.toLowerCase())
+  );
+  if(!p) return;
+  // Artikelname befüllen wenn leer
+  if(!item.name&&p.name){
+    item.name=p.name;
+    const tbody=document.getElementById('f-items-tbody');
+    const row=tbody?.querySelector(`tr[data-idx="${idx}"]`);
+    if(row) row.querySelectorAll('input')[1].value=p.name;
+  }
+  // EK befüllen wenn noch nicht manuell gesetzt
+  if(!item.ek_manuell&&p.ek){
+    item.ek=p.ek;
+    const tbody=document.getElementById('f-items-tbody');
+    const row=tbody?.querySelector(`tr[data-idx="${idx}"]`);
+    if(row) row.querySelectorAll('input')[3].value=p.ek;
+  }
+  // Versandprofil setzen wenn noch keins gewählt
+  if(p.versandProfilId&&!document.getElementById('f-versand-profil')?.value){
+    const sel=document.getElementById('f-versand-profil');
+    if(sel) sel.value=String(p.versandProfilId);
+    onVersandProfilChange();
+  }
+  updateItemsTotal();
+  // Grünes Aufleuchten auf SKU-Feld
+  const tbody=document.getElementById('f-items-tbody');
+  const row=tbody?.querySelector(`tr[data-idx="${idx}"]`);
+  if(row){
+    const skuInput=row.querySelectorAll('input')[0];
+    skuInput.style.borderColor='#1D9E75';
+    setTimeout(()=>skuInput.style.borderColor='',2000);
+  }
+}
+
+function getItemsWarenTotal(){
+  return _formItems.reduce((s,it)=>s+(it.ek*(it.menge||1)),0);
+}
+
+// SKUs aller Items kommagetrennt für Anzeige + Suche
+function itemsToSkuString(items){
+  return (items||[]).map(it=>it.sku).filter(Boolean).join(', ');
+}
+function itemsToNameString(items){
+  return (items||[]).map(it=>it.name||it.sku).filter(Boolean).join(', ');
+}
+
+
+function clearFormItems(){
+  _formItems=[];
+  const tbody=document.getElementById('f-items-tbody');
+  if(tbody) tbody.innerHTML='';
+  updateItemsTotal();
+  // Erste leere Zeile direkt hinzufügen
+  addItemRow();
+}
+
+
 let _confirmResolve=null;
 function customConfirm(msg, title='Löschen bestätigen', okLabel='Löschen', okColor='#E24B4A'){
   return new Promise(resolve=>{
@@ -4776,7 +4980,8 @@ function renderOrders(){
   if(!orders.length){tbody.innerHTML=`<tr><td colspan="13" class="empty">Keine Bestellungen für diesen Zeitraum</td></tr>`;return;}
   tbody.innerHTML=orders.map(o=>{
     const db=calcDB(o); const netto=o.umsatzNetto||nettoVon(o.umsatzBrutto||0);
-    const warenMissing=(!o.waren||o.waren===0)&&!o.isRetoure;
+    // warenMissing: wenn keine Items vorhanden ODER alle Items EK=0
+    const warenMissing=(!o.waren||o.waren===0)&&(!o.items||o.items.length===0)&&!o.isRetoure;
     const retoureLabel=o.isRetoure?` <span style="font-size:10px;padding:1px 6px;border-radius:99px;background:#FAEEDA;color:#854F0B">Retoure</span>`:'';
     return `<tr style="${o.isRetoure?'opacity:0.7;':''}">
       <td><input type="checkbox" class="order-check" data-id="${o.id}" onchange="updateSelectedInfo()" style="cursor:pointer"></td>
@@ -5761,6 +5966,24 @@ function initRealtime(){
       if(data) localStorage.setItem('ec_rechnungen',JSON.stringify(data));
       const page=document.querySelector('.page.active');
       if(page?.id==='page-eingabe') renderRechnungen();
+    } else if(table==='order_items'){
+      // Items geändert → kompletten Orders-Sync mit Items
+      const [orderData,itemData]=await Promise.all([
+        sbFetch('orders','GET',null,'?select=*&order=id.desc'),
+        sbFetch('order_items','GET',null,'?select=*'),
+      ]);
+      if(orderData){
+        const itemsByOrder={};
+        (itemData||[]).forEach(it=>{
+          if(!itemsByOrder[it.order_id]) itemsByOrder[it.order_id]=[];
+          itemsByOrder[it.order_id].push({sku:it.sku||'',name:it.name||'',menge:it.menge||1,ek:it.ek||0,ek_manuell:it.ek_manuell||false,position:it.position||0});
+        });
+        const enriched=orderData.map(o=>({...o,items:(itemsByOrder[o.id]||[]).sort((a,b)=>a.position-b.position)}));
+        localStorage.setItem('ec_orders',JSON.stringify(enriched));
+      }
+      renderDashboard(); renderDay();
+      const page=document.querySelector('.page.active');
+      if(page?.id==='page-bestellungen') renderOrders();
     } else if(table==='products'){
       const data=await sbFetch('products','GET',null,'?select=*');
       if(data){const mapped=data.map(p=>({sku:p.sku,asin:p.asin||'',name:p.name||'',ek:p.ek||0,versandProfilId:p.versand_profil_id||null,aktiv:p.aktiv!==false}));localStorage.setItem('ec_produkte',JSON.stringify(mapped));}
@@ -5777,7 +6000,7 @@ function initRealtime(){
     if(syncEl){syncEl.textContent='✓ Aktualisiert';setTimeout(()=>syncEl.style.opacity='0',2000);}
   }
 
-  const tables=['orders','fixkosten','marketing','mpg','versand','settings','rechnungen','products','eingangsrechnungen'];
+  const tables=['orders','order_items','fixkosten','marketing','mpg','versand','settings','rechnungen','products','eingangsrechnungen'];
   tables.forEach(table=>{
     supabaseClient
       .channel(`realtime:${table}`)
@@ -5823,7 +6046,9 @@ async function initApp(){
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/de.js"></script>
 <script>
   window.addEventListener('load', function(){
-    // Event delegation for day-orders table — fires once, handles all rows
+    // Erste leere Positions-Zeile im Bestellformular
+  addItemRow();
+  // Event delegation for day-orders table — fires once, handles all rows
   document.getElementById('day-orders')?.addEventListener('click', e=>{
     const tr=e.target.closest('tr[data-order-id]');
     if(tr) openOrderDetail(parseInt(tr.dataset.orderId));

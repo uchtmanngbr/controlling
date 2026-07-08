@@ -3295,11 +3295,10 @@ async function saveOrder(){
     retoure:0, // Retoure wird über Retouren-Tab erfasst
   };
   const orders=getOrders(); orders.push(order); saveOrders(orders);
+  renderDashboard(); renderDay();
   const msg=document.getElementById('save-msg');
   msg.style.display='inline'; setTimeout(()=>msg.style.display='none',2000);
   clearForm(); populateDateFilters();
-  setTimeout(()=>document.getElementById('f-datum')?.focus(),150);
-  renderDashboard();
   if(dbSynced) saveOrdersToSupabase([order]);
 }
 
@@ -3310,7 +3309,11 @@ function clearForm(){
   document.getElementById('f-waren').value='0';
   document.getElementById('f-versand').value='0';
   document.getElementById('f-versand-profil').value='';
-  document.getElementById('f-datum').value=new Date().toISOString().split('T')[0];
+  // Datum zurücksetzen ohne Flatpickr-Kalender zu öffnen
+  const _datumEl=document.getElementById('f-datum');
+  const _today=new Date().toISOString().split('T')[0];
+  if(_datumEl?._flatpickr) _datumEl._flatpickr.setDate(_today,false);
+  else if(_datumEl) _datumEl.value=_today;
   manualFee=false;
   document.getElementById('f-provision').value='';
   document.getElementById('f-provision').classList.remove('auto-filled');

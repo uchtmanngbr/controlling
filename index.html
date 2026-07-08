@@ -5549,9 +5549,20 @@ function initRealtime(){
     if(syncEl){syncEl.style.opacity='1';syncEl.textContent='↻ Synchronisiere...';}
     console.log(`↻ Realtime: ${table} geändert`);
 
-    if(table==='orders'){
-      const data=await sbFetch('orders','GET',null,'?select=*&order=id.desc');
-      if(data) localStorage.setItem('ec_orders',JSON.stringify(data));
+    if(table==='orders'||table==='order_items'){
+      const [orderData,itemData]=await Promise.all([
+        sbFetch('orders','GET',null,'?select=*&order=id.desc'),
+        sbFetch('order_items','GET',null,'?select=*'),
+      ]);
+      if(orderData){
+        const itemsByOrder={};
+        (itemData||[]).forEach(it=>{
+          if(!itemsByOrder[it.order_id]) itemsByOrder[it.order_id]=[];
+          itemsByOrder[it.order_id].push({sku:it.sku||'',name:it.name||'',menge:it.menge||1,ek:it.ek||0,ek_manuell:it.ek_manuell||false,position:it.position||0});
+        });
+        const enriched=orderData.map(o=>({...o,items:(itemsByOrder[o.id]||[]).sort((a,b)=>a.position-b.position)}));
+        localStorage.setItem('ec_orders',JSON.stringify(enriched));
+      }
       renderDashboard(); renderDay();
       const page=document.querySelector('.page.active');
       if(page?.id==='page-bestellungen') renderOrders();
@@ -5585,24 +5596,6 @@ function initRealtime(){
       if(data) localStorage.setItem('ec_rechnungen',JSON.stringify(data));
       const page=document.querySelector('.page.active');
       if(page?.id==='page-eingabe') renderRechnungen();
-    } else if(table==='order_items'){
-      // Items geändert → kompletten Orders-Sync mit Items
-      const [orderData,itemData]=await Promise.all([
-        sbFetch('orders','GET',null,'?select=*&order=id.desc'),
-        sbFetch('order_items','GET',null,'?select=*'),
-      ]);
-      if(orderData){
-        const itemsByOrder={};
-        (itemData||[]).forEach(it=>{
-          if(!itemsByOrder[it.order_id]) itemsByOrder[it.order_id]=[];
-          itemsByOrder[it.order_id].push({sku:it.sku||'',name:it.name||'',menge:it.menge||1,ek:it.ek||0,ek_manuell:it.ek_manuell||false,position:it.position||0});
-        });
-        const enriched=orderData.map(o=>({...o,items:(itemsByOrder[o.id]||[]).sort((a,b)=>a.position-b.position)}));
-        localStorage.setItem('ec_orders',JSON.stringify(enriched));
-      }
-      renderDashboard(); renderDay();
-      const page=document.querySelector('.page.active');
-      if(page?.id==='page-bestellungen') renderOrders();
     } else if(table==='products'){
       const data=await sbFetch('products','GET',null,'?select=*');
       if(data){const mapped=data.map(p=>({sku:p.sku,asin:p.asin||'',name:p.name||'',ek:p.ek||0,versandProfilId:p.versand_profil_id||null,aktiv:p.aktiv!==false}));localStorage.setItem('ec_produkte',JSON.stringify(mapped));}

@@ -2988,7 +2988,7 @@ function autofillFromSkuEdit(){
 }
 
 function editOrder(id){
-  const o=getOrders().find(o=>o.id===id);
+  const o=getOrders().find(o=>String(o.id)===String(id));
   if(!o) return;
   editId=id; edManual=false;
   const isR=o.isRetoure||false;
@@ -3472,7 +3472,7 @@ async function deleteOrder(id){
   const _o=getOrders().find(o=>o.id===id);
   const _nr=_o?(_o.bestellnr||_o.artikel||'#'+id):'#'+id;
   if(!await customConfirm(`Bestellung <strong>„${_nr}"</strong> wirklich löschen?<br><span style="font-size:12px">Diese Aktion kann nicht rückgängig gemacht werden.</span>`,'Bestellung löschen')) return;
-  saveOrders(getOrders().filter(o=>o.id!==id));
+  saveOrders(getOrders().filter(o=>String(o.id)!==String(id)));
   renderOrders(); renderDashboard();
   if(dbSynced) fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`,{
     method:'DELETE',
@@ -4855,7 +4855,7 @@ function filterOrdersByRange(orders,range){
 let detailOrderId=null;
 
 function openOrderDetail(id){
-  const o=getOrders().find(o=>o.id===id);
+  const o=getOrders().find(o=>String(o.id)===String(id));
   if(!o) return;
   detailOrderId=id;
   const db=calcDB(o);
@@ -4868,9 +4868,23 @@ function openOrderDetail(id){
 
   // Grundinfos
   document.getElementById('od-datum').textContent=o.datum?o.datum.split('-').reverse().join('.'):'—';
-  document.getElementById('od-artikel').textContent=o.artikel||'Kein Artikelname';
+  // Bestellnummer
   document.getElementById('od-bestellnr').textContent=o.bestellnr?'Bestellnr.: '+o.bestellnr:'';
-  document.getElementById('od-sku').textContent=o.sku?'SKU/ASIN: '+o.sku:'';
+
+  // Artikel: Items-Tabelle wenn vorhanden, sonst einzelner Artikel
+  const odArtikelEl=document.getElementById('od-artikel');
+  const odSkuEl=document.getElementById('od-sku');
+  if(o.items&&o.items.length>0){
+    odArtikelEl.innerHTML=o.items.map(it=>`
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:2px 0;border-bottom:0.5px solid #f0f0ea;font-size:13px;">
+        <span style="flex:1;font-weight:500;">${it.name||it.sku||'—'}</span>
+        <span style="color:#888780;white-space:nowrap;font-size:11px;">${it.sku?it.sku+' ·':''} ${it.menge||1}× · ${fmt(it.ek||0)} EK</span>
+      </div>`).join('');
+    odSkuEl.textContent='';
+  } else {
+    odArtikelEl.textContent=o.artikel||'Kein Artikelname';
+    odSkuEl.textContent=o.sku?'SKU/ASIN: '+o.sku:'';
+  }
 
   // Bild
   const img=document.getElementById('od-img');
@@ -4889,7 +4903,6 @@ function openOrderDetail(id){
     {label:'− Warenkosten', val:-(o.waren||0), cls:'neg'},
     {label:'− Versandkosten', val:-(o.versand||0), cls:'neg'},
     {label:'− Marktplatzgebühren', val:-(o.provision||0), cls:'neg'},
-    {label:'− Retoure', val:-(o.retoure||0), cls:'neg', hide:!(o.retoure)},
   ].filter(r=>!r.hide);
 
   document.getElementById('od-rows').innerHTML=rows.map(r=>`

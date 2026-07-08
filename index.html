@@ -4652,7 +4652,7 @@ function updateSelectedInfo(){
 function openBulkEdit(){
   const checked=[...document.querySelectorAll('.order-check:checked')];
   if(!checked.length) return;
-  ['bulk-waren','bulk-versand','bulk-provision','bulk-retoure','bulk-datum'].forEach(id=>document.getElementById(id).value='');
+  ['bulk-versand','bulk-provision','bulk-datum'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('bulk-versand-profil').value='';
   populateVersandDropdown();
   document.getElementById('bulk-kanal').value='';
@@ -4661,7 +4661,7 @@ function openBulkEdit(){
   const _fp_bulkdatum=document.getElementById('bulk-datum');
   if(_fp_bulkdatum&&!_fp_bulkdatum._flatpickr&&window.flatpickr) flatpickr(_fp_bulkdatum,{locale:'de',dateFormat:'Y-m-d',allowInput:true,disableMobile:true});
   document.getElementById('bulk-modal-bg').style.display='flex';
-  document.getElementById('bulk-waren').focus();
+  document.getElementById('bulk-provision').focus();
 }
 
 function closeBulkEdit(){
@@ -4672,22 +4672,18 @@ function saveBulkEdit(){
   const checked=[...document.querySelectorAll('.order-check:checked')];
   if(!checked.length) return;
   const ids=new Set(checked.map(cb=>parseInt(cb.dataset.id)));
-  const waren=document.getElementById('bulk-waren').value;
   const versand=document.getElementById('bulk-versand').value;
   const provision=document.getElementById('bulk-provision').value;
-  const retoure=document.getElementById('bulk-retoure').value;
   const kanal=document.getElementById('bulk-kanal').value;
   const datum=document.getElementById('bulk-datum').value;
-  const hasChanges=[waren,versand,provision,retoure,kanal,datum].some(v=>v!=='');
+  const hasChanges=[versand,provision,kanal,datum].some(v=>v!=='');
   if(!hasChanges){ showToast('Bitte mindestens ein Feld ausfüllen.'); return; }
   const orders=getOrders();
   let count=0;
   orders.forEach(o=>{
     if(!ids.has(o.id)) return;
-    if(waren!=='')     o.waren     = parseFloat(waren)||0;
     if(versand!=='')   o.versand   = parseFloat(versand)||0;
     if(provision!=='') o.provision = parseFloat(provision)||0;
-    if(retoure!=='')   o.retoure   = parseFloat(retoure)||0;
     if(kanal!=='')     o.kanal     = kanal;
     if(datum!=='')     o.datum     = datum;
     count++;
@@ -5856,24 +5852,15 @@ async function initApp(){
 
       <div class="edit-modal-grid">
         <div class="field">
-          <label>Warenkosten netto (€)</label>
-          <input type="number" id="bulk-waren" min="0" step="0.01">
-        </div>
-        <div class="field">
           <label>Versandprofil</label>
           <select id="bulk-versand-profil" onchange="onBulkVersandProfilChange()">
             <option value="">— nicht ändern —</option>
           </select>
           <input type="hidden" id="bulk-versand" value="">
         </div>
-
         <div class="field">
           <label>Marktplatzgebühr (€)</label>
           <input type="number" id="bulk-provision" min="0" step="0.01">
-        </div>
-        <div class="field">
-          <label>Retoure (€)</label>
-          <input type="number" id="bulk-retoure" min="0" step="0.01">
         </div>
         <div class="field">
           <label>Marktplatz</label>

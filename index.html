@@ -666,6 +666,8 @@ tr:last-child td{border-bottom:none;}
   </div>
 
 
+  </div><!-- /page-kosten -->
+
   <!-- FIXKOSTEN (versteckt für Kompatibilität) -->
   <div class="page" id="page-fixkosten" style="display:none!important;"></div>
 
@@ -2815,6 +2817,8 @@ function populateDateFilters(){
 
 function showPage(p){
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
   document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   document.querySelectorAll('.tab').forEach(el=>{if(el.getAttribute('onclick').includes("'"+p+"'")) el.classList.add('active');});
@@ -6092,8 +6096,6 @@ async function initApp(){
         </div>
       </div>
     </div>
-
-  </div>
 
   <!-- BESTELLUNG DETAIL MODAL -->
   <div class="edit-modal-bg" id="order-detail-modal-bg" style="display:none;" onclick="if(event.target===this) closeOrderDetail()">

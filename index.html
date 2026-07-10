@@ -2696,6 +2696,8 @@ async function saveEdit(){
     const i=all.findIndex(o=>String(o.id)===String(orders[idx].id));
     if(i>=0){ all[i].id=supabaseId; saveOrders(all); }
   }
+  const syncEl2=document.getElementById('sync-indicator');
+  if(syncEl2){syncEl2.textContent='✓ Gespeichert';setTimeout(()=>syncEl2.style.opacity='0',2000);}
   closeEdit();
   renderOrders(); renderDashboard(); renderDay();
 }
@@ -2917,6 +2919,8 @@ async function saveOrder(){
     const idx=all.findIndex(o=>o.id===order.id);
     if(idx>=0){ all[idx].id=supabaseId; saveOrders(all); }
   }
+  const syncEl=document.getElementById('sync-indicator');
+  if(syncEl){syncEl.textContent='✓ Gespeichert';setTimeout(()=>syncEl.style.opacity='0',2000);}
 }
 
 function clearForm(){
@@ -5563,7 +5567,11 @@ function initRealtime(){
 
     if(table==='orders'||table==='order_items'){
       // Eigene Änderungen ignorieren — lokaler State ist bereits aktuell
-      if(_suppressRealtime) return;
+      if(_suppressRealtime){
+        const syncEl=document.getElementById('sync-indicator');
+        if(syncEl) setTimeout(()=>syncEl.style.opacity='0',500);
+        return;
+      }
       const [orderData,itemData]=await Promise.all([
         sbFetch('orders','GET',null,'?select=*&order=id.desc'),
         sbFetch('order_items','GET',null,'?select=*'),

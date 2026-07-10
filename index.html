@@ -1311,6 +1311,7 @@ async function sbFetch(table, method='GET', body=null, params=''){
 }
 
 let dbSynced=false;
+let _suppressRealtime=false; // Verhindert Realtime-Reload bei eigenen Änderungen
 
 async function syncFromSupabase(){
   try{
@@ -1387,6 +1388,8 @@ async function saveSettingToSupabase(key, value){
 
 async function upsertOrderWithItems(order, items){
   if(!dbSynced) return;
+  _suppressRealtime=true;
+  setTimeout(()=>_suppressRealtime=false, 3000); // Nach 3s wieder normal
   const payload={
     p_order: JSON.stringify({
       id: Math.round(order.id),
@@ -2898,7 +2901,7 @@ async function saveOrder(){
     retoure:0, // Retoure wird über Retouren-Tab erfasst
   };
   const orders=getOrders(); orders.push(order); saveOrders(orders);
-  renderDashboard(); renderDay();
+  renderDashboard(); renderDay(); renderOrders();
   const msg=document.getElementById('save-msg');
   msg.style.display='inline'; setTimeout(()=>msg.style.display='none',2000);
   clearForm(); populateDateFilters();
@@ -5549,6 +5552,8 @@ function initRealtime(){
     console.log(`↻ Realtime: ${table} geändert`);
 
     if(table==='orders'||table==='order_items'){
+      // Eigene Änderungen ignorieren — lokaler State ist bereits aktuell
+      if(_suppressRealtime) return;
       const [orderData,itemData]=await Promise.all([
         sbFetch('orders','GET',null,'?select=*&order=id.desc'),
         sbFetch('order_items','GET',null,'?select=*'),

@@ -1437,6 +1437,49 @@ async function upsertOrderWithItems(order, items){
   const newId=Array.isArray(data)?data[0]:data;
   return newId;
 }
+
+async function updateOrderWithItems(id, order, items){
+  if(!dbSynced) return;
+  _suppressRealtime=true;
+  setTimeout(()=>_suppressRealtime=false,3000);
+  const payload={
+    p_id: Math.round(id),
+    p_order:{
+      datum:order.datum||'',
+      kanal:order.kanal||'',
+      bestellnr:order.bestellnr||'',
+      artikel:order.artikel||'',
+      sku:order.sku||'',
+      umsatzBrutto:order.umsatzBrutto||0,
+      umsatzNetto:order.umsatzNetto||0,
+      waren:order.waren||0,
+      versand:order.versand||0,
+      provision:order.provision||0,
+      retoure:order.retoure||0,
+      isRetoure:order.isRetoure||false,
+      notiz:order.notiz||'',
+      versandProfilId:order.versandProfilId||null,
+    },
+    p_items:(items||[]).map((it,i)=>({
+      position:i, sku:it.sku||'', name:it.name||'',
+      menge:it.menge||1, ek:it.ek||0, ek_manuell:it.ek_manuell||false,
+    })),
+  };
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/rpc/update_order_with_items`,{
+    method:'POST',
+    headers:{
+      'apikey':SUPABASE_KEY,
+      'Authorization':'Bearer '+SUPABASE_KEY,
+      'Content-Type':'application/json',
+    },
+    body:JSON.stringify(payload),
+  });
+  if(!res.ok){
+    const err=await res.text();
+    console.error('updateOrderWithItems FAILED:',res.status,err);
+  }
+}
+
 async function saveOrdersToSupabase(orders){
   // Für jeden Order atomar Order + Items speichern via RPC
   for(const order of orders){
@@ -2689,13 +2732,8 @@ async function saveEdit(){
     isRetoure: isR,
   };
   saveOrders(orders);
-  // Atomar: Order + Items in einer Transaktion, Supabase ID zurückholen
-  const supabaseId=await upsertOrderWithItems(orders[idx], _edItems);
-  if(supabaseId&&supabaseId!==orders[idx].id){
-    const all=getOrders();
-    const i=all.findIndex(o=>String(o.id)===String(orders[idx].id));
-    if(i>=0){ all[i].id=supabaseId; saveOrders(all); }
-  }
+  // Update per ID — verhindert Duplikate bei Marktplatz-Änderung
+  await updateOrderWithItems(orders[idx].id, orders[idx], _edItems);
   const syncEl2=document.getElementById('sync-indicator');
   if(syncEl2){syncEl2.textContent='✓ Gespeichert';setTimeout(()=>syncEl2.style.opacity='0',2000);}
   closeEdit();

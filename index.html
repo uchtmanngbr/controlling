@@ -1434,8 +1434,20 @@ async function upsertOrderWithItems(order, items){
   });
   if(!res.ok){
     const err=await res.text();
-    console.warn('upsertOrderWithItems error:',err);
+    console.error('upsertOrderWithItems FAILED:', res.status, err);
+    // Fallback: direkt REST API
+    await sbFetch('orders','POST',{
+      id:Math.round(order.id), datum:order.datum||'', kanal:order.kanal||'',
+      bestellnr:order.bestellnr||'', artikel:order.artikel||'', sku:order.sku||'',
+      umsatzBrutto:order.umsatzBrutto||0, umsatzNetto:order.umsatzNetto||0,
+      waren:order.waren||0, versand:order.versand||0,
+      provision:order.provision||0, retoure:order.retoure||0,
+      isRetoure:order.isRetoure||false, notiz:order.notiz||'',
+      versandProfilId:order.versandProfilId||null,
+    },'',{'Prefer':'resolution=merge-duplicates'});
+    return;
   }
+  console.log('upsertOrderWithItems OK');
 }
 async function saveOrdersToSupabase(orders){
   // Für jeden Order atomar Order + Items speichern via RPC

@@ -1435,16 +1435,6 @@ async function upsertOrderWithItems(order, items){
   if(!res.ok){
     const err=await res.text();
     console.error('upsertOrderWithItems FAILED:', res.status, err);
-    // Fallback: direkt REST API
-    await sbFetch('orders','POST',{
-      id:Math.round(order.id), datum:order.datum||'', kanal:order.kanal||'',
-      bestellnr:order.bestellnr||'', artikel:order.artikel||'', sku:order.sku||'',
-      umsatzBrutto:order.umsatzBrutto||0, umsatzNetto:order.umsatzNetto||0,
-      waren:order.waren||0, versand:order.versand||0,
-      provision:order.provision||0, retoure:order.retoure||0,
-      isRetoure:order.isRetoure||false, notiz:order.notiz||'',
-      versandProfilId:order.versandProfilId||null,
-    },'',{'Prefer':'resolution=merge-duplicates'});
     return;
   }
   console.log('upsertOrderWithItems OK');
@@ -2717,7 +2707,7 @@ document.getElementById('header-date').textContent=new Date().toLocaleDateString
 function getOrders(){try{return JSON.parse(localStorage.getItem('ec_orders')||'[]');}catch(e){return[];}}
 function saveOrders(o){
   localStorage.setItem('ec_orders',JSON.stringify(o));
-  if(dbSynced) saveOrdersToSupabase(o).catch(e=>console.warn('Supabase orders sync:',e));
+  // Kein automatischer Supabase-Sync hier — wird explizit in saveOrder/saveEdit aufgerufen
 }
 function getFkItems(){try{return JSON.parse(localStorage.getItem('ec_fixkosten_v2')||'[]');}catch(e){return[];}}
 function setFkItems(d){

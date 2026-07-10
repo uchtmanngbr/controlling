@@ -5964,7 +5964,7 @@ async function initApp(){
       <div class="edit-modal-grid" id="ed-fields-normal">
         <div class="field"><label>Datum</label><input type="date" id="ed-datum"></div>
         <div class="field"><label>Marktplatz</label>
-          <select id="ed-kanal">
+          <select id="ed-kanal" onchange="edManual=false;edAutoCalc()">
             <option value="Amazon">Amazon</option><option value="eBay">eBay</option>
             <option value="Otto">Otto</option><option value="Shopify">Shopify</option>
           </select>

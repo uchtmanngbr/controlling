@@ -666,8 +666,140 @@ tr:last-child td{border-bottom:none;}
   </div>
 
 
-  </div><!-- /page-kosten -->
 
+    <div id="kosten-marketing" style="display:none;">
+<!-- HEADER mit Monatsfilter -->
+    <div class="dash-controls" style="margin-bottom:1rem">
+      <div class="section-title" style="margin:0">Marketing-Kosten</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="mk-filter-month" onchange="renderMarketing()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none"></select>
+        <select id="mk-filter-year" onchange="renderMarketing()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none"></select>
+      </div>
+    </div>
+
+    <!-- NEUE POSITION HINZUFÜGEN -->
+    <div class="form-card">
+      <div class="fk-add-row">
+        <div class="fk-field">
+          <label>Marktplatz</label>
+          <input type="text" id="mk-kanal" placeholder="z.B. idealo, Geizhals, Google Ads...">
+        </div>
+        <div class="fk-field">
+          <label>Betrag netto (€)</label>
+          <input type="number" id="mk-betrag" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="fk-field">
+          <label>Monat / Jahr</label>
+          <div style="display:flex;gap:6px">
+            <select id="mk-month" style="flex:1;padding:0 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;height:36px"></select>
+            <select id="mk-year" style="width:80px;padding:0 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;height:36px"></select>
+          </div>
+        </div>
+        <div class="fk-btn-cell">
+          <div class="fk-btn-spacer"></div>
+          <button class="btn primary" onclick="addMkItem()">+ Hinzufügen</button>
+        </div>
+      </div>
+      <span id="mk-save-flash" style="font-size:12px;color:#1D9E75;display:none;margin-top:6px">✓ Gespeichert</span>
+    </div>
+
+    <!-- MONATSLISTE -->
+    <div id="mk-list-wrap"></div>
+
+    <!-- JAHRESVERLAUF CHART -->
+    <div class="form-card" style="margin-top:0.5rem">
+      <div class="section-title">Marketing-Kosten im Jahresverlauf</div>
+      <div style="position:relative;height:280px">
+        <canvas id="mk-year-chart"></canvas>
+      </div>
+      <div id="mk-year-legend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;justify-content:center"></div>
+    </div>
+    </div>
+    <div id="kosten-eingangsrechnungen" style="display:none;">
+      <!-- HEADER -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="section-title" style="margin:0">Eingangsrechnungen</div>
+          <select id="erech-filter-month" onchange="renderEingangsrechnungen()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#1a1a18;outline:none"></select>
+          <select id="erech-filter-year" onchange="renderEingangsrechnungen()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#1a1a18;outline:none"></select>
+        </div>
+        <button class="btn primary" onclick="toggleErechForm()" id="erech-toggle-btn">+ Neue Eingangsrechnung</button>
+      </div>
+
+      <!-- FORMULAR -->
+      <div id="erech-form-wrap" style="display:none;margin-bottom:1.5rem">
+        <div class="form-card" style="margin-bottom:0">
+          <div class="section-title">Neue Eingangsrechnung erfassen</div>
+          <div id="erech-upload-area" style="border:1.5px dashed #c8c8c0;border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;margin-bottom:14px;transition:background .15s;" onclick="document.getElementById('erech-file-input').click()" ondragover="event.preventDefault();this.style.background='#eeeee8'" ondragleave="this.style.background=''" ondrop="handleErechDrop(event)">
+            <input type="file" id="erech-file-input" accept=".pdf" style="display:none;" onchange="handleErechFile(event)">
+            <div id="erech-upload-label">
+              <div style="font-size:24px;margin-bottom:6px">📄</div>
+              <div style="color:#888780">PDF hier ablegen oder klicken</div>
+            </div>
+            <iframe id="erech-pdf-preview" style="display:none;width:100%;height:200px;border:none;border-radius:6px;" title="Rechnungsvorschau"></iframe>
+          </div>
+          <div class="form-grid" style="grid-template-columns:1fr 1fr">
+            <div class="field">
+              <label>Datum</label>
+              <input type="date" id="erech-datum">
+            </div>
+            <div class="field">
+              <label>Rechnungsnummer</label>
+              <input type="text" id="erech-nr" placeholder="z.B. RE-2026-042">
+            </div>
+            <div class="field">
+              <label>Absender (Lieferant)</label>
+              <input type="text" id="erech-partner" placeholder="Firmenname oder Person">
+            </div>
+            <div class="field">
+              <label>Betrag netto (€)</label>
+              <input type="number" id="erech-netto" min="0" step="0.01" placeholder="0.00" oninput="updateErechPreview()">
+            </div>
+            <div class="field">
+              <label>MwSt. (%)</label>
+              <select id="erech-mwst" onchange="updateErechPreview()">
+                <option value="19">19%</option>
+                <option value="7">7%</option>
+                <option value="0">0% (keine MwSt.)</option>
+              </select>
+            </div>
+            <div class="field" style="background:#f5f5f3;border-radius:8px;padding:10px 12px">
+              <div class="text-xs" style="margin-bottom:3px">Brutto</div>
+              <div style="font-size:18px;font-weight:500;" id="erech-brutto-preview">0,00 €</div>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:12px">
+            <label>Notiz (optional)</label>
+            <input type="text" id="erech-notiz" placeholder="z.B. Lieferant, Projekt...">
+          </div>
+          <div class="btn-row">
+            <button class="btn primary" onclick="saveErechnung()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
+            <button class="btn" onclick="clearErechForm()">Zurücksetzen</button>
+            <span id="erech-save-msg" style="font-size:12px;color:#1D9E75;display:none">✓ Gespeichert!</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- LISTE -->
+      <div class="form-card">
+        <div class="section-title">Alle Eingangsrechnungen</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr>
+              <th style="text-align:left;padding:8px 0;color:#888780;font-weight:400">Datum</th>
+              <th style="text-align:left;padding:8px;color:#888780;font-weight:400">Nr.</th>
+              <th style="text-align:left;padding:8px;color:#888780;font-weight:400">Absender</th>
+              <th style="text-align:right;padding:8px;color:#888780;font-weight:400">Netto</th>
+              <th style="text-align:right;padding:8px;color:#888780;font-weight:400">Brutto</th>
+              <th style="padding:8px 0"></th>
+            </tr></thead>
+            <tbody id="erech-tbody"><tr><td colspan="6" class="empty">Noch keine Eingangsrechnungen</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page-kosten -->
   <!-- FIXKOSTEN (versteckt für Kompatibilität) -->
   <div class="page" id="page-fixkosten" style="display:none!important;"></div>
 
@@ -6025,138 +6157,7 @@ async function initApp(){
         </div>
       </div>
     </div>
-    </div>
-    <div id="kosten-marketing" style="display:none;">
-<!-- HEADER mit Monatsfilter -->
-    <div class="dash-controls" style="margin-bottom:1rem">
-      <div class="section-title" style="margin:0">Marketing-Kosten</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <select id="mk-filter-month" onchange="renderMarketing()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none"></select>
-        <select id="mk-filter-year" onchange="renderMarketing()" style="font-size:12px;padding:5px 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none"></select>
-      </div>
-    </div>
-
-    <!-- NEUE POSITION HINZUFÜGEN -->
-    <div class="form-card">
-      <div class="fk-add-row">
-        <div class="fk-field">
-          <label>Marktplatz</label>
-          <input type="text" id="mk-kanal" placeholder="z.B. idealo, Geizhals, Google Ads...">
-        </div>
-        <div class="fk-field">
-          <label>Betrag netto (€)</label>
-          <input type="number" id="mk-betrag" min="0" step="0.01" placeholder="0.00">
-        </div>
-        <div class="fk-field">
-          <label>Monat / Jahr</label>
-          <div style="display:flex;gap:6px">
-            <select id="mk-month" style="flex:1;padding:0 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;height:36px"></select>
-            <select id="mk-year" style="width:80px;padding:0 8px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;outline:none;height:36px"></select>
-          </div>
-        </div>
-        <div class="fk-btn-cell">
-          <div class="fk-btn-spacer"></div>
-          <button class="btn primary" onclick="addMkItem()">+ Hinzufügen</button>
-        </div>
-      </div>
-      <span id="mk-save-flash" style="font-size:12px;color:#1D9E75;display:none;margin-top:6px">✓ Gespeichert</span>
-    </div>
-
-    <!-- MONATSLISTE -->
-    <div id="mk-list-wrap"></div>
-
-    <!-- JAHRESVERLAUF CHART -->
-    <div class="form-card" style="margin-top:0.5rem">
-      <div class="section-title">Marketing-Kosten im Jahresverlauf</div>
-      <div style="position:relative;height:280px">
-        <canvas id="mk-year-chart"></canvas>
-      </div>
-      <div id="mk-year-legend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;justify-content:center"></div>
-    </div>
-    </div>
-    <div id="kosten-eingangsrechnungen" style="display:none;">
-      <!-- HEADER -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-        <div style="display:flex;gap:8px;align-items:center">
-          <div class="section-title" style="margin:0">Eingangsrechnungen</div>
-          <select id="erech-filter-month" onchange="renderEingangsrechnungen()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#1a1a18;outline:none"></select>
-          <select id="erech-filter-year" onchange="renderEingangsrechnungen()" style="font-size:12px;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:6px;background:#fff;color:#1a1a18;outline:none"></select>
-        </div>
-        <button class="btn primary" onclick="toggleErechForm()" id="erech-toggle-btn">+ Neue Eingangsrechnung</button>
-      </div>
-
-      <!-- FORMULAR -->
-      <div id="erech-form-wrap" style="display:none;margin-bottom:1.5rem">
-        <div class="form-card" style="margin-bottom:0">
-          <div class="section-title">Neue Eingangsrechnung erfassen</div>
-          <div id="erech-upload-area" style="border:1.5px dashed #c8c8c0;border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;margin-bottom:14px;transition:background .15s;" onclick="document.getElementById('erech-file-input').click()" ondragover="event.preventDefault();this.style.background='#eeeee8'" ondragleave="this.style.background=''" ondrop="handleErechDrop(event)">
-            <input type="file" id="erech-file-input" accept=".pdf" style="display:none;" onchange="handleErechFile(event)">
-            <div id="erech-upload-label">
-              <div style="font-size:24px;margin-bottom:6px">📄</div>
-              <div style="color:#888780">PDF hier ablegen oder klicken</div>
-            </div>
-            <iframe id="erech-pdf-preview" style="display:none;width:100%;height:200px;border:none;border-radius:6px;" title="Rechnungsvorschau"></iframe>
-          </div>
-          <div class="form-grid" style="grid-template-columns:1fr 1fr">
-            <div class="field">
-              <label>Datum</label>
-              <input type="date" id="erech-datum">
-            </div>
-            <div class="field">
-              <label>Rechnungsnummer</label>
-              <input type="text" id="erech-nr" placeholder="z.B. RE-2026-042">
-            </div>
-            <div class="field">
-              <label>Absender (Lieferant)</label>
-              <input type="text" id="erech-partner" placeholder="Firmenname oder Person">
-            </div>
-            <div class="field">
-              <label>Betrag netto (€)</label>
-              <input type="number" id="erech-netto" min="0" step="0.01" placeholder="0.00" oninput="updateErechPreview()">
-            </div>
-            <div class="field">
-              <label>MwSt. (%)</label>
-              <select id="erech-mwst" onchange="updateErechPreview()">
-                <option value="19">19%</option>
-                <option value="7">7%</option>
-                <option value="0">0% (keine MwSt.)</option>
-              </select>
-            </div>
-            <div class="field" style="background:#f5f5f3;border-radius:8px;padding:10px 12px">
-              <div class="text-xs" style="margin-bottom:3px">Brutto</div>
-              <div style="font-size:18px;font-weight:500;" id="erech-brutto-preview">0,00 €</div>
-            </div>
-          </div>
-          <div class="field" style="margin-bottom:12px">
-            <label>Notiz (optional)</label>
-            <input type="text" id="erech-notiz" placeholder="z.B. Lieferant, Projekt...">
-          </div>
-          <div class="btn-row">
-            <button class="btn primary" onclick="saveErechnung()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
-            <button class="btn" onclick="clearErechForm()">Zurücksetzen</button>
-            <span id="erech-save-msg" style="font-size:12px;color:#1D9E75;display:none">✓ Gespeichert!</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- LISTE -->
-      <div class="form-card">
-        <div class="section-title">Alle Eingangsrechnungen</div>
-        <div style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse">
-            <thead><tr>
-              <th style="text-align:left;padding:8px 0;color:#888780;font-weight:400">Datum</th>
-              <th style="text-align:left;padding:8px;color:#888780;font-weight:400">Nr.</th>
-              <th style="text-align:left;padding:8px;color:#888780;font-weight:400">Absender</th>
-              <th style="text-align:right;padding:8px;color:#888780;font-weight:400">Netto</th>
-              <th style="text-align:right;padding:8px;color:#888780;font-weight:400">Brutto</th>
-              <th style="padding:8px 0"></th>
-            </tr></thead>
-            <tbody id="erech-tbody"><tr><td colspan="6" class="empty">Noch keine Eingangsrechnungen</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+  </div>
 
   <!-- BESTELLUNG DETAIL MODAL -->
   <div class="edit-modal-bg" id="order-detail-modal-bg" style="display:none;" onclick="if(event.target===this) closeOrderDetail()">

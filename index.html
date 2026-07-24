@@ -1489,6 +1489,7 @@ async function syncFromSupabase(){
       settings.forEach(s=>{
         if(s.key==='verkaufsprovision') localStorage.setItem('ec_verkaufsprovision',s.value);
         if(s.key==='ret_zustaende') localStorage.setItem('ec_ret_zustaende',s.value);
+        if(s.key==='dash_channels') localStorage.setItem('ec_dash_channels',s.value);
       });
     }
     if(products&&products.length){
@@ -5503,6 +5504,8 @@ function saveDashChannels(){
     Rechnungen:document.getElementById('dash-show-rechnungen')?.checked,
   };
   localStorage.setItem('ec_dash_channels',JSON.stringify(cfg));
+  // Geteilte Einstellung — beide Nutzer sehen dieselbe Konfiguration
+  if(dbSynced) saveSettingToSupabase('dash_channels', JSON.stringify(cfg));
   renderDashboard();
 }
 function loadDashChannels(){
@@ -5782,8 +5785,12 @@ function initRealtime(){
       if(data) data.forEach(s=>{
         if(s.key==='verkaufsprovision') localStorage.setItem('ec_verkaufsprovision',s.value);
         if(s.key==='ret_zustaende') localStorage.setItem('ec_ret_zustaende',s.value);
+        if(s.key==='dash_channels'){
+          localStorage.setItem('ec_dash_channels',s.value);
+          renderDashboard();
+        }
       });
-    } else if(table==='rechnungen'){
+        } else if(table==='rechnungen'){
       const data=await sbFetch('rechnungen','GET',null,'?select=*&order=id.desc');
       if(data) localStorage.setItem('ec_rechnungen',JSON.stringify(data));
       const page=document.querySelector('.page.active');

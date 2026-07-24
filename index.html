@@ -149,7 +149,7 @@ tr:last-child td{border-bottom:none;}
 .fk-categories{display:grid;gap:10px;margin-bottom:1.5rem;}
 .fk-cat-block{background:#fff;border:0.5px solid #ddddd5;border-radius:12px;overflow:hidden;}
 .fk-cat-header{display:flex;justify-content:space-between;align-items:center;padding:9px 16px;background:linear-gradient(90deg,rgba(0,50,101,0.06),transparent);border-bottom:0.5px solid #ddddd5;}
-.fk-cat-name{font-weight:500;color:#1a1a18;}
+.fk-cat-name{font-weight:500;color:#1a1a18;display:flex;align-items:center;gap:8px;}
 .fk-cat-total{font-weight:500;color:#1a1a18;}
 .fk-col-header{display:grid;grid-template-columns:1fr 100px 140px 110px 140px 32px;gap:8px;padding:5px 16px 4px;border-bottom:0.5px solid #ddddd5;}
 .fk-col-header span{font-size:11px;color:#888780;}
@@ -3603,7 +3603,7 @@ const FK_CAT_RULES=[
   {cat:'Fahrzeuge & Transport',words:['fahrzeug','auto','kfz','leasing','tanke','benzin','diesel','pkw','lkw','transporter']},
   {cat:'Kredite & Finanzierung',words:['kredit','darlehen','finanzierung','rate','tilgung','zins','bank','bankrate','annuität','loan']},
 ];
-const FK_CAT_ICONS={'Miete & Immobilien':'🏢','Personal':'👥','Software & Tools':'💻','Marketing':'📣','Logistik & Versand':'📦','Beratung & Dienstleistungen':'🤝','Versicherungen':'🛡','Fahrzeuge & Transport':'🚗','Kredite & Finanzierung':'🏦','Sonstiges':'📋'};
+const FK_CAT_ICONS={'Miete & Immobilien':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M3 19V8.6l9-4.1 9 4.1V19a1 1 0 0 1-1 1h-4v-6a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v6H4a1 1 0 0 1-1-1Z"/></svg>`,'Personal':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M16 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8-1a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-6 9.75A3.25 3.25 0 0 1 5.25 16.5h5.5A3.25 3.25 0 0 1 14 19.75V21H2v-1.25Zm8.18-3.25h5.57A3.25 3.25 0 0 1 19 19.75V21h-8v-1.25a4.74 4.74 0 0 0-.82-2.25Z"/></svg>`,'Software & Tools':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm-1 14h18v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-1Z"/></svg>`,'Marketing':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M21.7 4.3a1 1 0 0 0-1.4 0l-1.62 1.62A6.5 6.5 0 0 0 8.1 14.9L3.3 19.7a1 1 0 1 0 1.4 1.4l4.8-4.8a6.5 6.5 0 0 0 8.98-9.0l1.22-1.22a1 1 0 0 0 0-1.4ZM12 8.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z"/></svg>`,'Logistik & Versand':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M20 7h-4V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h1.17A3 3 0 0 0 11 18h2a3 3 0 0 0 5.83-1H20a2 2 0 0 0 2-2v-4l-2-4Zm-9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm7 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm1-5h-5V9h3.6l1.4 3v1Z"/></svg>`,'Beratung & Dienstleistungen':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.835 3.162a.747.747 0 0 0 .147-.148h2.562l.035-.001a5.372 5.372 0 0 1 .545 0h.038a3.818 3.818 0 0 1 1.646.369 5.223 5.223 0 0 1 2.34 1.822 5.208 5.208 0 0 1 .804 4.348l-3.281-3.237a.75.75 0 0 0-.527-.216h-4.745a.762.762 0 0 0-.453.152l-1.884 1.428a.968.968 0 0 1-1.358-.184.952.952 0 0 1 .181-1.34l3.95-2.993ZM7.898 14.236l-.013.013-.974.968-.013.012a.906.906 0 0 1-1.261-.012.892.892 0 0 1 0-1.267l.974-.968a.906.906 0 0 1 1.275 0 .892.892 0 0 1 .012 1.254ZM7.608 15.934a.892.892 0 0 0 .013 1.254c.352.35.922.35 1.275 0l.974-.967a.892.892 0 0 0-.14-1.381.906.906 0 0 0-1.122.1l-.013.014-.974.967-.013.013ZM5.5 11.408a.892.892 0 0 1 0 1.267l-.973.968a.906.906 0 0 1-1.276 0 .892.892 0 0 1 0-1.267l.975-.968a.906.906 0 0 1 1.275 0ZM11.854 16.925a.892.892 0 0 1 0 1.267l-.974.968a.902.902 0 0 1-1.275 0 .892.892 0 0 1-.172-1.028l.001-.002a.894.894 0 0 1 .171-.237l.974-.968a.906.906 0 0 1 1.275 0Z" fill="#003265"/><path d="M5.344 4.831a6.179 6.179 0 0 1 5.112-1.749L7.979 4.96a2.452 2.452 0 0 0-.466 3.448 2.473 2.473 0 0 0 3.454.467L12.651 7.6h4.185l3.507 3.46a.52.52 0 0 0 .036.04l1.15 1.15a1.439 1.439 0 0 1-1.936 2.124l-.096-.096a.508.508 0 0 0-.06-.052l-1.093-1.092a.5.5 0 1 0-.707.707l1.15 1.15c.042.041.084.081.128.119l.044.044a1.02 1.02 0 0 1-1.441 1.441l-.17-.169a.5.5 0 0 0-.853.363.499.499 0 0 0 .147.365l.223.223a.943.943 0 1 1-1.333 1.333h-.002l-.011-.013-.21-.21a.5.5 0 1 0-.707.707l.218.219a.96.96 0 0 1-1.35 1.367l-1.431-1.36.524-.522a1.884 1.884 0 0 0 0-2.676 1.906 1.906 0 0 0-1.428-.553 1.88 1.88 0 0 0-.556-1.42 1.906 1.906 0 0 0-1.428-.552 1.881 1.881 0 0 0-.556-1.419 1.912 1.912 0 0 0-1.844-.49 1.88 1.88 0 0 0-.541-1.084 1.914 1.914 0 0 0-2.514-.158 6.096 6.096 0 0 1 1.648-5.714Z" fill="#003265"/></svg>`,'Versicherungen':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M12 2 4 5v6c0 4.97 3.4 9.48 8 10.93C16.6 20.48 20 15.97 20 11V5l-8-3Zm3.71 7.71-5 5a1 1 0 0 1-1.42 0l-2-2a1 1 0 1 1 1.42-1.42L10 12.59l4.29-4.3a1 1 0 0 1 1.42 1.42Z"/></svg>`,'Fahrzeuge & Transport':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M18.92 6.01A2 2 0 0 0 17 5H7a2 2 0 0 0-1.92 1.01L3 11v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8l-2.08-4.99ZM7 15.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm10 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3ZM5 11l1.5-4.5h11L19 11H5Z"/></svg>`,'Kredite & Finanzierung':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Zm1 14.93V18a1 1 0 0 1-2 0v-1.07A4 4 0 0 1 8 13a1 1 0 0 1 2 0 2 2 0 0 0 2 2 2 2 0 0 0 0-4 4 4 0 0 1-1-7.93V6a1 1 0 0 1 2 0v1.07A4 4 0 0 1 16 11a1 1 0 0 1-2 0 2 2 0 0 0-2-2 2 2 0 0 0 0 4 4 4 0 0 1 1 7.93Z"/></svg>`,'Sonstiges':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M7 4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9.41L13.59 4H7Zm5 10a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm0-5a1 1 0 0 1 1 1v3a1 1 0 0 1-2 0v-3a1 1 0 0 1 1-1Zm2-4.59L16.59 8H14V4.41Z"/></svg>`};
 const FK_ALL_CATS=Object.keys(FK_CAT_ICONS);
 const FK_INTERVALL_LABELS={monatlich:'Monatlich','2wochen':'Alle 2 Wochen',woechentlich:'Wöchentlich',jaehrlich:'Jährlich'};
 
@@ -3625,7 +3625,7 @@ function autoDetectCat(){
   const name=document.getElementById('fk-name').value.trim();
   if(!name){document.getElementById('cat-hint').innerHTML='';return;}
   const cat=detectCat(name);
-  document.getElementById('cat-hint').innerHTML=`Kategorie erkannt: <b>${FK_CAT_ICONS[cat]||'📋'} ${cat}</b>`;
+  document.getElementById('cat-hint').innerHTML=`Kategorie erkannt: <b style="display:inline-flex;align-items:center;gap:4px;">${FK_CAT_ICONS[cat]||`<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9.41L13.59 4H7Zm5 10a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm0-5a1 1 0 0 1 1 1v3a1 1 0 0 1-2 0v-3a1 1 0 0 1 1-1Zm2-4.59L16.59 8H14V4.41Z"/></svg>`} ${cat}</b>`;
 }
 
 function updateFkePreview(){
@@ -3676,7 +3676,7 @@ function renderFixkosten(){
         const catItems=bycat[cat];
         const catTotal=catItems.reduce((s,i)=>s+toMonthly(i.betrag,i.intervall),0);
         grand+=catTotal;
-        const icon=FK_CAT_ICONS[cat]||'📋';
+        const icon=FK_CAT_ICONS[cat]||`<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9.41L13.59 4H7Zm5 10a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm0-5a1 1 0 0 1 1 1v3a1 1 0 0 1-2 0v-3a1 1 0 0 1 1-1Zm2-4.59L16.59 8H14V4.41Z"/></svg>`;
         const rows=catItems.map(item=>{
           const monthly=toMonthly(item.betrag,item.intervall);
           const ab=item.gueltig_ab?item.gueltig_ab.slice(0,7):'2020-01';
@@ -3692,7 +3692,7 @@ function renderFixkosten(){
           </div>`;
         }).join('');
         return `<div class="fk-cat-block">
-          <div class="fk-cat-header"><span class="fk-cat-name">${icon} ${cat}</span><span class="fk-cat-total">${fmt(catTotal)} /Monat</span></div>
+          <div class="fk-cat-header"><span class="fk-cat-name" style="display:flex;align-items:center;gap:8px;">${icon} ${cat}</span><span class="fk-cat-total">${fmt(catTotal)} /Monat</span></div>
           ${rows}
         </div>`;
       }).join('');
@@ -3812,7 +3812,7 @@ function editFkItem(id){
   const isVar=item.bereich==='variabel';
   document.getElementById('fke-intervall-wrap').style.display=isVar?'none':'block';
   const catSel=document.getElementById('fke-cat');
-  catSel.innerHTML=FK_ALL_CATS.map(c=>`<option value="${c}"${c===item.cat?' selected':''}>${FK_CAT_ICONS[c]||'📋'} ${c}</option>`).join('');
+  catSel.innerHTML=FK_ALL_CATS.map(c=>`<option value="${c}"${c===item.cat?' selected':''}>${c}</option>`).join('');
   // Datum: YYYY-MM-DD → YYYY-MM für input[type=month]
   const _ab=(item.gueltig_ab||'2020-01-01').slice(0,7);
   const _bis=item.gueltig_bis?item.gueltig_bis.slice(0,7):'';

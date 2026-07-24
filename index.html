@@ -649,11 +649,6 @@ tr:last-child td{border-bottom:none;}
       </div>
     </div>
 
-    <!-- KATEGORIEN BUTTON -->
-    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-      <button class="btn" onclick="openKatManager()" style="display:flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Zm1 5.75v3.5h3.5a.75.75 0 0 1 0 1.5H13v3.5a.75.75 0 0 1-1.5 0v-3.5h-3.5a.75.75 0 0 1 0-1.5h3.5v-3.5a.75.75 0 0 1 1.5 0Z"/></svg> Eigene Kategorien</button>
-    </div>
-
     <!-- KACHEL 1: MONATLICHE FIXKOSTEN -->
     <div class="form-card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
@@ -661,7 +656,10 @@ tr:last-child td{border-bottom:none;}
           <div class="section-title" style="margin:0">Monatliche Fixkosten</div>
           <div class="text-sm" style="margin-top:2px">Wiederkehrende Kosten — Miete, Personal, Software etc.</div>
         </div>
-        <div style="font-size:18px;font-weight:600;color:#003265;" id="fk-total-fix">0 €</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="btn" onclick="openKatManager()" style="display:flex;align-items:center;gap:6px;height:32px;font-size:12px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Zm1 5.75v3.5h3.5a.75.75 0 0 1 0 1.5H13v3.5a.75.75 0 0 1-1.5 0v-3.5h-3.5a.75.75 0 0 1 0-1.5h3.5v-3.5a.75.75 0 0 1 1.5 0Z"/></svg> Kategorien</button>
+          <div style="font-size:18px;font-weight:600;color:#003265;" id="fk-total-fix">0 €</div>
+        </div>
       </div>
       <div id="fk-list-fix"></div>
     </div>
@@ -2791,26 +2789,6 @@ function toggleEdRetoure(){
   edUpdatePreview();
 }
 
-function autofillFromSkuEdit(){
-  const val=document.getElementById('ed-sku').value.trim();
-  if(!val) return;
-  const p=getProdukte().find(p=>p.sku.toLowerCase()===val.toLowerCase()||(p.asin&&p.asin.toLowerCase()===val.toLowerCase()));
-  if(!p) return;
-  const artikelEl=document.getElementById('ed-artikel');
-  if(artikelEl&&!artikelEl.value) artikelEl.value=p.name||'';
-  const warenEl=document.getElementById('ed-waren');
-  if(warenEl&&(!warenEl.value||parseFloat(warenEl.value)===0)) warenEl.value=p.ek||'';
-  if(p.versandProfilId){
-    const sel=document.getElementById('ed-versand-profil');
-    if(sel) sel.value=String(p.versandProfilId);
-  }
-  document.getElementById('ed-sku').style.borderColor='#1D9E75';
-  setTimeout(()=>document.getElementById('ed-sku').style.borderColor='',2000);
-  edUpdatePreview();
-}
-
-/* ── EDIT MODAL ITEMS ── */
-let _edItems=[];
 
 function addEdItemRow(item=null){
   const idx=_edItems.length;
@@ -4782,14 +4760,6 @@ function onPeriodSelectChange(){
   renderOrders();
 }
 
-function setOrderPeriod(period){
-  currentOrderPeriod=period;
-  const sel=document.getElementById('op-period-select');
-  if(sel) sel.value=period;
-  const customWrap=document.getElementById('op-custom-wrap');
-  if(customWrap) customWrap.style.display='none';
-  renderOrders();
-}
 
 function getDateRange(period){
   const now=new Date();
@@ -5473,13 +5443,7 @@ function setMpg(d){
 }
 
 const MPG_DEFAULTS={Amazon:15,eBay:12,Otto:13,Shopify:4,Kaufland:9};
-function getMpgForChannel(ch){
-  const mpg=getMpg();
-  if(mpg[ch]!==undefined) return mpg[ch];
-  return {betrag:MPG_DEFAULTS[ch]||0,updatedAt:null};
-}
 
-let mpgEditChannel=null;
 function editMpg(ch){
   mpgEditChannel=ch;
   const entry=getMpg()[ch]||{betrag:0};
@@ -5861,10 +5825,6 @@ function savePraefMpg(ch){
   if(typeof autoCalc==='function') autoCalc();
 }
 
-function toggleRetSettings(){
-  showPage('praeferenzen');
-  setTimeout(()=>showPraef('retouren'),50);
-}
 
 function renderVersandProfiles(){
   const profile=getVersandProfile();

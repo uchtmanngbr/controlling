@@ -1506,14 +1506,21 @@ async function syncFromSupabase(){
   }
 }
 
-async function saveSettingToSupabase(key, value){
+async async function saveSettingToSupabase(key, value, userId=null){
+  // userId=null → geteilte Einstellung (alle Nutzer)
+  // userId='xyz' → persönliche Einstellung (nach Auth-Einbau)
+  const payload={
+    key,
+    value: typeof value==='string'?value:JSON.stringify(value),
+    user_id: userId,
+  };
   const res=await fetch(`${SUPABASE_URL}/rest/v1/settings`,{
     method:'POST',
     headers:{
       'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,
       'Content-Type':'application/json','Prefer':'resolution=merge-duplicates',
     },
-    body:JSON.stringify([{key, value:typeof value==='string'?value:JSON.stringify(value)}]),
+    body:JSON.stringify([payload]),
   });
   if(!res.ok) console.error('Settings Supabase error:', await res.text());
 }

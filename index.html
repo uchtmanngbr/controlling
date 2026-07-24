@@ -592,6 +592,10 @@ tr:last-child td{border-bottom:none;}
             <span class="cat-hint" id="cat-hint"></span>
           </div>
           <div class="field">
+            <label>Kategorie</label>
+            <select id="fk-kat" onchange="autoDetectCat()"></select>
+          </div>
+          <div class="field">
             <label>Betrag netto (€)</label>
             <input type="number" id="fk-betrag" min="0" step="0.01" placeholder="0.00">
           </div>
@@ -643,6 +647,11 @@ tr:last-child td{border-bottom:none;}
           <span id="fk-save-flash" style="font-size:12px;color:#1D9E75;display:none">✓ Gespeichert</span>
         </div>
       </div>
+    </div>
+
+    <!-- KATEGORIEN BUTTON -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+      <button class="btn" onclick="openKatManager()" style="display:flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Zm1 5.75v3.5h3.5a.75.75 0 0 1 0 1.5H13v3.5a.75.75 0 0 1-1.5 0v-3.5h-3.5a.75.75 0 0 1 0-1.5h3.5v-3.5a.75.75 0 0 1 1.5 0Z"/></svg> Eigene Kategorien</button>
     </div>
 
     <!-- KACHEL 1: MONATLICHE FIXKOSTEN -->
@@ -1520,6 +1529,12 @@ async function syncFromSupabase(){
         if(s.key==='verkaufsprovision') localStorage.setItem('ec_verkaufsprovision',s.value);
         if(s.key==='ret_zustaende') localStorage.setItem('ec_ret_zustaende',s.value);
         if(s.key==='dash_channels') localStorage.setItem('ec_dash_channels',s.value);
+        if(s.key==='fk_kategorien'){
+          try{
+            const cats=JSON.parse(s.value||'[]');
+            if(Array.isArray(cats)) localStorage.setItem('ec_fk_custom_cats',s.value);
+          }catch{}
+        }
         if(s.key==='dash_kacheln'){
           const parsed=JSON.parse(s.value);
           if(Array.isArray(parsed)&&parsed.length===5) localStorage.setItem('ec_dash_kacheln',s.value);
@@ -1694,6 +1709,103 @@ async function saveMpgToSupabase(mpgObj){
   if(rows.length) await sbFetch('mpg','POST',rows);
 }
 
+
+
+/* ── ICON PALETTE FÜR EIGENE KATEGORIEN ── */
+const FK_ICON_PALETTE={'building_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 2A2.25 2.25 0 0 0 4.5 4.25v16.5c0 .414.336.75.75.75H7.5v-4.25a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 .75.75v4.25h2.25a.75.75 0 0 0 .75-.75v-9a2.25 2.25 0 0 0-2.25-2.25h-.75V4.25A2.25 2.25 0 0 0 14.25 2h-7.5Zm.75 4.5a1 1 0 1 1 2 0 1 1 0 0 1-2 0Zm1 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm-1-2.5a1 1 0 1 1 2 0 1 1 0 0 1-2 0ZM12 5.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm-1 8a1 1 0 1 1 2 0 1 1 0 0 1-2 0Zm4.5-1a1 1 0 1 1 0 2 1 1 0 0 1 0-2ZM11 10a1 1 0 1 1 2 0 1 1 0 0 1-2 0Z" fill="#003265"/><path d="M15 21.5V18h-2.25v3.5H15ZM11.25 21.5V18H9v3.5h2.25Z" fill="#003265"/></svg>`, 'people_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m3.5 14 10 .001a1.5 1.5 0 0 1 1.493 1.356L15 15.5V17.5C14.999 21 11.284 22 8.5 22c-2.722 0-6.335-.956-6.495-4.27L2 17.5v-2a1.5 1.5 0 0 1 1.356-1.493L3.5 14Zm11.988 0H20.5a1.5 1.5 0 0 1 1.493 1.355L22 15.5V17c-.001 3.062-2.858 4-5 4a7.16 7.16 0 0 1-2.14-.322c.653-.75 1.076-1.703 1.133-2.898L16 17.5v-2c0-.494-.15-.951-.399-1.338L15.488 14H20.5h-5.012ZM8.5 3a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Zm9 2a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Z" fill="#003265"/></svg>`, 'laptop_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2.75 16.5h18.5a.75.75 0 0 1 .101 1.493L21.25 18H2.751a.75.75 0 0 1-.102-1.494l.102-.006h18.498H2.751ZM18.25 5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 18.25 16H5.75A1.75 1.75 0 0 1 4 14.25v-7.5C4 5.784 4.783 5 5.75 5h12.5Z" fill="#003265"/></svg>`, 'megaphone_loud_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21.907 5.622c.062.208.093.424.093.641V17.74a2.25 2.25 0 0 1-2.891 2.156l-5.514-1.64a4.002 4.002 0 0 1-7.59-1.556L6 16.5l-.001-.5-2.39-.711A2.25 2.25 0 0 1 2 13.131V10.87a2.25 2.25 0 0 1 1.61-2.156l15.5-4.606a2.25 2.25 0 0 1 2.797 1.515ZM7.499 16.445l.001.054a2.5 2.5 0 0 0 4.624 1.321l-4.625-1.375Z" fill="#003265"/></svg>`, 'box_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13.409 2.512a3.75 3.75 0 0 0-2.818 0l-2.19.888 9.592 3.73 3.374-1.303a1.747 1.747 0 0 0-.46-.275l-7.498-3.04ZM22 7.19l-9.25 3.574v3.35c.082-.025.165-.047.25-.064V14a2.75 2.75 0 0 1 2.75-2.75h3.5A2.75 2.75 0 0 1 22 13.988V7.19Zm-10.75 3.574v4.645c-.16.33-.25.7-.25 1.091v5c0 .043.001.086.003.128a3.75 3.75 0 0 1-.412-.14l-7.498-3.04A1.75 1.75 0 0 1 2 16.826V7.19l9.25 3.574ZM2.633 5.827 12 9.446l3.917-1.514-9.543-3.71-3.281 1.33c-.17.069-.324.162-.46.275ZM14 15h-.5a1.5 1.5 0 0 0-1.5 1.5V18h2.5v-.25a.75.75 0 0 1 1.5 0V18h3v-.25a.75.75 0 0 1 1.5 0V18H23v-1.5a1.5 1.5 0 0 0-1.5-1.5H21v-1a1.75 1.75 0 0 0-1.75-1.75h-3.5A1.75 1.75 0 0 0 14 14v1Zm1.5-1a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v1h-4v-1ZM12 21.5v-2h2.5v.75a.75.75 0 0 0 1.5 0v-.75h3v.75a.75.75 0 0 0 1.5 0v-.75H23v2a1.5 1.5 0 0 1-1.5 1.5h-8a1.5 1.5 0 0 1-1.5-1.5Z" fill="#003265"/></svg>`, 'handshake_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.835 3.162a.747.747 0 0 0 .147-.148h2.562l.035-.001a5.372 5.372 0 0 1 .545 0h.038a3.818 3.818 0 0 1 1.646.369 5.223 5.223 0 0 1 2.34 1.822 5.208 5.208 0 0 1 .804 4.348l-3.281-3.237a.75.75 0 0 0-.527-.216h-4.745a.762.762 0 0 0-.453.152l-1.884 1.428a.968.968 0 0 1-1.358-.184.952.952 0 0 1 .181-1.34l3.95-2.993ZM7.898 14.236l-.013.013-.974.968-.013.012a.906.906 0 0 1-1.261-.012.892.892 0 0 1 0-1.267l.974-.968a.906.906 0 0 1 1.275 0 .892.892 0 0 1 .012 1.254ZM7.608 15.934a.892.892 0 0 0 .013 1.254c.352.35.922.35 1.275 0l.974-.967a.892.892 0 0 0-.14-1.381.906.906 0 0 0-1.122.1l-.013.014-.974.967-.013.013ZM5.5 11.408a.892.892 0 0 1 0 1.267l-.973.968a.906.906 0 0 1-1.276 0 .892.892 0 0 1 0-1.267l.975-.968a.906.906 0 0 1 1.275 0ZM11.854 16.925a.892.892 0 0 1 0 1.267l-.974.968a.902.902 0 0 1-1.275 0 .892.892 0 0 1-.172-1.028l.001-.002a.894.894 0 0 1 .171-.237l.974-.968a.906.906 0 0 1 1.275 0Z" fill="#003265"/><path d="M5.344 4.831a6.179 6.179 0 0 1 5.112-1.749L7.979 4.96a2.452 2.452 0 0 0-.466 3.448 2.473 2.473 0 0 0 3.454.467L12.651 7.6h4.185l3.507 3.46a.52.52 0 0 0 .036.04l1.15 1.15a1.439 1.439 0 0 1-1.936 2.124l-.096-.096a.508.508 0 0 0-.06-.052l-1.093-1.092a.5.5 0 1 0-.707.707l1.15 1.15c.042.041.084.081.128.119l.044.044a1.02 1.02 0 0 1-1.441 1.441l-.17-.169a.5.5 0 0 0-.853.363.499.499 0 0 0 .147.365l.223.223a.943.943 0 1 1-1.333 1.333h-.002l-.011-.013-.21-.21a.5.5 0 1 0-.707.707l.218.219a.96.96 0 0 1-1.35 1.367l-1.431-1.36.524-.522a1.884 1.884 0 0 0 0-2.676 1.906 1.906 0 0 0-1.428-.553 1.88 1.88 0 0 0-.556-1.42 1.906 1.906 0 0 0-1.428-.552 1.881 1.881 0 0 0-.556-1.419 1.912 1.912 0 0 0-1.844-.49 1.88 1.88 0 0 0-.541-1.084 1.914 1.914 0 0 0-2.514-.158 6.096 6.096 0 0 1 1.648-5.714Z" fill="#003265"/></svg>`, 'shield_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 5.75A.75.75 0 0 1 3.75 5c2.663 0 5.258-.943 7.8-2.85a.75.75 0 0 1 .9 0C14.992 4.057 17.587 5 20.25 5a.75.75 0 0 1 .75.75V11c0 5.001-2.958 8.676-8.725 10.948a.75.75 0 0 1-.55 0C5.958 19.676 3 16 3 11V5.75Z" fill="#003265"/></svg>`, 'vehicle_car_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M15.8 3a3.25 3.25 0 0 1 3.152 2.46L19.337 7h.913a.75.75 0 0 1 .743.648L21 7.75a.75.75 0 0 1-.648.743l-.102.007h-.536l.208.826a2.249 2.249 0 0 1 1.082 1.924v8.497a1.75 1.75 0 0 1-1.75 1.75H17.75a1.75 1.75 0 0 1-1.75-1.75l-.001-1.247H8.004v1.247a1.75 1.75 0 0 1-1.75 1.75H4.75A1.75 1.75 0 0 1 3 19.747V11.25c0-.815.433-1.529 1.082-1.923l.207-.827H3.75a.75.75 0 0 1-.743-.648L3 7.75a.75.75 0 0 1 .648-.743L3.75 7h.913l.386-1.538A3.25 3.25 0 0 1 8.202 3h7.597ZM6.503 18.5H4.499l.001 1.247c0 .138.112.25.25.25h1.504a.25.25 0 0 0 .25-.25V18.5Zm13 0h-2.005l.001 1.247c0 .138.112.25.25.25h1.504a.25.25 0 0 0 .25-.25V18.5ZM13.751 14h-3.502l-.102.007a.75.75 0 0 0 0 1.486l.102.007h3.502l.101-.007A.75.75 0 0 0 13.751 14ZM17 12a1 1 0 1 0 0 2 1 1 0 0 0 0-2ZM7 12a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm8.8-7.5H8.201a1.75 1.75 0 0 0-1.698 1.326L5.711 9h12.582l-.796-3.176A1.75 1.75 0 0 0 15.799 4.5Z" fill="#003265"/></svg>`, 'money_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2 6.75C2 5.784 2.784 5 3.75 5h13.5c.966 0 1.75.784 1.75 1.75v8.5A1.75 1.75 0 0 1 17.25 17H3.75A1.75 1.75 0 0 1 2 15.25v-8.5Zm3-.5v1a.75.75 0 0 1-.75.75h-1v1.5h1A2.25 2.25 0 0 0 6.5 7.25v-1H5Zm5.5 7.25a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5Zm-7.25.5h1a.75.75 0 0 1 .75.75v1h1.5v-1a2.25 2.25 0 0 0-2.25-2.25h-1V14Zm12.75.75a.75.75 0 0 1 .75-.75h1v-1.5h-1a2.25 2.25 0 0 0-2.25 2.25v1H16v-1Zm0-7.5v-1h-1.5v1a2.25 2.25 0 0 0 2.25 2.25h1V8h-1a.75.75 0 0 1-.75-.75Z" fill="#003265"/><path d="M4.401 18.5A2.999 2.999 0 0 0 7 20h10.25A4.75 4.75 0 0 0 22 15.25V10c0-1.11-.603-2.08-1.5-2.599v7.849a3.25 3.25 0 0 1-3.25 3.25H4.401Z" fill="#003265"/></svg>`, 'clipboard_task_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13.75 3.5h-3.5a.75.75 0 0 0 0 1.5h3.5a.75.75 0 0 0 0-1.5ZM10.25 2h3.5a2.25 2.25 0 0 1 2.236 2h1.764A2.25 2.25 0 0 1 20 6.25v13.5A2.25 2.25 0 0 1 17.75 22H6.25A2.25 2.25 0 0 1 4 19.75V6.25A2.25 2.25 0 0 1 6.25 4h1.764a2.25 2.25 0 0 1 2.236-2Z" fill="#003265"/></svg>`, 'flash_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m8.294 14-1.767 7.068c-.187.746.736 1.256 1.269.701L19.79 9.27A.75.75 0 0 0 19.25 8h-4.46l1.672-5.013A.75.75 0 0 0 15.75 2h-7a.75.75 0 0 0-.721.544l-3 10.5A.75.75 0 0 0 5.75 14h2.544Z" fill="#003265"/></svg>`, 'globe_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M8.904 16.5h6.192C14.476 19.773 13.234 22 12 22c-1.197 0-2.4-2.094-3.038-5.204l-.058-.294h6.192-6.192Zm-5.838.001H7.37c.365 2.082.983 3.854 1.793 5.093a10.029 10.029 0 0 1-5.952-4.814l-.146-.279Zm13.563 0h4.305a10.028 10.028 0 0 1-6.097 5.093c.755-1.158 1.344-2.778 1.715-4.681l.076-.412h4.306-4.306Zm.302-6.5h4.87a10.055 10.055 0 0 1-.257 5H16.84a28.539 28.539 0 0 0 .13-4.344L16.93 10h4.87-4.87ZM2.198 10h4.87a28.211 28.211 0 0 0 .034 4.42l.057.58H2.456a10.047 10.047 0 0 1-.258-5Zm6.377 0h6.85a25.838 25.838 0 0 1-.037 4.425l-.062.575H8.674a25.979 25.979 0 0 1-.132-4.512L8.575 10h6.85-6.85Zm6.37-7.424-.109-.17A10.027 10.027 0 0 1 21.372 8.5H16.78c-.316-2.416-.956-4.492-1.837-5.923l-.108-.17.108.17Zm-5.903-.133.122-.037C8.283 3.757 7.628 5.736 7.28 8.06l-.061.44H2.628a10.028 10.028 0 0 1 6.414-6.057l.122-.037-.122.037ZM12 2.002c1.319 0 2.646 2.542 3.214 6.183l.047.315H8.739C9.28 4.691 10.643 2.002 12 2.002Z" fill="#003265"/></svg>`, 'credit_card_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5.25 4A3.25 3.25 0 0 0 2 7.25v.25h13.45c.67-.62 1.566-1 2.55-1 .985 0 1.88.38 2.55 1H22v-.25A3.25 3.25 0 0 0 18.75 4H5.25ZM2 14.75V9h12.463a3.744 3.744 0 0 0-.213 1.25 3.74 3.74 0 0 0 1.2 2.75h-.95a2.5 2.5 0 0 0-2.5 2.5v.5c0 .7.17 1.379.488 2H5.25A3.25 3.25 0 0 1 2 14.75Zm21 .75a1.5 1.5 0 0 0-1.5-1.5h-7a1.5 1.5 0 0 0-1.5 1.5v.5c0 1.971 1.86 4 5 4 3.14 0 5-2.029 5-4v-.5Zm-2.25-5.25a2.75 2.75 0 1 0-5.5 0 2.75 2.75 0 0 0 5.5 0Z" fill="#003265"/></svg>`, 'phone_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M15.75 2A2.25 2.25 0 0 1 18 4.25v15.5A2.25 2.25 0 0 1 15.75 22h-7.5A2.25 2.25 0 0 1 6 19.75V4.25A2.25 2.25 0 0 1 8.25 2h7.5Zm-2.5 16h-2.5a.75.75 0 0 0 0 1.5h2.5a.75.75 0 0 0 0-1.5Z" fill="#003265"/></svg>`, 'wrench_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M16.75 2.001a5.25 5.25 0 0 0-5.005 6.84l-9.068 9.38a2.344 2.344 0 1 0 3.37 3.257l8.963-9.272A5.25 5.25 0 0 0 21.797 5.8a.75.75 0 0 0-1.25-.323L17.36 8.66l-2.06-2.06 3.16-3.162a.75.75 0 0 0-.333-1.254 5.255 5.255 0 0 0-1.378-.183Z" fill="#003265"/></svg>`, 'data_bar_vertical_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5.75 3a2.25 2.25 0 0 1 2.248 2.25v13.5a2.25 2.25 0 1 1-4.498 0V5.25A2.25 2.25 0 0 1 5.75 3Zm6.5 4a2.25 2.25 0 0 1 2.248 2.25v9.5a2.25 2.25 0 1 1-4.498 0v-9.5A2.25 2.25 0 0 1 12.25 7Zm6.5 4a2.25 2.25 0 0 1 2.248 2.25v5.5a2.25 2.25 0 1 1-4.498 0v-5.5A2.249 2.249 0 0 1 18.75 11Z" fill="#003265"/></svg>`, 'cloud_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.087 9.75a5.752 5.752 0 0 1 11.326 0h.087a4 4 0 0 1 0 8H6a4 4 0 0 1 0-8h.087Z" fill="#003265"/></svg>`, 'target_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" fill="#003265"/><path d="M6 12a6 6 0 1 1 12 0 6 6 0 0 1-12 0Zm6-4a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" fill="#003265"/><path d="M2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10S2 17.523 2 12Zm10-8a8 8 0 1 0 0 16 8 8 0 0 0 0-16Z" fill="#003265"/></svg>`, 'mail_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22 8.608v8.142a3.25 3.25 0 0 1-3.066 3.245L18.75 20H5.25a3.25 3.25 0 0 1-3.245-3.066L2 16.75V8.608l9.652 5.056a.75.75 0 0 0 .696 0L22 8.608ZM5.25 4h13.5a3.25 3.25 0 0 1 3.234 2.924L12 12.154l-9.984-5.23a3.25 3.25 0 0 1 3.048-2.919L5.25 4h13.5-13.5Z" fill="#003265"/></svg>`, 'store_filled':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M10.495 14.501v7.498H7.498v-7.498h2.996Zm6.76-1.5h-3.502a.75.75 0 0 0-.75.75v3.502c0 .414.336.75.75.75h3.502a.75.75 0 0 0 .75-.75v-3.502a.75.75 0 0 0-.75-.75Zm-.751 1.5v2.002h-2.001v-2.002h2ZM8.166 7.002H3.5v1.165c0 1.18.878 2.157 2.016 2.311l.157.016.16.005c1.234 0 2.245-.959 2.327-2.173l.005-.16V7.003Zm6.165 0H9.666v1.165c0 1.18.878 2.157 2.016 2.311l.157.016.16.005c1.234 0 2.245-.959 2.327-2.173l.005-.16V7.003Zm6.167 0h-4.665v1.165c0 1.18.878 2.157 2.017 2.311l.156.016.16.005c1.235 0 2.245-.959 2.327-2.173l.006-.16-.001-1.164ZM9.06 3.5H6.326L4.469 5.502h3.977L9.06 3.5Zm4.307 0H10.63l-.616 2.002h3.97L13.369 3.5Zm4.305 0h-2.734l.614 2.002h3.977L17.673 3.5ZM2.2 5.742l3.25-3.502a.75.75 0 0 1 .446-.233L6 2h12a.75.75 0 0 1 .474.169l.076.07 3.272 3.53.03.038c.102.136.148.29.148.44L22 8.168c0 .994-.379 1.9-1 2.58V21.25a.75.75 0 0 1-.649.743L20.25 22l-8.254-.001v-8.248a.75.75 0 0 0-.75-.75H6.75a.75.75 0 0 0-.75.75v8.248L3.75 22a.75.75 0 0 1-.743-.648l-.007-.102V10.748a3.818 3.818 0 0 1-.995-2.384l-.005-.197V6.29a.728.728 0 0 1 .096-.408l.05-.076.054-.065Z" fill="#003265"/></svg>`};
+
+function getCustomKategorien(){
+  try{return JSON.parse(localStorage.getItem('ec_fk_custom_cats')||'[]');}catch{return[];}
+}
+function saveCustomKategorien(cats){
+  localStorage.setItem('ec_fk_custom_cats',JSON.stringify(cats));
+  if(dbSynced) saveSettingToSupabase('fk_kategorien',JSON.stringify(cats));
+  buildFkKategorieListe();
+}
+
+function buildFkKategorieListe(){
+  // Merge Standard + Custom Kategorien
+  const custom=getCustomKategorien();
+  const customCats=Object.fromEntries(custom.map(c=>[c.name, c.icon]));
+  // Update FK_CAT_ICONS with custom
+  Object.assign(FK_CAT_ICONS, customCats);
+  // Update FK_ALL_CATS
+  const allCats=[...Object.keys(FK_CAT_ICONS).filter(k=>!custom.find(c=>c.name===k)), ...custom.map(c=>c.name)];
+  // Rebuild category selects
+  ['fk-kat','fke-cat'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    const cur=el.value;
+    el.innerHTML=allCats.map(c=>`<option value="${c}"${c===cur?' selected':''}>${c}</option>`).join('');
+    if(!cur && el.options.length) el.selectedIndex=0;
+  });
+}
+
+function openKatManager(){
+  renderKatManager();
+  document.getElementById('kat-manager-modal-bg').style.display='flex';
+}
+function closeKatManager(){
+  document.getElementById('kat-manager-modal-bg').style.display='none';
+}
+
+function renderKatManager(){
+  const custom=getCustomKategorien();
+  // Render icon palette
+  const grid=document.getElementById('kat-icon-grid');
+  if(grid){
+    grid.innerHTML=Object.entries(FK_ICON_PALETTE).map(([id,svg])=>
+      `<button type="button" onclick="selectKatIcon('${id}')" id="kat-icon-${id}"
+        style="padding:8px;border:1.5px solid #ddddd5;border-radius:8px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;"
+        title="${id}">${svg}</button>`
+    ).join('');
+  }
+  // Render existing custom categories
+  const list=document.getElementById('kat-custom-list');
+  if(list){
+    if(!custom.length){
+      list.innerHTML='<div style="color:#888780;font-size:13px;padding:8px 0;">Noch keine eigenen Kategorien.</div>';
+    } else {
+      list.innerHTML=custom.map((c,i)=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid #f5f5f3;">
+          <span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;background:#f5f5f3;border-radius:8px;">${c.icon}</span>
+          <span style="flex:1;font-size:13px;">${c.name}</span>
+          <button onclick="deleteCustomKat(${i})" style="background:none;border:none;cursor:pointer;padding:4px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="#E24B4A"><path d="M21.5 6a1 1 0 0 1-.883.993L20.5 7h-.845l-1.231 12.52A2.75 2.75 0 0 1 15.687 22H8.313a2.75 2.75 0 0 1-2.737-2.48L4.345 7H3.5a1 1 0 0 1 0-2h5a3.5 3.5 0 1 1 7 0h5a1 1 0 0 1 1 1Z"/></svg></button>
+        </div>`).join('');
+    }
+  }
+}
+
+let _selectedKatIcon=null;
+function selectKatIcon(id){
+  _selectedKatIcon=id;
+  // Highlight selected
+  document.querySelectorAll('[id^="kat-icon-"]').forEach(el=>{
+    el.style.borderColor=el.id===`kat-icon-${id}`?'#003265':'#ddddd5';
+    el.style.background=el.id===`kat-icon-${id}`?'#EBF4FF':'#fff';
+  });
+}
+
+function addCustomKat(){
+  const name=document.getElementById('kat-name-input').value.trim();
+  if(!name){showToast('Bitte einen Namen eingeben.');return;}
+  if(!_selectedKatIcon){showToast('Bitte ein Icon auswählen.');return;}
+  const cats=getCustomKategorien();
+  if(cats.find(c=>c.name===name)){showToast('Kategorie existiert bereits.');return;}
+  cats.push({name, icon:FK_ICON_PALETTE[_selectedKatIcon]});
+  saveCustomKategorien(cats);
+  document.getElementById('kat-name-input').value='';
+  _selectedKatIcon=null;
+  renderKatManager();
+  showToast('Kategorie hinzugefügt ✓');
+}
+
+function deleteCustomKat(i){
+  const cats=getCustomKategorien();
+  cats.splice(i,1);
+  saveCustomKategorien(cats);
+  renderKatManager();
+}
 
 /* ── MARKETING ── */
 function getMkItems(){try{return JSON.parse(localStorage.getItem('ec_marketing')||'[]');}catch(e){return[];}}
@@ -2924,6 +3036,17 @@ function getFkItems(){try{return JSON.parse(localStorage.getItem('ec_fixkosten_v
 function setFkItems(d){
   localStorage.setItem('ec_fixkosten_v2',JSON.stringify(d));
   if(dbSynced) saveFkkostenToSupabase(d).catch(e=>console.warn('Supabase fixkosten sync:',e));
+  renderDashboard();
+  // Kennzahlen-Tab aktualisieren wenn aktiv
+  const activePage=document.querySelector('.page.active');
+  if(activePage?.id==='page-kennzahlen'){
+    const berichteVisible=document.getElementById('kz-berichte')?.style.display!=='none';
+    const cashflowVisible=document.getElementById('kz-cashflow')?.style.display!=='none';
+    const jahresVisible=document.getElementById('kz-jahresverlauf')?.style.display!=='none';
+    if(berichteVisible) renderBerichte();
+    if(cashflowVisible) renderCashflow();
+    if(jahresVisible) renderJahresverlauf();
+  }
 }
 function fmt(n){return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:2}).format(n||0);}
 function fmtS(n){return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0);}
@@ -3603,7 +3726,7 @@ const FK_CAT_RULES=[
   {cat:'Fahrzeuge & Transport',words:['fahrzeug','auto','kfz','leasing','tanke','benzin','diesel','pkw','lkw','transporter']},
   {cat:'Kredite & Finanzierung',words:['kredit','darlehen','finanzierung','rate','tilgung','zins','bank','bankrate','annuität','loan']},
 ];
-const FK_CAT_ICONS={'Miete & Immobilien':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M3 19V8.6l9-4.1 9 4.1V19a1 1 0 0 1-1 1h-4v-6a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v6H4a1 1 0 0 1-1-1Z"/></svg>`,'Personal':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M16 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8-1a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-6 9.75A3.25 3.25 0 0 1 5.25 16.5h5.5A3.25 3.25 0 0 1 14 19.75V21H2v-1.25Zm8.18-3.25h5.57A3.25 3.25 0 0 1 19 19.75V21h-8v-1.25a4.74 4.74 0 0 0-.82-2.25Z"/></svg>`,'Software & Tools':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm-1 14h18v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-1Z"/></svg>`,'Marketing':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M21.7 4.3a1 1 0 0 0-1.4 0l-1.62 1.62A6.5 6.5 0 0 0 8.1 14.9L3.3 19.7a1 1 0 1 0 1.4 1.4l4.8-4.8a6.5 6.5 0 0 0 8.98-9.0l1.22-1.22a1 1 0 0 0 0-1.4ZM12 8.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z"/></svg>`,'Logistik & Versand':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M20 7h-4V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h1.17A3 3 0 0 0 11 18h2a3 3 0 0 0 5.83-1H20a2 2 0 0 0 2-2v-4l-2-4Zm-9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm7 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm1-5h-5V9h3.6l1.4 3v1Z"/></svg>`,'Beratung & Dienstleistungen':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.835 3.162a.747.747 0 0 0 .147-.148h2.562l.035-.001a5.372 5.372 0 0 1 .545 0h.038a3.818 3.818 0 0 1 1.646.369 5.223 5.223 0 0 1 2.34 1.822 5.208 5.208 0 0 1 .804 4.348l-3.281-3.237a.75.75 0 0 0-.527-.216h-4.745a.762.762 0 0 0-.453.152l-1.884 1.428a.968.968 0 0 1-1.358-.184.952.952 0 0 1 .181-1.34l3.95-2.993ZM7.898 14.236l-.013.013-.974.968-.013.012a.906.906 0 0 1-1.261-.012.892.892 0 0 1 0-1.267l.974-.968a.906.906 0 0 1 1.275 0 .892.892 0 0 1 .012 1.254ZM7.608 15.934a.892.892 0 0 0 .013 1.254c.352.35.922.35 1.275 0l.974-.967a.892.892 0 0 0-.14-1.381.906.906 0 0 0-1.122.1l-.013.014-.974.967-.013.013ZM5.5 11.408a.892.892 0 0 1 0 1.267l-.973.968a.906.906 0 0 1-1.276 0 .892.892 0 0 1 0-1.267l.975-.968a.906.906 0 0 1 1.275 0ZM11.854 16.925a.892.892 0 0 1 0 1.267l-.974.968a.902.902 0 0 1-1.275 0 .892.892 0 0 1-.172-1.028l.001-.002a.894.894 0 0 1 .171-.237l.974-.968a.906.906 0 0 1 1.275 0Z" fill="#003265"/><path d="M5.344 4.831a6.179 6.179 0 0 1 5.112-1.749L7.979 4.96a2.452 2.452 0 0 0-.466 3.448 2.473 2.473 0 0 0 3.454.467L12.651 7.6h4.185l3.507 3.46a.52.52 0 0 0 .036.04l1.15 1.15a1.439 1.439 0 0 1-1.936 2.124l-.096-.096a.508.508 0 0 0-.06-.052l-1.093-1.092a.5.5 0 1 0-.707.707l1.15 1.15c.042.041.084.081.128.119l.044.044a1.02 1.02 0 0 1-1.441 1.441l-.17-.169a.5.5 0 0 0-.853.363.499.499 0 0 0 .147.365l.223.223a.943.943 0 1 1-1.333 1.333h-.002l-.011-.013-.21-.21a.5.5 0 1 0-.707.707l.218.219a.96.96 0 0 1-1.35 1.367l-1.431-1.36.524-.522a1.884 1.884 0 0 0 0-2.676 1.906 1.906 0 0 0-1.428-.553 1.88 1.88 0 0 0-.556-1.42 1.906 1.906 0 0 0-1.428-.552 1.881 1.881 0 0 0-.556-1.419 1.912 1.912 0 0 0-1.844-.49 1.88 1.88 0 0 0-.541-1.084 1.914 1.914 0 0 0-2.514-.158 6.096 6.096 0 0 1 1.648-5.714Z" fill="#003265"/></svg>`,'Versicherungen':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M12 2 4 5v6c0 4.97 3.4 9.48 8 10.93C16.6 20.48 20 15.97 20 11V5l-8-3Zm3.71 7.71-5 5a1 1 0 0 1-1.42 0l-2-2a1 1 0 1 1 1.42-1.42L10 12.59l4.29-4.3a1 1 0 0 1 1.42 1.42Z"/></svg>`,'Fahrzeuge & Transport':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M18.92 6.01A2 2 0 0 0 17 5H7a2 2 0 0 0-1.92 1.01L3 11v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8l-2.08-4.99ZM7 15.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm10 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3ZM5 11l1.5-4.5h11L19 11H5Z"/></svg>`,'Kredite & Finanzierung':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Zm1 14.93V18a1 1 0 0 1-2 0v-1.07A4 4 0 0 1 8 13a1 1 0 0 1 2 0 2 2 0 0 0 2 2 2 2 0 0 0 0-4 4 4 0 0 1-1-7.93V6a1 1 0 0 1 2 0v1.07A4 4 0 0 1 16 11a1 1 0 0 1-2 0 2 2 0 0 0-2-2 2 2 0 0 0 0 4 4 4 0 0 1 1 7.93Z"/></svg>`,'Sonstiges':`<svg width="20" height="20" viewBox="0 0 24 24" fill="#003265"><path d="M7 4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9.41L13.59 4H7Zm5 10a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm0-5a1 1 0 0 1 1 1v3a1 1 0 0 1-2 0v-3a1 1 0 0 1 1-1Zm2-4.59L16.59 8H14V4.41Z"/></svg>`};
+const FK_CAT_ICONS={'Miete & Immobilien':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 2A2.25 2.25 0 0 0 4.5 4.25v16.5c0 .414.336.75.75.75H7.5v-4.25a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 .75.75v4.25h2.25a.75.75 0 0 0 .75-.75v-9a2.25 2.25 0 0 0-2.25-2.25h-.75V4.25A2.25 2.25 0 0 0 14.25 2h-7.5Zm.75 4.5a1 1 0 1 1 2 0 1 1 0 0 1-2 0Zm1 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm-1-2.5a1 1 0 1 1 2 0 1 1 0 0 1-2 0ZM12 5.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm-1 8a1 1 0 1 1 2 0 1 1 0 0 1-2 0Zm4.5-1a1 1 0 1 1 0 2 1 1 0 0 1 0-2ZM11 10a1 1 0 1 1 2 0 1 1 0 0 1-2 0Z" fill="#003265"/><path d="M15 21.5V18h-2.25v3.5H15ZM11.25 21.5V18H9v3.5h2.25Z" fill="#003265"/></svg>`,'Personal':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m3.5 14 10 .001a1.5 1.5 0 0 1 1.493 1.356L15 15.5V17.5C14.999 21 11.284 22 8.5 22c-2.722 0-6.335-.956-6.495-4.27L2 17.5v-2a1.5 1.5 0 0 1 1.356-1.493L3.5 14Zm11.988 0H20.5a1.5 1.5 0 0 1 1.493 1.355L22 15.5V17c-.001 3.062-2.858 4-5 4a7.16 7.16 0 0 1-2.14-.322c.653-.75 1.076-1.703 1.133-2.898L16 17.5v-2c0-.494-.15-.951-.399-1.338L15.488 14H20.5h-5.012ZM8.5 3a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Zm9 2a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Z" fill="#003265"/></svg>`,'Software & Tools':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2.75 16.5h18.5a.75.75 0 0 1 .101 1.493L21.25 18H2.751a.75.75 0 0 1-.102-1.494l.102-.006h18.498H2.751ZM18.25 5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 18.25 16H5.75A1.75 1.75 0 0 1 4 14.25v-7.5C4 5.784 4.783 5 5.75 5h12.5Z" fill="#003265"/></svg>`,'Marketing':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21.907 5.622c.062.208.093.424.093.641V17.74a2.25 2.25 0 0 1-2.891 2.156l-5.514-1.64a4.002 4.002 0 0 1-7.59-1.556L6 16.5l-.001-.5-2.39-.711A2.25 2.25 0 0 1 2 13.131V10.87a2.25 2.25 0 0 1 1.61-2.156l15.5-4.606a2.25 2.25 0 0 1 2.797 1.515ZM7.499 16.445l.001.054a2.5 2.5 0 0 0 4.624 1.321l-4.625-1.375Z" fill="#003265"/></svg>`,'Logistik & Versand':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2 5.25A2.25 2.25 0 0 1 4.25 3h10a2.25 2.25 0 0 1 2.25 2.25V6h1.55c.87 0 1.662.501 2.034 1.287l1.7 3.587c.142.301.216.63.216.963v5.413a2.25 2.25 0 0 1-2.25 2.25h-1.791a3 3 0 0 1-5.918 0H9.96a3 3 0 0 1-5.92-.01A2.25 2.25 0 0 1 2 17.25v-12ZM20.5 15.5h-1.25a.75.75 0 1 0 0 1.5h1.25v-1.5Zm-.317-4.5L18.73 7.929a.75.75 0 0 0-.678-.429H16.5V11h3.683ZM7 20.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm9.5-1.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0Z" fill="#003265"/></svg>`,'Beratung & Dienstleistungen':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12.835 3.162a.747.747 0 0 0 .147-.148h2.562l.035-.001a5.372 5.372 0 0 1 .545 0h.038a3.818 3.818 0 0 1 1.646.369 5.223 5.223 0 0 1 2.34 1.822 5.208 5.208 0 0 1 .804 4.348l-3.281-3.237a.75.75 0 0 0-.527-.216h-4.745a.762.762 0 0 0-.453.152l-1.884 1.428a.968.968 0 0 1-1.358-.184.952.952 0 0 1 .181-1.34l3.95-2.993ZM7.898 14.236l-.013.013-.974.968-.013.012a.906.906 0 0 1-1.261-.012.892.892 0 0 1 0-1.267l.974-.968a.906.906 0 0 1 1.275 0 .892.892 0 0 1 .012 1.254ZM7.608 15.934a.892.892 0 0 0 .013 1.254c.352.35.922.35 1.275 0l.974-.967a.892.892 0 0 0-.14-1.381.906.906 0 0 0-1.122.1l-.013.014-.974.967-.013.013ZM5.5 11.408a.892.892 0 0 1 0 1.267l-.973.968a.906.906 0 0 1-1.276 0 .892.892 0 0 1 0-1.267l.975-.968a.906.906 0 0 1 1.275 0ZM11.854 16.925a.892.892 0 0 1 0 1.267l-.974.968a.902.902 0 0 1-1.275 0 .892.892 0 0 1-.172-1.028l.001-.002a.894.894 0 0 1 .171-.237l.974-.968a.906.906 0 0 1 1.275 0Z" fill="#003265"/><path d="M5.344 4.831a6.179 6.179 0 0 1 5.112-1.749L7.979 4.96a2.452 2.452 0 0 0-.466 3.448 2.473 2.473 0 0 0 3.454.467L12.651 7.6h4.185l3.507 3.46a.52.52 0 0 0 .036.04l1.15 1.15a1.439 1.439 0 0 1-1.936 2.124l-.096-.096a.508.508 0 0 0-.06-.052l-1.093-1.092a.5.5 0 1 0-.707.707l1.15 1.15c.042.041.084.081.128.119l.044.044a1.02 1.02 0 0 1-1.441 1.441l-.17-.169a.5.5 0 0 0-.853.363.499.499 0 0 0 .147.365l.223.223a.943.943 0 1 1-1.333 1.333h-.002l-.011-.013-.21-.21a.5.5 0 1 0-.707.707l.218.219a.96.96 0 0 1-1.35 1.367l-1.431-1.36.524-.522a1.884 1.884 0 0 0 0-2.676 1.906 1.906 0 0 0-1.428-.553 1.88 1.88 0 0 0-.556-1.42 1.906 1.906 0 0 0-1.428-.552 1.881 1.881 0 0 0-.556-1.419 1.912 1.912 0 0 0-1.844-.49 1.88 1.88 0 0 0-.541-1.084 1.914 1.914 0 0 0-2.514-.158 6.096 6.096 0 0 1 1.648-5.714Z" fill="#003265"/></svg>`,'Versicherungen':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 5.75A.75.75 0 0 1 3.75 5c2.663 0 5.258-.943 7.8-2.85a.75.75 0 0 1 .9 0C14.992 4.057 17.587 5 20.25 5a.75.75 0 0 1 .75.75V11c0 5.001-2.958 8.676-8.725 10.948a.75.75 0 0 1-.55 0C5.958 19.676 3 16 3 11V5.75Z" fill="#003265"/></svg>`,'Fahrzeuge & Transport':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M15.8 3a3.25 3.25 0 0 1 3.152 2.46L19.337 7h.913a.75.75 0 0 1 .743.648L21 7.75a.75.75 0 0 1-.648.743l-.102.007h-.536l.208.826a2.249 2.249 0 0 1 1.082 1.924v8.497a1.75 1.75 0 0 1-1.75 1.75H17.75a1.75 1.75 0 0 1-1.75-1.75l-.001-1.247H8.004v1.247a1.75 1.75 0 0 1-1.75 1.75H4.75A1.75 1.75 0 0 1 3 19.747V11.25c0-.815.433-1.529 1.082-1.923l.207-.827H3.75a.75.75 0 0 1-.743-.648L3 7.75a.75.75 0 0 1 .648-.743L3.75 7h.913l.386-1.538A3.25 3.25 0 0 1 8.202 3h7.597ZM6.503 18.5H4.499l.001 1.247c0 .138.112.25.25.25h1.504a.25.25 0 0 0 .25-.25V18.5Zm13 0h-2.005l.001 1.247c0 .138.112.25.25.25h1.504a.25.25 0 0 0 .25-.25V18.5ZM13.751 14h-3.502l-.102.007a.75.75 0 0 0 0 1.486l.102.007h3.502l.101-.007A.75.75 0 0 0 13.751 14ZM17 12a1 1 0 1 0 0 2 1 1 0 0 0 0-2ZM7 12a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm8.8-7.5H8.201a1.75 1.75 0 0 0-1.698 1.326L5.711 9h12.582l-.796-3.176A1.75 1.75 0 0 0 15.799 4.5Z" fill="#003265"/></svg>`,'Kredite & Finanzierung':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2 6.75C2 5.784 2.784 5 3.75 5h13.5c.966 0 1.75.784 1.75 1.75v8.5A1.75 1.75 0 0 1 17.25 17H3.75A1.75 1.75 0 0 1 2 15.25v-8.5Zm3-.5v1a.75.75 0 0 1-.75.75h-1v1.5h1A2.25 2.25 0 0 0 6.5 7.25v-1H5Zm5.5 7.25a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5Zm-7.25.5h1a.75.75 0 0 1 .75.75v1h1.5v-1a2.25 2.25 0 0 0-2.25-2.25h-1V14Zm12.75.75a.75.75 0 0 1 .75-.75h1v-1.5h-1a2.25 2.25 0 0 0-2.25 2.25v1H16v-1Zm0-7.5v-1h-1.5v1a2.25 2.25 0 0 0 2.25 2.25h1V8h-1a.75.75 0 0 1-.75-.75Z" fill="#003265"/><path d="M4.401 18.5A2.999 2.999 0 0 0 7 20h10.25A4.75 4.75 0 0 0 22 15.25V10c0-1.11-.603-2.08-1.5-2.599v7.849a3.25 3.25 0 0 1-3.25 3.25H4.401Z" fill="#003265"/></svg>`,'Sonstiges':`<svg width="20" height="20" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13.75 2h-3.5a2.25 2.25 0 0 0-2.236 2H6.25A2.25 2.25 0 0 0 4 6.25v13.5A2.25 2.25 0 0 0 6.25 22h11.5A2.25 2.25 0 0 0 20 19.75V6.25A2.25 2.25 0 0 0 17.75 4h-1.764a2.25 2.25 0 0 0-2.236-2Zm-3.5 1.5h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1 0-1.5Zm2.25 6.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 0 1.5h-3.5a.75.75 0 0 1-.75-.75Zm.75 4.75h3.5a.75.75 0 1 1 0 1.5h-3.5a.75.75 0 1 1 0-1.5Zm-2.47-5.22-2 2a.75.75 0 0 1-1.06 0l-1-1a.75.75 0 1 1 1.06-1.06l.47.47 1.47-1.47a.75.75 0 1 1 1.06 1.06Zm0 4.44a.75.75 0 0 1 0 1.06l-2 2a.75.75 0 0 1-1.06 0l-1-1a.75.75 0 1 1 1.06-1.06l.47.47 1.47-1.47a.75.75 0 0 1 1.06 0Z" fill="#003265"/></svg>`};
 const FK_ALL_CATS=Object.keys(FK_CAT_ICONS);
 const FK_INTERVALL_LABELS={monatlich:'Monatlich','2wochen':'Alle 2 Wochen',woechentlich:'Wöchentlich',jaehrlich:'Jährlich'};
 
@@ -3623,9 +3746,14 @@ function detectCat(name){
 
 function autoDetectCat(){
   const name=document.getElementById('fk-name').value.trim();
-  if(!name){document.getElementById('cat-hint').innerHTML='';return;}
+  const hint=document.getElementById('cat-hint');
+  if(!name){if(hint) hint.innerHTML='';return;}
+  // Nur Hinweis anzeigen — Select bleibt unberührt
   const cat=detectCat(name);
-  document.getElementById('cat-hint').innerHTML=`Kategorie erkannt: <b style="display:inline-flex;align-items:center;gap:4px;">${FK_CAT_ICONS[cat]||`<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9.41L13.59 4H7Zm5 10a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm0-5a1 1 0 0 1 1 1v3a1 1 0 0 1-2 0v-3a1 1 0 0 1 1-1Zm2-4.59L16.59 8H14V4.41Z"/></svg>`} ${cat}</b>`;
+  const sel=document.getElementById('fk-kat');
+  // Select-Wert nur setzen wenn noch auf erstem Eintrag (nichts gewählt)
+  if(sel && sel.selectedIndex===0) sel.value=cat;
+  if(hint) hint.innerHTML='';
 }
 
 function updateFkePreview(){
@@ -3778,7 +3906,8 @@ function addFkItem(){
     intervall:bereich==='variabel'?'einmalig':document.getElementById('fk-intervall').value,
     gueltig_ab:gueltigAb+'-01',   // ISO date: YYYY-MM-01
     gueltig_bis:gueltigBis?gueltigBis+'-01':null,
-    cat:detectCat(name), updatedAt:Date.now(),
+    cat: document.getElementById('fk-kat')?.value || detectCat(name),
+    updatedAt: Date.now(),
   };
   const items=getFkItems();
   items.push(item);
@@ -3788,6 +3917,9 @@ function addFkItem(){
   document.getElementById('fk-gueltig-ab').value=''; document.getElementById('fk-gueltig-ab').dataset.value='';
   document.getElementById('fk-gueltig-bis').value=''; document.getElementById('fk-gueltig-bis').dataset.value='';
   document.getElementById('cat-hint').innerHTML='';
+  // Kategorie-Select auf erste Option zurücksetzen
+  const katSel=document.getElementById('fk-kat');
+  if(katSel) katSel.selectedIndex=0;
   const fl=document.getElementById('fk-save-flash');
   if(fl){fl.style.display='inline'; setTimeout(()=>fl.style.display='none',1800);}
   document.getElementById('fk-form-wrap').style.display='none';
@@ -3811,8 +3943,10 @@ function editFkItem(id){
   document.getElementById('fke-intervall').value=item.intervall||'monatlich';
   const isVar=item.bereich==='variabel';
   document.getElementById('fke-intervall-wrap').style.display=isVar?'none':'block';
+  // Rebuild fke-cat mit allen Kategorien (Standard + eigene)
+  buildFkKategorieListe();
   const catSel=document.getElementById('fke-cat');
-  catSel.innerHTML=FK_ALL_CATS.map(c=>`<option value="${c}"${c===item.cat?' selected':''}>${c}</option>`).join('');
+  if(catSel) catSel.value=item.cat||'Sonstiges';
   // Datum: YYYY-MM-DD → YYYY-MM für input[type=month]
   const _ab=(item.gueltig_ab||'2020-01-01').slice(0,7);
   const _bis=item.gueltig_bis?item.gueltig_bis.slice(0,7):'';
@@ -5952,6 +6086,18 @@ function initRealtime(){
           localStorage.setItem('ec_dash_channels',s.value);
           renderDashboard();
         }
+        if(s.key==='fk_kategorien'){
+          try{
+            const cats=JSON.parse(s.value||'[]');
+            if(Array.isArray(cats)) localStorage.setItem('ec_fk_custom_cats',s.value);
+          }catch{}
+        }
+        if(s.key==='fk_kategorien'){
+          try{
+            const cats=JSON.parse(s.value||'[]');
+            if(Array.isArray(cats)){ localStorage.setItem('ec_fk_custom_cats',s.value); buildFkKategorieListe(); }
+          }catch{}
+        }
         if(s.key==='dash_kacheln'){
           const parsed=JSON.parse(s.value||'null');
           if(Array.isArray(parsed)&&parsed.length===5){
@@ -6031,6 +6177,7 @@ async function initApp(){
   window.addEventListener('load', function(){
     // Erste leere Positions-Zeile im Bestellformular
   addItemRow();
+  buildFkKategorieListe();
   // Event delegation for day-orders table — fires once, handles all rows
   document.getElementById('day-orders')?.addEventListener('click', e=>{
     const tr=e.target.closest('tr[data-order-id]');
@@ -6486,6 +6633,37 @@ async function initApp(){
       </div>
     </div>
   </div>
+
+  <!-- KATEGORIEN MANAGER MODAL -->
+  <div class="edit-modal-bg" id="kat-manager-modal-bg" style="display:none;" onclick="if(event.target===this) closeKatManager()">
+    <div class="edit-modal" style="max-width:560px;">
+      <div class="edit-modal-title">Eigene Kategorien</div>
+
+      <!-- Neue Kategorie -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:11px;font-weight:600;color:#003265;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Neue Kategorie</div>
+        <div class="field" style="margin-bottom:10px;">
+          <label>Name</label>
+          <input type="text" id="kat-name-input" placeholder="z.B. Profitviewer, Buchhaltung..." style="width:100%;">
+        </div>
+        <div style="font-size:12px;color:#888780;margin-bottom:8px;">Icon auswählen</div>
+        <div id="kat-icon-grid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:6px;margin-bottom:12px;"></div>
+        <button class="btn primary" onclick="addCustomKat()" style="width:100%;">+ Kategorie hinzufügen</button>
+      </div>
+
+      <!-- Bestehende eigene Kategorien -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:#003265;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Eigene Kategorien</div>
+        <div id="kat-custom-list"></div>
+      </div>
+
+      <div class="edit-modal-footer" style="margin-top:16px;">
+        <span></span>
+        <button class="btn" onclick="closeKatManager()">Schließen</button>
+      </div>
+    </div>
+  </div>
+
 
 </body>
 </html>

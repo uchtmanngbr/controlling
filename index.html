@@ -604,17 +604,35 @@ tr:last-child td{border-bottom:none;}
               <option value="jaehrlich">Jährlich</option>
             </select>
           </div>
-          <div class="field" id="fk-datum-wrap" style="display:none">
-            <label>Monat</label>
+<div class="field">
+            <label>Gültig ab <span style="color:#E24B4A">*</span></label>
             <div style="position:relative">
-              <input type="text" id="fk-datum-var" readonly placeholder="Monat wählen..." style="cursor:pointer;background:#fff;" onclick="toggleMonthPicker('fk-month-picker','fk-datum-var')">
-              <div id="fk-month-picker" style="display:none;position:absolute;top:100%;left:0;z-index:200;background:#fff;border:0.5px solid #ddddd5;border-radius:12px;box-shadow:0 4px 20px rgba(0,50,101,0.12);padding:12px;width:260px;margin-top:4px">
+              <input type="text" id="fk-gueltig-ab" readonly placeholder="Monat wählen..."
+                style="cursor:pointer;background:#fff;"
+                onclick="toggleMonthPicker('fk-ab-picker','fk-gueltig-ab')">
+              <div id="fk-ab-picker" style="display:none;position:absolute;top:100%;left:0;z-index:300;background:#fff;border:0.5px solid #ddddd5;border-radius:12px;box-shadow:0 4px 20px rgba(0,50,101,0.12);padding:12px;width:260px;margin-top:4px">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-                  <button onclick="changePickerYear('fk-month-picker',-1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:#003265;padding:4px 8px">‹</button>
-                  <span id="fk-month-picker-year" style="font-weight:600;color:#003265;font-size:14px">2026</span>
-                  <button onclick="changePickerYear('fk-month-picker',1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:#003265;padding:4px 8px">›</button>
+                  <button onclick="changePickerYear('fk-ab-picker',-1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:#003265;padding:4px 8px">‹</button>
+                  <span id="fk-ab-picker-year" style="font-weight:600;color:#003265;font-size:14px"></span>
+                  <button onclick="changePickerYear('fk-ab-picker',1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:#003265;padding:4px 8px">›</button>
                 </div>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;" id="fk-month-picker-grid"></div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;" id="fk-ab-picker-grid"></div>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Gültig bis </label>
+            <div style="position:relative">
+              <input type="text" id="fk-gueltig-bis" readonly placeholder="unbegrenzt"
+                style="cursor:pointer;background:#fff;"
+                onclick="toggleMonthPicker('fk-bis-picker','fk-gueltig-bis')">
+              <div id="fk-bis-picker" style="display:none;position:absolute;top:100%;left:0;z-index:300;background:#fff;border:0.5px solid #ddddd5;border-radius:12px;box-shadow:0 4px 20px rgba(0,50,101,0.12);padding:12px;width:260px;margin-top:4px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                  <button onclick="changePickerYear('fk-bis-picker',-1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:#003265;padding:4px 8px">‹</button>
+                  <span id="fk-bis-picker-year" style="font-weight:600;color:#003265;font-size:14px"></span>
+                  <button onclick="changePickerYear('fk-bis-picker',1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:#003265;padding:4px 8px">›</button>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;" id="fk-bis-picker-grid"></div>
               </div>
             </div>
           </div>
@@ -1652,6 +1670,8 @@ async function saveFkkostenToSupabase(items){
     id:Math.round(o.id), name:o.name||'', betrag:o.betrag||0,
     intervall:o.intervall||'monatlich', cat:o.cat||'Sonstiges',
     bereich:o.bereich||'fixkosten', datum:o.datum||'',
+    gueltig_ab:o.gueltig_ab||'2020-01-01',
+    gueltig_bis:o.gueltig_bis||null,
     updatedAt:o.updatedAt||0,
   }));
   await sbFetch('fixkosten','DELETE',null,'?id=gt.0');
@@ -1978,7 +1998,7 @@ function renderBerichte(){
 
   const orders=getOrders().filter(o=>{const d=new Date(o.datum);return d.getMonth()+1===month&&d.getFullYear()===year;});
   const rechnungen=getRechForMonth(month,year);
-  const fix=totalFixkostenMonthly();
+  const fix=totalFixkostenMonthly(month,year);
   const mkTotal=totalMkForMonth(month,year);
   const mpgData=getMpg();
   const totalMpg=MPG_MARKETS.reduce((s,ch)=>s+(mpgData[ch]?.betrag||0),0);
@@ -2170,7 +2190,7 @@ function getMonthStats(month, year){
   rechnungen.forEach(r=>{db+=(r.gewinn||0);});
   umsatzBrutto+=rechBrutto;
   umsatzNetto+=rechEinnahmen.reduce((s,r)=>s+(r.netto||0),0);
-  const fix=totalFixkostenMonthly();
+  const fix=totalFixkostenMonthly(month,year);
   const mkTotal=totalMkForMonth(month,year);
   const mpgData=getMpg();
   const totalMpg=MPG_MARKETS.reduce((s,ch)=>s+(mpgData[ch]?.betrag||0),0);
@@ -3612,8 +3632,24 @@ function updateFkePreview(){
   document.getElementById('fke-monthly-preview').textContent=fmt(toMonthly(betrag,intervall))+' /Monat';
 }
 
-function totalFixkostenMonthly(){
-  return getFkItems().filter(i=>!i.bereich||i.bereich==='fixkosten').reduce((s,i)=>s+toMonthly(i.betrag,i.intervall),0);
+function fkGueltigFuerMonat(item, month, year){
+  // Prüft ob ein Fixkostenpunkt für einen bestimmten Monat gilt
+  const monat=new Date(year, month-1, 1); // Erster des Monats
+  const ab=item.gueltig_ab?new Date(item.gueltig_ab):new Date('2020-01-01');
+  const bis=item.gueltig_bis?new Date(item.gueltig_bis):null;
+  if(monat < ab) return false;
+  if(bis && monat > bis) return false;
+  return true;
+}
+
+function totalFixkostenMonthly(month, year){
+  // month/year optional — ohne Parameter: aktueller Monat
+  const now=new Date();
+  const m=month||now.getMonth()+1;
+  const y=year||now.getFullYear();
+  return getFkItems()
+    .filter(i=>(!i.bereich||i.bereich==='fixkosten') && fkGueltigFuerMonat(i,m,y))
+    .reduce((s,i)=>s+toMonthly(i.betrag,i.intervall),0);
 }
 
 function renderFixkosten(){
@@ -3641,8 +3677,11 @@ function renderFixkosten(){
         const icon=FK_CAT_ICONS[cat]||'📋';
         const rows=catItems.map(item=>{
           const monthly=toMonthly(item.betrag,item.intervall);
+          const ab=item.gueltig_ab?item.gueltig_ab.slice(0,7):'2020-01';
+          const bis=item.gueltig_bis?item.gueltig_bis.slice(0,7):'∞';
+          const zeitraum=`ab ${ab}${bis!=='∞'?' bis '+bis:''}`;
           return `<div class="fk-item-row" style="grid-template-columns:1fr 130px 64px">
-            <span class="fk-item-name">${item.name}</span>
+            <span class="fk-item-name">${item.name}<span style="display:block;font-size:10px;color:#888780;font-weight:400">${zeitraum}</span></span>
             <span class="fk-item-monthly" style="text-align:right">${fmt(monthly)}<span style="font-size:10px;color:#888780;font-weight:400"> /Monat</span></span>
             <div style="display:flex;gap:4px">
               <button class="btn" style="height:28px;padding:0 8px;font-size:12px;" onclick="editFkItem(${item.id})">✎</button>
@@ -3705,26 +3744,38 @@ function toggleFkForm(){
   const isOpen=wrap.style.display!=='none';
   wrap.style.display=isOpen?'none':'block';
   btn.textContent=isOpen?'+ Neue Position':'✕ Schließen';
+  if(!isOpen){
+    // Standard: gültig ab diesem Monat
+    const now=new Date();
+    const thisMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const abEl=document.getElementById('fk-gueltig-ab');
+    if(abEl&&!abEl.dataset.value){
+      abEl.dataset.value=thisMonth;
+      abEl.value=formatFkDatum(thisMonth);
+    }
+  }
 }
 
 function onFkBereichChange(){
   const bereich=document.getElementById('fk-bereich').value;
   const intWrap=document.getElementById('fk-intervall-wrap');
-  const datWrap=document.getElementById('fk-datum-wrap');
   if(intWrap) intWrap.style.display=bereich==='variabel'?'none':'block';
-  if(datWrap) datWrap.style.display=bereich==='variabel'?'block':'none';
 }
 
 function addFkItem(){
   const name=document.getElementById('fk-name').value.trim();
   const betrag=parseFloat(document.getElementById('fk-betrag').value)||0;
   const bereich=document.getElementById('fk-bereich').value;
+  const gueltigAb=document.getElementById('fk-gueltig-ab').dataset.value||'';
+  const gueltigBis=document.getElementById('fk-gueltig-bis').dataset.value||null;
   if(!name){showToast('Bitte eine Bezeichnung eingeben.');return;}
   if(betrag<=0){showToast('Bitte einen Betrag eingeben.');return;}
+  if(!gueltigAb){showToast('Bitte ein Startdatum eingeben.');return;}
   const item={
     id:Date.now(), name, betrag, bereich,
     intervall:bereich==='variabel'?'einmalig':document.getElementById('fk-intervall').value,
-    datum:bereich==='variabel'?(document.getElementById('fk-datum-var').dataset.value||new Date().toISOString().slice(0,7)):'',
+    gueltig_ab:gueltigAb+'-01',   // ISO date: YYYY-MM-01
+    gueltig_bis:gueltigBis?gueltigBis+'-01':null,
     cat:detectCat(name), updatedAt:Date.now(),
   };
   const items=getFkItems();
@@ -3732,9 +3783,9 @@ function addFkItem(){
   setFkItems(items);
   document.getElementById('fk-name').value='';
   document.getElementById('fk-betrag').value='';
+  document.getElementById('fk-gueltig-ab').value=''; document.getElementById('fk-gueltig-ab').dataset.value='';
+  document.getElementById('fk-gueltig-bis').value=''; document.getElementById('fk-gueltig-bis').dataset.value='';
   document.getElementById('cat-hint').innerHTML='';
-  document.getElementById('fk-datum-var').value='';
-  document.getElementById('fk-datum-var').dataset.value='';
   const fl=document.getElementById('fk-save-flash');
   if(fl){fl.style.display='inline'; setTimeout(()=>fl.style.display='none',1800);}
   document.getElementById('fk-form-wrap').style.display='none';
@@ -3760,6 +3811,13 @@ function editFkItem(id){
   document.getElementById('fke-intervall-wrap').style.display=isVar?'none':'block';
   const catSel=document.getElementById('fke-cat');
   catSel.innerHTML=FK_ALL_CATS.map(c=>`<option value="${c}"${c===item.cat?' selected':''}>${FK_CAT_ICONS[c]||'📋'} ${c}</option>`).join('');
+  // Datum: YYYY-MM-DD → YYYY-MM für input[type=month]
+  const _ab=(item.gueltig_ab||'2020-01-01').slice(0,7);
+  const _bis=item.gueltig_bis?item.gueltig_bis.slice(0,7):'';
+  const abEl=document.getElementById('fke-gueltig-ab');
+  const bisEl=document.getElementById('fke-gueltig-bis');
+  if(abEl){abEl.dataset.value=_ab; abEl.value=formatFkDatum(_ab);}
+  if(bisEl){bisEl.dataset.value=_bis; bisEl.value=_bis?formatFkDatum(_bis):'';}
   updateFkePreview();
   document.getElementById('fk-edit-modal-bg').style.display='flex';
   setTimeout(()=>{document.getElementById('fke-name').focus();},50);
@@ -3770,11 +3828,16 @@ function saveFkEdit(){
   const items=getFkItems();
   const idx=items.findIndex(i=>i.id===fkEditId);
   if(idx===-1) return;
+  const gueltigAb=document.getElementById('fke-gueltig-ab').dataset.value||'';
+  const gueltigBis=document.getElementById('fke-gueltig-bis').dataset.value||'';
+  if(!gueltigAb){showToast('Bitte ein Startdatum eingeben.');return;}
   items[idx]={...items[idx],
     name:document.getElementById('fke-name').value,
     betrag:parseFloat(document.getElementById('fke-betrag').value)||0,
     intervall:document.getElementById('fke-intervall').value,
     cat:document.getElementById('fke-cat').value,
+    gueltig_ab:gueltigAb+'-01',
+    gueltig_bis:gueltigBis?gueltigBis+'-01':null,
     updatedAt:Date.now(),
   };
   setFkItems(items);
@@ -4396,7 +4459,7 @@ function _renderDashboard(){
   const year=parseInt(document.getElementById('dash-year').value);
   if(!month||!year) return;
   const orders=getOrders().filter(o=>{const d=new Date(o.datum);return d.getMonth()+1===month&&d.getFullYear()===year;});
-  const fix=totalFixkostenMonthly();
+  const fix=totalFixkostenMonthly(month,year);
   const mkTotal=totalMkForMonth(month,year);
   let totalBrutto=0,totalNetto=0,totalDB=0;
   const byChannel={Amazon:{u:0,db:0,n:0},eBay:{u:0,db:0,n:0},Otto:{u:0,db:0,n:0},Shopify:{u:0,db:0,n:0}};
@@ -6096,6 +6159,38 @@ async function initApp(){
           </select>
         </div>
         <div class="field" style="grid-column:1/-1"><label>Kategorie</label><select id="fke-cat"></select></div>
+        <div class="field">
+          <label>Gültig ab <span style="color:#E24B4A">*</span></label>
+          <div style="position:relative">
+            <input type="text" id="fke-gueltig-ab" readonly placeholder="Monat wählen..."
+              style="cursor:pointer;background:#fff;"
+              onclick="toggleMonthPicker('fke-ab-picker','fke-gueltig-ab')">
+            <div id="fke-ab-picker" style="display:none;position:absolute;top:100%;left:0;z-index:300;background:#fff;border:0.5px solid #ddddd5;border-radius:12px;box-shadow:0 4px 20px rgba(0,50,101,0.12);padding:12px;width:260px;margin-top:4px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <button onclick="changePickerYear('fke-ab-picker',-1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:#003265;padding:4px 8px">‹</button>
+                <span id="fke-ab-picker-year" style="font-weight:600;color:#003265;font-size:14px"></span>
+                <button onclick="changePickerYear('fke-ab-picker',1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:#003265;padding:4px 8px">›</button>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;" id="fke-ab-picker-grid"></div>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Gültig bis </label>
+          <div style="position:relative">
+            <input type="text" id="fke-gueltig-bis" readonly placeholder="unbegrenzt"
+              style="cursor:pointer;background:#fff;"
+              onclick="toggleMonthPicker('fke-bis-picker','fke-gueltig-bis')">
+            <div id="fke-bis-picker" style="display:none;position:absolute;top:100%;left:0;z-index:300;background:#fff;border:0.5px solid #ddddd5;border-radius:12px;box-shadow:0 4px 20px rgba(0,50,101,0.12);padding:12px;width:260px;margin-top:4px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <button onclick="changePickerYear('fke-bis-picker',-1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:#003265;padding:4px 8px">‹</button>
+                <span id="fke-bis-picker-year" style="font-weight:600;color:#003265;font-size:14px"></span>
+                <button onclick="changePickerYear('fke-bis-picker',1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:#003265;padding:4px 8px">›</button>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;" id="fke-bis-picker-grid"></div>
+            </div>
+          </div>
+        </div>
         <div class="field" style="grid-column:1/-1;background:#f5f5f3;border-radius:8px;padding:10px 12px">
           <div class="text-xs" style="margin-bottom:3px">Pro Monat</div>
           <div style="font-size:18px;font-weight:500;" id="fke-monthly-preview">—</div>

@@ -1447,7 +1447,10 @@ tr:last-child td{border-bottom:none;}
 #imp-preview-table tr.dup-row td{color:#c8c8c0;}
 .imp-dup-badge{font-size:10px;padding:1px 6px;border-radius:99px;background:#FAEEDA;color:#854F0B;margin-left:4px;}
 </style>
+
+
 <script>
+
 /* ── SUPABASE CONFIG ── */
 const SUPABASE_URL='https://byazoaixpovvtfmmphin.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5YXpvYWl4cG92dnRmbW1waGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3OTk0NjEsImV4cCI6MjA5NTM3NTQ2MX0.R0VTjHfJWdxVttqJAT8VMR39QxRhfiG9h04bhkbJ1jo';
@@ -1537,7 +1540,7 @@ async function syncFromSupabase(){
   }
 }
 
-async async function saveSettingToSupabase(key, value){
+async function saveSettingToSupabase(key, value){
   const res=await fetch(`${SUPABASE_URL}/rest/v1/settings`,{
     method:'POST',
     headers:{
@@ -1690,9 +1693,8 @@ async function saveMpgToSupabase(mpgObj){
   await sbFetch('mpg','DELETE',null,'?id=gt.0');
   if(rows.length) await sbFetch('mpg','POST',rows);
 }
-</script>
 
-<script>
+
 /* ── MARKETING ── */
 function getMkItems(){try{return JSON.parse(localStorage.getItem('ec_marketing')||'[]');}catch(e){return[];}}
 function setMkItems(d){
@@ -3828,8 +3830,10 @@ function saveFkEdit(){
   const items=getFkItems();
   const idx=items.findIndex(i=>i.id===fkEditId);
   if(idx===-1) return;
-  const gueltigAb=document.getElementById('fke-gueltig-ab').dataset.value||'';
-  const gueltigBis=document.getElementById('fke-gueltig-bis').dataset.value||'';
+  // dataset.value enthält YYYY-MM, gesetzt beim Öffnen und bei Picker-Auswahl
+  const gueltigAb=document.getElementById('fke-gueltig-ab').dataset.value
+    || items[idx].gueltig_ab?.slice(0,7) || '';
+  const gueltigBis=document.getElementById('fke-gueltig-bis').dataset.value || '';
   if(!gueltigAb){showToast('Bitte ein Startdatum eingeben.');return;}
   items[idx]={...items[idx],
     name:document.getElementById('fke-name').value,
@@ -6017,6 +6021,7 @@ async function initApp(){
   renderDay();
   renderRechnungen();
 }
+
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

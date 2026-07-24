@@ -4496,6 +4496,18 @@ function _renderDashboard(){
     dailyHasData.push(hasActivity);
     dailyLabels.push(d);
   }
+  // Berechnet saubere Y-Achsen-Grenzen ohne negative Werte wenn nicht nötig
+  function calcYAxis(data){
+    const vals=data.filter(v=>typeof v==='number'&&!isNaN(v));
+    if(!vals.length) return {min:0,max:100};
+    const dataMin=Math.min(...vals);
+    const dataMax=Math.max(...vals);
+    const range=dataMax-dataMin||dataMax||100;
+    const pad=range*0.15;
+    const yMax=dataMax+pad;
+    const yMin=dataMin<0?dataMin-pad:0;
+    return {min:yMin, max:yMax};
+  }
   const chartConfigs={
     db:{data:dailyDB,colors:dailyDB.map((v,i)=>dailyHasData[i]?(v>=0?'#1D9E75':'#E24B4A'):'rgba(0,0,0,0.06)'),
       title:'Monatsverlauf — Deckungsbeitrag pro Tag',
@@ -4518,8 +4530,10 @@ function _renderDashboard(){
     lineInst.data.labels=dailyLabels;
     lineInst.data.datasets[0].data=cfg.data;
     lineInst.data.datasets[0].backgroundColor=cfg.colors;
-    lineInst.options.scales.y.min=cfg.pad?undefined:0;
-    lineInst.options.scales.y.afterDataLimits=cfg.pad?(axis=>{const r=Math.abs((axis.max||0)-(axis.min||0))*0.15||50;axis.min-=r;axis.max+=r;}):undefined;
+    const yAxis=cfg.pad?calcYAxis(cfg.data):{min:0,max:undefined};
+    lineInst.options.scales.y.min=yAxis.min;
+    lineInst.options.scales.y.max=yAxis.max;
+    lineInst.options.scales.y.afterDataLimits=undefined;
     lineInst.options.plugins.tooltip.callbacks.label=cfg.tooltip;
     lineInst.options.plugins.tooltip.callbacks.title=items=>{const dateObj=new Date(year,month-1,parseInt(items[0].label));return dateObj.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit'});};
     lineInst.update('none');
@@ -4537,8 +4551,7 @@ function _renderDashboard(){
         scales:{
           x:{grid:{display:false},ticks:{color:'#888780',font:{size:10},maxTicksLimit:16}},
           y:{grid:{color:'rgba(200,200,192,0.4)'},ticks:{color:'#888780',font:{size:11},callback:cfg.yTick},
-            min:cfg.pad?undefined:0,
-            afterDataLimits:cfg.pad?(axis=>{const r=Math.abs((axis.max||0)-(axis.min||0))*0.15||50;axis.min-=r;axis.max+=r;}):undefined,
+            ...(cfg.pad?calcYAxis(cfg.data):{min:0}),
           }
         }
       }

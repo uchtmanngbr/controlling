@@ -1215,6 +1215,15 @@ tr:last-child td{border-bottom:none;}
 
     <!-- DASHBOARD PRÄFERENZEN -->
     <div id="praef-dashboard" style="display:none">
+      <div class="form-card" style="margin-bottom:16px;">
+        <div class="section-title">Monatsübersicht-Kacheln</div>
+        <div style="color:#888780;font-size:12px;margin-bottom:16px;">Wähle welche 5 Kacheln in der Monatsübersicht angezeigt werden. Genau 5 müssen ausgewählt sein.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;" id="dash-kacheln-grid">
+          <!-- wird per JS befüllt -->
+        </div>
+        <div id="dash-kacheln-hint" style="font-size:12px;color:#E24B4A;margin-top:8px;display:none;">Bitte genau 5 Kacheln auswählen.</div>
+      </div>
+
       <div class="form-card">
         <div class="section-title">Kanal-Kacheln im Dashboard</div>
         <div style="color:#888780;font-size:12px;margin-bottom:16px;">Wähle welche Marktplätze als Kacheln im Dashboard angezeigt werden.</div>
@@ -1442,8 +1451,8 @@ async function sbFetch(table, method='GET', body=null, params=''){
   return text?JSON.parse(text):null;
 }
 
-let dbSynced=false;
-let _suppressRealtime=false; // Verhindert Realtime-Reload bei eigenen Änderungen
+var dbSynced=false;
+var _suppressRealtime=false; // Verhindert Realtime-Reload bei eigenen Änderungen
 
 async function syncFromSupabase(){
   try{
@@ -1490,6 +1499,10 @@ async function syncFromSupabase(){
         if(s.key==='verkaufsprovision') localStorage.setItem('ec_verkaufsprovision',s.value);
         if(s.key==='ret_zustaende') localStorage.setItem('ec_ret_zustaende',s.value);
         if(s.key==='dash_channels') localStorage.setItem('ec_dash_channels',s.value);
+        if(s.key==='dash_kacheln'){
+          const parsed=JSON.parse(s.value);
+          if(Array.isArray(parsed)&&parsed.length===5) localStorage.setItem('ec_dash_kacheln',s.value);
+        }
       });
     }
     if(products&&products.length){
@@ -1506,21 +1519,14 @@ async function syncFromSupabase(){
   }
 }
 
-async async function saveSettingToSupabase(key, value, userId=null){
-  // userId=null → geteilte Einstellung (alle Nutzer)
-  // userId='xyz' → persönliche Einstellung (nach Auth-Einbau)
-  const payload={
-    key,
-    value: typeof value==='string'?value:JSON.stringify(value),
-    user_id: userId,
-  };
+async async function saveSettingToSupabase(key, value){
   const res=await fetch(`${SUPABASE_URL}/rest/v1/settings`,{
     method:'POST',
     headers:{
       'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,
       'Content-Type':'application/json','Prefer':'resolution=merge-duplicates',
     },
-    body:JSON.stringify([payload]),
+    body:JSON.stringify([{key, value:typeof value==='string'?value:JSON.stringify(value)}]),
   });
   if(!res.ok) console.error('Settings Supabase error:', await res.text());
 }
@@ -4414,15 +4420,33 @@ function _renderDashboard(){
   const eingangsRechDashTotal=eingangsRechDash.reduce((s,r)=>s+(r.brutto||0),0);
   const gewinn=totalDB-fix-mkTotal-totalMpg-eingangsRechDashTotal;
   const gesamtkosten=fix+mkTotal+totalMpg+eingangsRechDashTotal;
-  document.getElementById('dash-metrics').innerHTML=`
-    <div class="metric"><div class="metric-label">Bruttoumsatz</div><div class="metric-value neu">${fmtS(totalBrutto)}</div></div>
-    <div class="metric"><div class="metric-label">Deckungsbeitrag</div><div class="metric-value ${totalDB>=0?'pos':'neg'}">${fmtS(totalDB)}</div></div>
-    <div class="metric" style="background:#CCE5FF;border:none;transform:scale(1.04);box-shadow:0 4px 16px rgba(0,50,101,0.15);text-align:center">
-      <div class="metric-label" style="color:#003265">Gewinn / Verlust</div>
-      <div style="font-size:28px;font-weight:400;color:${gewinn>=0?'#1a7a4a':'#c0392b'}">${fmtS(gewinn)}</div>
-    </div>
-    <div class="metric"><div class="metric-label">Monatskosten</div><div class="metric-value neg">−${fmtS(gesamtkosten)}</div></div>
-    <div class="metric"><div class="metric-label">Bestellungen</div><div class="metric-value neu">${orders.length}</div></div>`;
+  const retourenCount=getOrders().filter(o=>o.isRetoure&&o.datum&&new Date(o.datum).getMonth()+1===month&&new Date(o.datum).getFullYear()===year).length;
+  const avgDB=orders.length>0?(totalDB/orders.length):0;
+  const avgOrder=orders.length>0?(totalBrutto/orders.length):0;
+
+  const kachelData={
+    brutto: {label:'Bruttoumsatz',   value:fmtS(totalBrutto), cls:'neu'},
+    netto:  {label:'Nettoumsatz',    value:fmtS(totalNetto),  cls:'neu'},
+    db:     {label:'Deckungsbeitrag',value:fmtS(totalDB),     cls:totalDB>=0?'pos':'neg'},
+    gewinn: {label:'Gewinn / Verlust',value:fmtS(gewinn),     cls:gewinn>=0?'pos':'neg', highlight:true},
+    kosten: {label:'Monatskosten',   value:'−'+fmtS(gesamtkosten), cls:'neg'},
+    orders: {label:'Bestellungen',   value:orders.length,     cls:'neu'},
+    retouren:{label:'Retouren',      value:retourenCount,     cls:retourenCount>0?'neg':'neu'},
+    avg_db: {label:'Ø DB / Bestellung', value:fmtS(avgDB),   cls:avgDB>=0?'pos':'neg'},
+    avg_order:{label:'Ø Bestellwert',value:fmtS(avgOrder),   cls:'neu'},
+  };
+
+  const selectedKacheln=getDashKacheln();
+  document.getElementById('dash-metrics').innerHTML=selectedKacheln.map((id,i)=>{
+    const k=kachelData[id];
+    if(!k) return '';
+    if(k.highlight) return `
+      <div class="metric" style="background:#CCE5FF;border:none;transform:scale(1.04);box-shadow:0 4px 16px rgba(0,50,101,0.15);text-align:center">
+        <div class="metric-label" style="color:#003265">${k.label}</div>
+        <div style="font-size:28px;font-weight:400;color:${gewinn>=0?'#1a7a4a':'#c0392b'}">${k.value}</div>
+      </div>`;
+    return `<div class="metric"><div class="metric-label">${k.label}</div><div class="metric-value ${k.cls}">${k.value}</div></div>`;
+  }).join('');
   const dashCfg=getDashChannels()||{Amazon:true,eBay:true,Otto:true,Shopify:true,Rechnungen:true};
   document.getElementById('dash-channels').innerHTML=Object.entries(byChannel).filter(([ch])=>dashCfg[ch]!==false).map(([ch,d])=>{
     const mpgBetrag=mpgData[ch]?.betrag||0;
@@ -5496,7 +5520,59 @@ function showPraef(sub){
     if(el) el.value=s.labelDefault||'';
     renderRetZustaendeList();
   }
-  if(sub==='dashboard') loadDashChannels();
+  if(sub==='dashboard'){ loadDashChannels(); initDashKachelnGrid(); }
+}
+
+/* ── DASHBOARD KACHELN ── */
+const DASH_KACHELN_ALL=[
+  {id:'brutto',    label:'Bruttoumsatz',         desc:'Gesamter Bruttoumsatz'},
+  {id:'netto',     label:'Nettoumsatz',           desc:'Umsatz ohne MwSt'},
+  {id:'db',        label:'Deckungsbeitrag',       desc:'Netto − EK − Versand − Provision'},
+  {id:'gewinn',    label:'Gewinn / Verlust',      desc:'DB minus alle Fixkosten'},
+  {id:'kosten',    label:'Monatskosten',          desc:'Fixkosten + Marketing + Grundgebühren'},
+  {id:'orders',    label:'Bestellungen',          desc:'Anzahl Bestellungen im Monat'},
+  {id:'retouren',  label:'Retouren',              desc:'Anzahl Retouren im Monat'},
+  {id:'avg_db',    label:'Ø DB pro Bestellung',  desc:'Durchschnittlicher Deckungsbeitrag'},
+  {id:'avg_order', label:'Ø Bestellwert',        desc:'Durchschnittlicher Bruttoumsatz'},
+];
+const DASH_KACHELN_DEFAULT=['brutto','db','gewinn','kosten','orders'];
+
+function getDashKacheln(){
+  try{
+    const raw=localStorage.getItem('ec_dash_kacheln');
+    const parsed=raw?JSON.parse(raw):null;
+    return Array.isArray(parsed)&&parsed.length===5?parsed:DASH_KACHELN_DEFAULT;
+  }catch{return DASH_KACHELN_DEFAULT;}
+}
+
+function saveDashKacheln(){
+  const checked=[...document.querySelectorAll('.dash-kachel-check:checked')].map(el=>el.dataset.id);
+  const hint=document.getElementById('dash-kacheln-hint');
+  if(checked.length!==5){
+    if(hint) hint.style.display='block';
+    return;
+  }
+  if(hint) hint.style.display='none';
+  localStorage.setItem('ec_dash_kacheln',JSON.stringify(checked));
+  if(dbSynced) saveSettingToSupabase('dash_kacheln',JSON.stringify(checked));
+  renderDashboard();
+}
+
+function initDashKachelnGrid(){
+  const grid=document.getElementById('dash-kacheln-grid');
+  if(!grid) return;
+  const current=getDashKacheln();
+  grid.innerHTML=DASH_KACHELN_ALL.map(k=>`
+    <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:8px;border:0.5px solid #ddddd5;border-radius:8px;background:${current.includes(k.id)?'#f0f9f5':'#fafaf8'}">
+      <input type="checkbox" class="dash-kachel-check" data-id="${k.id}"
+        ${current.includes(k.id)?'checked':''}
+        onchange="saveDashKacheln()"
+        style="width:16px;height:16px;accent-color:#003265;margin-top:1px;flex-shrink:0;">
+      <span>
+        <span style="display:block;font-size:13px;font-weight:500;color:#1a1a18;">${k.label}</span>
+        <span style="display:block;font-size:11px;color:#888780;">${k.desc}</span>
+      </span>
+    </label>`).join('');
 }
 
 function getDashChannels(){
@@ -5795,6 +5871,14 @@ function initRealtime(){
         if(s.key==='dash_channels'){
           localStorage.setItem('ec_dash_channels',s.value);
           renderDashboard();
+        }
+        if(s.key==='dash_kacheln'){
+          const parsed=JSON.parse(s.value||'null');
+          if(Array.isArray(parsed)&&parsed.length===5){
+            localStorage.setItem('ec_dash_kacheln',s.value);
+            initDashKachelnGrid();
+            renderDashboard();
+          }
         }
       });
         } else if(table==='rechnungen'){

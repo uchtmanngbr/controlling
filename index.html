@@ -627,7 +627,7 @@ tr:last-child td{border-bottom:none;}
           <div class="field">
             <label>Gültig bis </label>
             <div style="position:relative">
-              <input type="text" id="fk-gueltig-bis" readonly placeholder="unbegrenzt"
+              <input type="text" id="fk-gueltig-bis" readonly placeholder="Laufend"
                 style="cursor:pointer;background:#fff;"
                 onclick="toggleMonthPicker('fk-bis-picker','fk-gueltig-bis')">
               <div id="fk-bis-picker" style="display:none;position:absolute;top:100%;left:0;z-index:300;background:#fff;border:0.5px solid #ddddd5;border-radius:12px;box-shadow:0 4px 20px rgba(0,50,101,0.12);padding:12px;width:260px;margin-top:4px">
@@ -637,6 +637,7 @@ tr:last-child td{border-bottom:none;}
                   <button onclick="changePickerYear('fk-bis-picker',1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:#003265;padding:4px 8px">›</button>
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;" id="fk-bis-picker-grid"></div>
+                <button onclick="document.getElementById('fk-gueltig-bis').value='';document.getElementById('fk-gueltig-bis').dataset.value='';document.getElementById('fk-bis-picker').style.display='none';" style="width:100%;margin-top:8px;padding:6px;border:none;border-radius:8px;background:#003265;cursor:pointer;font-size:12px;color:#fff;font-weight:500;">Laufend</button>
               </div>
             </div>
           </div>
@@ -3780,15 +3781,20 @@ function renderFixkosten(){
       let grand=0;
       fixEl.innerHTML=sortedCats.map(cat=>{
         const catItems=bycat[cat];
-        const catTotal=catItems.reduce((s,i)=>s+toMonthly(i.betrag,i.intervall),0);
+        const now=new Date();
+        const curMonth=now.getMonth()+1; const curYear=now.getFullYear();
+        // Nur gültige Posten in Summe einrechnen
+        const catTotal=catItems.filter(i=>fkGueltigFuerMonat(i,curMonth,curYear)).reduce((s,i)=>s+toMonthly(i.betrag,i.intervall),0);
         grand+=catTotal;
         const icon=FK_CAT_ICONS[cat]||`<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9.41L13.59 4H7Zm5 10a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm0-5a1 1 0 0 1 1 1v3a1 1 0 0 1-2 0v-3a1 1 0 0 1 1-1Zm2-4.59L16.59 8H14V4.41Z"/></svg>`;
         const rows=catItems.map(item=>{
           const monthly=toMonthly(item.betrag,item.intervall);
           const ab=item.gueltig_ab?item.gueltig_ab.slice(0,7):'2020-01';
-          const bis=item.gueltig_bis?item.gueltig_bis.slice(0,7):'∞';
-          const zeitraum=`ab ${ab}${bis!=='∞'?' bis '+bis:''}`;
-          return `<div class="fk-item-row" style="grid-template-columns:1fr 130px 64px">
+          const bis=item.gueltig_bis?item.gueltig_bis.slice(0,7):'Laufend';
+          const zeitraum=`ab ${ab}${bis!=='Laufend'?' bis '+bis:''}`;
+          const now2=new Date();
+          const isGueltig=fkGueltigFuerMonat(item,now2.getMonth()+1,now2.getFullYear());
+          return `<div class="fk-item-row" style="grid-template-columns:1fr 130px 64px${isGueltig?'':';opacity:0.4'}">
             <span class="fk-item-name">${item.name}<span style="display:block;font-size:10px;color:#888780;font-weight:400">${zeitraum}</span></span>
             <span class="fk-item-monthly" style="text-align:right">${fmt(monthly)}<span style="font-size:10px;color:#888780;font-weight:400"> /Monat</span></span>
             <div style="display:flex;gap:4px">
@@ -6290,7 +6296,7 @@ async function initApp(){
         <div class="field">
           <label>Gültig bis </label>
           <div style="position:relative">
-            <input type="text" id="fke-gueltig-bis" readonly placeholder="unbegrenzt"
+            <input type="text" id="fke-gueltig-bis" readonly placeholder="Laufend"
               style="cursor:pointer;background:#fff;"
               onclick="toggleMonthPicker('fke-bis-picker','fke-gueltig-bis')">
             <div id="fke-bis-picker" style="display:none;position:absolute;top:100%;left:0;z-index:300;background:#fff;border:0.5px solid #ddddd5;border-radius:12px;box-shadow:0 4px 20px rgba(0,50,101,0.12);padding:12px;width:260px;margin-top:4px">
@@ -6300,6 +6306,7 @@ async function initApp(){
                 <button onclick="changePickerYear('fke-bis-picker',1)" style="background:none;border:none;cursor:pointer;font-size:16px;color:#003265;padding:4px 8px">›</button>
               </div>
               <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;" id="fke-bis-picker-grid"></div>
+                <button onclick="document.getElementById('fke-gueltig-bis').value='';document.getElementById('fke-gueltig-bis').dataset.value='';document.getElementById('fke-bis-picker').style.display='none';" style="width:100%;margin-top:8px;padding:6px;border:none;border-radius:8px;background:#003265;cursor:pointer;font-size:12px;color:#fff;font-weight:500;">Laufend</button>
             </div>
           </div>
         </div>

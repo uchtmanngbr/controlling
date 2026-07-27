@@ -1154,6 +1154,7 @@ tr:last-child td{border-bottom:none;}
       <button onclick="showPraef('retouren')" id="praef-btn-retouren" class="op-btn" style="font-size:14px;padding:8px 20px">Retoureneinstellungen</button>
       <button onclick="showPraef('marktplaetze')" id="praef-btn-marktplaetze" class="op-btn" style="font-size:14px;padding:8px 20px">Verkaufsprovision</button>
       <button onclick="showPraef('dashboard')" id="praef-btn-dashboard" class="op-btn" style="font-size:14px;padding:8px 20px">Dashboard</button>
+      <button onclick="showPraef('verbindungen')" id="praef-btn-verbindungen" class="op-btn" style="font-size:14px;padding:8px 20px;display:flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 7a1 1 0 0 1 .117 1.993L9 9H7a3 3 0 0 0-.176 5.995L7 15h2a1 1 0 0 1 .117 1.993L9 17H7a5 5 0 0 1-.217-9.995L7 7h2Zm8 0a5 5 0 0 1 .217 9.995L17 17h-2a1 1 0 0 1-.117-1.993L15 15h2a3 3 0 0 0 .176-5.995L17 9h-2a1 1 0 0 1-.117-1.993L15 7h2ZM7 11h10a1 1 0 0 1 .117 1.993L17 13H7a1 1 0 0 1-.117-1.993L7 11h10H7Z"/></svg>Verbindungen</button>
     </div>
 
     <!-- VERSAND INHALT -->
@@ -1316,7 +1317,136 @@ tr:last-child td{border-bottom:none;}
         </div>
       </div>
     </div>
-  </div>
+  
+    <!-- VERBINDUNGEN -->
+    <div id="praef-verbindungen" style="display:none;">
+      <div style="margin-bottom:20px;">
+        <div class="section-title">API-Verbindungen</div>
+        <div class="text-sm" style="margin-top:4px;margin-bottom:20px;">Verbinde deine Marktplätze um Bestellungen automatisch zu importieren. Der Import läuft stündlich im Hintergrund.</div>
+      </div>
+
+      <!-- STATUS KACHELN -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;">
+
+        <!-- Shopify -->
+        <div class="form-card" style="margin:0;padding:16px;display:flex;align-items:center;gap:14px;cursor:pointer;" onclick="openConnSetup('shopify')">
+          <div style="width:40px;height:40px;border-radius:10px;background:#96BF48;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;font-weight:700;color:white;font-family:sans-serif;">S</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:14px;">Shopify</div>
+            <div id="conn-status-shopify" style="font-size:12px;color:#888780;margin-top:2px;">Nicht verbunden</div>
+          </div>
+          <div id="conn-badge-shopify" style="width:10px;height:10px;border-radius:50%;background:#ddddd5;flex-shrink:0;"></div>
+        </div>
+
+        <!-- eBay -->
+        <div class="form-card" style="margin:0;padding:16px;display:flex;align-items:center;gap:14px;opacity:0.5;">
+          <div style="width:40px;height:40px;border-radius:10px;background:#E53238;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;font-weight:700;color:white;font-family:sans-serif;">eB</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:14px;">eBay</div>
+            <div id="conn-status-ebay" style="font-size:12px;color:#888780;margin-top:2px;">Nicht verbunden</div>
+          </div>
+          <span style="font-size:10px;background:#FAEEDA;color:#854F0B;padding:2px 8px;border-radius:99px;font-weight:600;white-space:nowrap;">Bald verfügbar</span>
+        </div>
+
+        <!-- Otto -->
+        <div class="form-card" style="margin:0;padding:16px;display:flex;align-items:center;gap:14px;opacity:0.5;">
+          <div style="width:40px;height:40px;border-radius:10px;background:#CC0000;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;font-weight:700;color:white;font-family:sans-serif;">O</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:14px;">Otto</div>
+            <div id="conn-status-otto" style="font-size:12px;color:#888780;margin-top:2px;">Nicht verbunden</div>
+          </div>
+          <span style="font-size:10px;background:#FAEEDA;color:#854F0B;padding:2px 8px;border-radius:99px;font-weight:600;white-space:nowrap;">Bald verfügbar</span>
+        </div>
+
+        <!-- Amazon -->
+        <div class="form-card" style="margin:0;padding:16px;display:flex;align-items:center;gap:14px;opacity:0.5;">
+          <div style="width:40px;height:40px;border-radius:10px;background:#FF9900;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;font-weight:700;color:white;font-family:sans-serif;">A</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:14px;">Amazon</div>
+            <div style="font-size:12px;color:#888780;margin-top:2px;">Coming Soon</div>
+          </div>
+          <span style="font-size:10px;background:#FAEEDA;color:#854F0B;padding:2px 8px;border-radius:99px;font-weight:600;white-space:nowrap;">Bald verfügbar</span>
+        </div>
+      </div>
+
+      <!-- SETUP FORMULARE -->
+      <div id="conn-setup-shopify" class="form-card" style="display:none;border:1.5px solid #96BF48;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div class="section-title" style="margin:0;">Shopify einrichten</div>
+          <button class="btn" onclick="closeConnSetup('shopify')">✕</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="field"><label>Shop-URL</label><input type="text" id="conn-shopify-url" placeholder="meinshop.myshopify.com"></div>
+          <div class="field"><label>Admin API Access Token</label><input type="password" id="conn-shopify-key" placeholder="shpat_..."></div>
+        </div>
+        <div style="background:#E6F1FB;border-radius:8px;padding:10px 14px;font-size:12px;color:#185FA5;margin:12px 0;line-height:1.5;">
+          <b>Wo finde ich den Token?</b> Shopify Admin → Einstellungen → Apps → App entwickeln → App erstellen → Admin API-Zugriffstoken generieren
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" onclick="testConn('shopify')" style="display:flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Zm4.5 7.5-5 5a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 1 1 1.06-1.06L11 12.94l4.44-4.44a.75.75 0 0 1 1.06 1.06Z"/></svg>Verbindung testen</button>
+          <button class="btn primary" onclick="saveConn('shopify')">Speichern &amp; verbinden</button>
+          <button class="btn" onclick="disconnectConn('shopify')" id="conn-disconnect-shopify" style="display:none;color:#E24B4A;border-color:#E24B4A;">Trennen</button>
+        </div>
+        <div id="conn-result-shopify" style="margin-top:10px;font-size:12px;"></div>
+      </div>
+
+      <div id="conn-setup-ebay" class="form-card" style="display:none;border:1.5px solid #E53238;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div class="section-title" style="margin:0;">eBay einrichten</div>
+          <button class="btn" onclick="closeConnSetup('ebay')">✕</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="field"><label>App ID (Client ID)</label><input type="text" id="conn-ebay-clientid" placeholder="DeineApp-..."></div>
+          <div class="field"><label>Cert ID (Client Secret)</label><input type="password" id="conn-ebay-secret" placeholder="..."></div>
+          <div class="field" style="grid-column:1/-1"><label>Refresh Token</label><input type="password" id="conn-ebay-token" placeholder="v^1.1#i^1#..."></div>
+        </div>
+        <div style="background:#E6F1FB;border-radius:8px;padding:10px 14px;font-size:12px;color:#185FA5;margin:12px 0;line-height:1.5;">
+          <b>Wo finde ich diese Daten?</b> eBay Developer Portal → My Account → Application Keys. Den Refresh Token erhältst du über den OAuth-Autorisierungsflow.
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" onclick="testConn('ebay')" style="display:flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Zm4.5 7.5-5 5a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 1 1 1.06-1.06L11 12.94l4.44-4.44a.75.75 0 0 1 1.06 1.06Z"/></svg>Verbindung testen</button>
+          <button class="btn primary" onclick="saveConn('ebay')">Speichern &amp; verbinden</button>
+          <button class="btn" onclick="disconnectConn('ebay')" id="conn-disconnect-ebay" style="display:none;color:#E24B4A;border-color:#E24B4A;">Trennen</button>
+        </div>
+        <div id="conn-result-ebay" style="margin-top:10px;font-size:12px;"></div>
+      </div>
+
+      <div id="conn-setup-otto" class="form-card" style="display:none;border:1.5px solid #CC0000;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div class="section-title" style="margin:0;">Otto einrichten</div>
+          <button class="btn" onclick="closeConnSetup('otto')">✕</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="field"><label>API-Benutzername</label><input type="text" id="conn-otto-user" placeholder="Dein OPC-Benutzername"></div>
+          <div class="field"><label>API-Passwort</label><input type="password" id="conn-otto-key" placeholder="Dein OPC API-Passwort"></div>
+        </div>
+        <div style="background:#E6F1FB;border-radius:8px;padding:10px 14px;font-size:12px;color:#185FA5;margin:12px 0;line-height:1.5;">
+          <b>Wo finde ich die Zugangsdaten?</b> Otto Partner Connect (OPC) Portal → Einstellungen → API → API-Zugangsdaten
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" onclick="testConn('otto')" style="display:flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Zm4.5 7.5-5 5a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 1 1 1.06-1.06L11 12.94l4.44-4.44a.75.75 0 0 1 1.06 1.06Z"/></svg>Verbindung testen</button>
+          <button class="btn primary" onclick="saveConn('otto')">Speichern &amp; verbinden</button>
+          <button class="btn" onclick="disconnectConn('otto')" id="conn-disconnect-otto" style="display:none;color:#E24B4A;border-color:#E24B4A;">Trennen</button>
+        </div>
+        <div id="conn-result-otto" style="margin-top:10px;font-size:12px;"></div>
+      </div>
+
+      <!-- MANUELLER IMPORT -->
+      <div class="form-card" style="margin-top:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div class="section-title" style="margin:0;">Manueller Import</div>
+            <div class="text-sm" style="margin-top:2px;">Bestellungen der letzten 30 Tage von allen verbundenen Marktplätzen importieren</div>
+          </div>
+          <button class="btn primary" onclick="triggerManualSync()" style="display:flex;align-items:center;gap:6px;white-space:nowrap;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4a8 8 0 0 1 7.94 7h-2.02A6 6 0 1 0 12 18v-2l3.5 2.5L12 21v-2a8 8 0 0 1 0-16Z"/></svg>
+            Jetzt importieren
+          </button>
+        </div>
+        <div id="conn-sync-status" style="margin-top:10px;font-size:12px;color:#888780;"></div>
+      </div>
+    </div><!-- /praef-verbindungen -->
+</div>
 
     <!-- VERSAND (versteckt, für Kompatibilität) -->
   <div class="page" id="page-versand" style="display:none!important"></div>
@@ -1528,6 +1658,14 @@ async function syncFromSupabase(){
         if(s.key==='verkaufsprovision') localStorage.setItem('ec_verkaufsprovision',s.value);
         if(s.key==='ret_zustaende') localStorage.setItem('ec_ret_zustaende',s.value);
         if(s.key==='dash_channels') localStorage.setItem('ec_dash_channels',s.value);
+        if(s.key==='conn_shopify'||s.key==='conn_ebay'||s.key==='conn_otto'){
+          try{
+            const mp=s.key.replace('conn_','');
+            const cur=getConnSettings();
+            cur[mp]=JSON.parse(s.value||'{}');
+            setConnSettings(cur);
+          }catch{}
+        }
         if(s.key==='fk_kategorien'){
           try{
             const cats=JSON.parse(s.value||'[]');
@@ -1804,6 +1942,140 @@ function deleteCustomKat(i){
   cats.splice(i,1);
   saveCustomKategorien(cats);
   renderKatManager();
+}
+
+
+/* ── API VERBINDUNGEN ── */
+const CONN_MARKETS=['shopify','ebay','otto'];
+
+function getConnSettings(){
+  try{return JSON.parse(localStorage.getItem('ec_conn_settings')||'{}');}catch{return{};}
+}
+function setConnSettings(d){
+  localStorage.setItem('ec_conn_settings',JSON.stringify(d));
+}
+
+function renderConnStatus(){
+  const settings=getConnSettings();
+  CONN_MARKETS.forEach(mp=>{
+    const connected=!!(settings[mp]?.connected);
+    const badge=document.getElementById('conn-badge-'+mp);
+    const status=document.getElementById('conn-status-'+mp);
+    if(badge) badge.style.background=connected?'#1D9E75':'#ddddd5';
+    if(status) status.textContent=connected
+      ?'Verbunden — letzter Sync: '+(settings[mp]?.lastSync?new Date(settings[mp].lastSync).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'Noch kein Sync')
+      :'Nicht verbunden';
+    const disc=document.getElementById('conn-disconnect-'+mp);
+    if(disc) disc.style.display=connected?'inline-flex':'none';
+  });
+}
+
+function openConnSetup(mp){
+  CONN_MARKETS.forEach(m=>{
+    const el=document.getElementById('conn-setup-'+m);
+    if(el) el.style.display='none';
+  });
+  const setup=document.getElementById('conn-setup-'+mp);
+  if(!setup) return;
+  setup.style.display='block';
+  // Pre-fill saved values
+  const s=getConnSettings()[mp]||{};
+  if(mp==='shopify'){
+    const url=document.getElementById('conn-shopify-url');
+    const key=document.getElementById('conn-shopify-key');
+    if(url) url.value=s.url||'';
+    if(key) key.value=s.key?'••••••••':'';
+  } else if(mp==='ebay'){
+    const cid=document.getElementById('conn-ebay-clientid');
+    const sec=document.getElementById('conn-ebay-secret');
+    const tok=document.getElementById('conn-ebay-token');
+    if(cid) cid.value=s.clientId||'';
+    if(sec) sec.value=s.secret?'••••••••':'';
+    if(tok) tok.value=s.token?'••••••••':'';
+  } else if(mp==='otto'){
+    const usr=document.getElementById('conn-otto-user');
+    const key=document.getElementById('conn-otto-key');
+    if(usr) usr.value=s.user||'';
+    if(key) key.value=s.key?'••••••••':'';
+  }
+  const disc=document.getElementById('conn-disconnect-'+mp);
+  const settings=getConnSettings();
+  if(disc) disc.style.display=settings[mp]?.connected?'inline-flex':'none';
+  clearConnResult(mp);
+}
+
+function closeConnSetup(mp){
+  const el=document.getElementById('conn-setup-'+mp);
+  if(el) el.style.display='none';
+}
+
+function clearConnResult(mp){
+  const el=document.getElementById('conn-result-'+mp);
+  if(el) el.innerHTML='';
+}
+
+function showConnResult(mp, ok, msg){
+  const el=document.getElementById('conn-result-'+mp);
+  if(!el) return;
+  el.innerHTML=`<span style="color:${ok?'#1D9E75':'#E24B4A'};display:flex;align-items:center;gap:6px;">
+    ${ok?'<svg width="14" height="14" viewBox="0 0 24 24" fill="#1D9E75"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Zm4.5 7.5-5 5a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 1 1 1.06-1.06L11 12.94l4.44-4.44a.75.75 0 0 1 1.06 1.06Z"/></svg>'
+    :'<svg width="14" height="14" viewBox="0 0 24 24" fill="#E24B4A"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Zm-1 13V11h2v4h-2Zm0-6V7h2v2h-2Z"/></svg>'}
+    ${msg}</span>`;
+}
+
+async function testConn(mp){
+  // Wird aktiv wenn Railway-Backend steht
+  // Vorerst: simulierte Antwort
+  showConnResult(mp, false, 'Backend noch nicht verbunden — wird mit Railway-Anbindung aktiviert.');
+}
+
+async function saveConn(mp){
+  const settings=getConnSettings();
+  if(!settings[mp]) settings[mp]={};
+  if(mp==='shopify'){
+    const url=document.getElementById('conn-shopify-url')?.value.trim();
+    const key=document.getElementById('conn-shopify-key')?.value.trim();
+    if(!url||!key){showConnResult(mp,false,'Bitte alle Felder ausfüllen.');return;}
+    if(!url.includes('.myshopify.com')&&!url.includes('.')){showConnResult(mp,false,'Bitte eine gültige Shop-URL eingeben.');return;}
+    if(!key.includes('••')) settings[mp].url=url;
+    if(!key.includes('••')) settings[mp].key=key;
+  } else if(mp==='ebay'){
+    const cid=document.getElementById('conn-ebay-clientid')?.value.trim();
+    const sec=document.getElementById('conn-ebay-secret')?.value.trim();
+    const tok=document.getElementById('conn-ebay-token')?.value.trim();
+    if(!cid||!sec||!tok){showConnResult(mp,false,'Bitte alle Felder ausfüllen.');return;}
+    if(!cid.includes('••')) settings[mp].clientId=cid;
+    if(!sec.includes('••')) settings[mp].secret=sec;
+    if(!tok.includes('••')) settings[mp].token=tok;
+  } else if(mp==='otto'){
+    const usr=document.getElementById('conn-otto-user')?.value.trim();
+    const key=document.getElementById('conn-otto-key')?.value.trim();
+    if(!usr||!key){showConnResult(mp,false,'Bitte alle Felder ausfüllen.');return;}
+    if(!usr.includes('••')) settings[mp].user=usr;
+    if(!key.includes('••')) settings[mp].key=key;
+  }
+  settings[mp].connected=true;
+  setConnSettings(settings);
+  if(dbSynced) await saveSettingToSupabase('conn_'+mp, JSON.stringify(settings[mp]));
+  renderConnStatus();
+  showConnResult(mp, true, 'Gespeichert. Verbindungstest wird nach Railway-Anbindung verfügbar.');
+}
+
+function disconnectConn(mp){
+  const settings=getConnSettings();
+  if(settings[mp]){
+    delete settings[mp];
+    setConnSettings(settings);
+    if(dbSynced) saveSettingToSupabase('conn_'+mp, '{}');
+  }
+  renderConnStatus();
+  closeConnSetup(mp);
+  showToast(mp.charAt(0).toUpperCase()+mp.slice(1)+' getrennt.');
+}
+
+async function triggerManualSync(){
+  const el=document.getElementById('conn-sync-status');
+  if(el) el.textContent='Wird nach Railway-Anbindung verfügbar.';
 }
 
 /* ── MARKETING ── */
@@ -5690,7 +5962,7 @@ function fmtDate(d){
 }
 
 function showPraef(sub){
-  ['versand','retouren','marktplaetze','dashboard'].forEach(s=>{
+  ['versand','retouren','marktplaetze','dashboard','verbindungen'].forEach(s=>{
     const el=document.getElementById('praef-'+s);
     const btn=document.getElementById('praef-btn-'+s);
     if(el) el.style.display=s===sub?'block':'none';
@@ -5705,6 +5977,7 @@ function showPraef(sub){
     renderRetZustaendeList();
   }
   if(sub==='dashboard'){ loadDashChannels(); initDashKachelnGrid(); }
+  if(sub==='verbindungen') renderConnStatus();
 }
 
 /* ── DASHBOARD KACHELN ── */
@@ -6052,10 +6325,26 @@ function initRealtime(){
           localStorage.setItem('ec_dash_channels',s.value);
           renderDashboard();
         }
+        if(s.key==='conn_shopify'||s.key==='conn_ebay'||s.key==='conn_otto'){
+          try{
+            const mp=s.key.replace('conn_','');
+            const cur=getConnSettings();
+            cur[mp]=JSON.parse(s.value||'{}');
+            setConnSettings(cur);
+          }catch{}
+        }
         if(s.key==='fk_kategorien'){
           try{
             const cats=JSON.parse(s.value||'[]');
             if(Array.isArray(cats)) localStorage.setItem('ec_fk_custom_cats',s.value);
+          }catch{}
+        }
+        if(s.key==='conn_shopify'||s.key==='conn_ebay'||s.key==='conn_otto'){
+          try{
+            const mp=s.key.replace('conn_','');
+            const cur=getConnSettings();
+            cur[mp]=JSON.parse(s.value||'{}');
+            setConnSettings(cur);
           }catch{}
         }
         if(s.key==='fk_kategorien'){

@@ -3298,7 +3298,7 @@ async function saveEdit(){
     ...orders[idx],
     datum: document.getElementById('ed-datum').value,
     kanal: document.getElementById('ed-kanal').value,
-    bestellnr: document.getElementById('ed-bestellnr').value,
+    bestellnr: document.getElementById('ed-bestellnr').value.trim().replace(/^#+/, ''),
     items: [..._edItems],
     artikel: itemsToNameString(_edItems),
     sku: itemsToSkuString(_edItems),
@@ -3327,7 +3327,7 @@ function closeEdit(){
 
 document.getElementById('header-date').textContent=new Date().toLocaleDateString('de-DE',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
-function getOrders(){try{return JSON.parse(localStorage.getItem('ec_orders')||'[]');}catch(e){return[];}}
+function getOrders(){try{return (JSON.parse(localStorage.getItem('ec_orders')||'[]')).filter(o=>!o.deleted);}catch(e){return[];}}
 function saveOrders(o){
   localStorage.setItem('ec_orders',JSON.stringify(o));
   // Kein automatischer Supabase-Sync hier — wird explizit in saveOrder/saveEdit aufgerufen
@@ -3494,7 +3494,7 @@ async function saveOrder(){
   if(_formItems.length===0||_formItems.every(it=>!it.sku&&!it.name)){
     showToast('Bitte mindestens eine Position eintragen.');return;
   }
-  const bestellnr=document.getElementById('f-bestellnr').value.trim();
+  const bestellnr=document.getElementById('f-bestellnr').value.trim().replace(/^#+/, '');
 
   // Duplikatsschutz
   if(bestellnr){
@@ -3721,13 +3721,24 @@ function resolveConfirm(val){
 async function deleteOrder(id){
   const _o=getOrders().find(o=>o.id===id);
   const _nr=_o?(_o.bestellnr||_o.artikel||'#'+id):'#'+id;
+  const isApiOrder=_o?.kanal==='Shopify'; // Wird erweitert wenn eBay/Otto kommen
   if(!await customConfirm(`Bestellung <strong>„${_nr}"</strong> wirklich löschen?<br><span style="font-size:12px">Diese Aktion kann nicht rückgängig gemacht werden.</span>`,'Bestellung löschen')) return;
+  if(isApiOrder && dbSynced){
+    // API-Bestellungen: als gelöscht markieren damit sie nicht wieder importiert werden
+    fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`,{
+      method:'PATCH',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({deleted:true})
+    }).catch(e=>console.warn('Supabase delete flag error:',e));
+  } else if(dbSynced){
+    // Manuelle Bestellungen: hart löschen
+    fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`,{
+      method:'DELETE',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+    }).catch(e=>console.warn('Supabase delete error:',e));
+  }
   saveOrders(getOrders().filter(o=>String(o.id)!==String(id)));
   renderOrders(); renderDashboard();
-  if(dbSynced) fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`,{
-    method:'DELETE',
-    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
-  }).catch(e=>console.warn('Supabase delete error:',e));
 }
 async function deleteAll(){
   if(!await customConfirm('<strong>Alle Bestellungen</strong> wirklich löschen?<br><span style="font-size:12px">Diese Aktion kann nicht rückgängig gemacht werden.</span>','Alle Bestellungen löschen','Alle löschen')) return;

@@ -2023,10 +2023,33 @@ function showConnResult(mp, ok, msg){
     ${msg}</span>`;
 }
 
+const BACKEND_URL='https://profitviewer-backend-production.up.railway.app';
+
 async function testConn(mp){
-  // Wird aktiv wenn Railway-Backend steht
-  // Vorerst: simulierte Antwort
-  showConnResult(mp, false, 'Backend noch nicht verbunden — wird mit Railway-Anbindung aktiviert.');
+  const result=document.getElementById('conn-result-'+mp);
+  if(result) result.innerHTML='<span style="color:#888780">Teste Verbindung...</span>';
+  try{
+    let body={};
+    if(mp==='shopify'){
+      const url=document.getElementById('conn-shopify-url')?.value.trim();
+      const key=document.getElementById('conn-shopify-key')?.value.trim();
+      if(!url||!key){showConnResult(mp,false,'Bitte alle Felder ausfüllen.');return;}
+      body={shopUrl:url,accessToken:key};
+    }
+    const res=await fetch(`${BACKEND_URL}/${mp}/test`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body),
+    });
+    const data=await res.json();
+    if(data.ok){
+      showConnResult(mp,true,`Verbindung erfolgreich${data.shop?' — Shop: '+data.shop:''}`);
+    } else {
+      showConnResult(mp,false,data.error||'Verbindung fehlgeschlagen');
+    }
+  }catch(err){
+    showConnResult(mp,false,'Backend nicht erreichbar: '+err.message);
+  }
 }
 
 async function saveConn(mp){
@@ -2058,7 +2081,7 @@ async function saveConn(mp){
   setConnSettings(settings);
   if(dbSynced) await saveSettingToSupabase('conn_'+mp, JSON.stringify(settings[mp]));
   renderConnStatus();
-  showConnResult(mp, true, 'Gespeichert. Verbindungstest wird nach Railway-Anbindung verfügbar.');
+  showConnResult(mp, true, 'Gespeichert — Verbindung jetzt testen.');
 }
 
 function disconnectConn(mp){
@@ -2075,7 +2098,33 @@ function disconnectConn(mp){
 
 async function triggerManualSync(){
   const el=document.getElementById('conn-sync-status');
-  if(el) el.textContent='Wird nach Railway-Anbindung verfügbar.';
+  const settings=getConnSettings();
+  if(!settings.shopify?.connected){
+    if(el) el.textContent='Kein Marktplatz verbunden.';
+    return;
+  }
+  if(el) el.innerHTML='<span style="color:#888780">⟳ Importiere Bestellungen...</span>';
+  try{
+    const s=settings.shopify;
+    const res=await fetch(`${BACKEND_URL}/shopify/sync`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({shopUrl:s.url,accessToken:s.key}),
+    });
+    const data=await res.json();
+    if(data.ok){
+      if(el) el.innerHTML=`<span style="color:#1D9E75">✓ ${data.imported} Bestellungen importiert${data.skipped>0?' ('+data.skipped+' übersprungen)':''}</span>`;
+      settings.shopify.lastSync=new Date().toISOString();
+      setConnSettings(settings);
+      if(dbSynced) await saveSettingToSupabase('conn_shopify',JSON.stringify(settings.shopify));
+      renderConnStatus();
+      await syncFromSupabase();
+    } else {
+      if(el) el.innerHTML=`<span style="color:#E24B4A">✗ ${data.error}</span>`;
+    }
+  }catch(err){
+    if(el) el.innerHTML=`<span style="color:#E24B4A">✗ Backend nicht erreichbar: ${err.message}</span>`;
+  }
 }
 
 /* ── MARKETING ── */

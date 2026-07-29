@@ -1438,9 +1438,10 @@ tr:last-child td{border-bottom:none;}
             <div class="section-title" style="margin:0;">Manueller Import</div>
             <div class="text-sm" style="margin-top:2px;">Bestellungen der letzten 30 Tage von allen verbundenen Marktplätzen importieren</div>
           </div>
-          <button class="btn primary" onclick="triggerManualSync()" style="display:flex;align-items:center;gap:6px;white-space:nowrap;">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4a8 8 0 0 1 7.94 7h-2.02A6 6 0 1 0 12 18v-2l3.5 2.5L12 21v-2a8 8 0 0 1 0-16Z"/></svg>
-            Jetzt importieren
+          <button class="btn primary" onclick="triggerManualSync()" id="conn-sync-btn" style="display:flex;align-items:center;gap:6px;white-space:nowrap;">
+            <svg id="conn-sync-icon" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4a8 8 0 0 1 7.94 7h-2.02A6 6 0 1 0 12 18v-2l3.5 2.5L12 21v-2a8 8 0 0 1 0-16Z"/></svg>
+            <svg id="conn-sync-spinner" width="13" height="13" viewBox="0 0 24 24" fill="none" style="display:none;animation:spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="40" stroke-dashoffset="15" stroke-linecap="round"/></svg>
+            <span id="conn-sync-label">Jetzt importieren</span>
           </button>
         </div>
         <div id="conn-sync-status" style="margin-top:10px;font-size:12px;color:#888780;"></div>
@@ -1584,6 +1585,7 @@ tr:last-child td{border-bottom:none;}
 #imp-preview-table tr:last-child td{border-bottom:none;}
 #imp-preview-table tr.dup-row td{color:#c8c8c0;}
 .imp-dup-badge{font-size:10px;padding:1px 6px;border-radius:99px;background:#FAEEDA;color:#854F0B;margin-left:4px;}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 
 
@@ -2149,12 +2151,25 @@ function disconnectConn(mp){
 
 async function triggerManualSync(){
   const el=document.getElementById('conn-sync-status');
+  const btn=document.getElementById('conn-sync-btn');
+  const icon=document.getElementById('conn-sync-icon');
+  const spinner=document.getElementById('conn-sync-spinner');
+  const label=document.getElementById('conn-sync-label');
+
+  const setLoading=(loading)=>{
+    if(btn) btn.disabled=loading;
+    if(icon) icon.style.display=loading?'none':'block';
+    if(spinner) spinner.style.display=loading?'block':'none';
+    if(label) label.textContent=loading?'Importiere...':'Jetzt importieren';
+  };
+
   const settings=getConnSettings();
   if(!settings.shopify?.connected){
     if(el) el.textContent='Kein Marktplatz verbunden.';
     return;
   }
-  if(el) el.innerHTML='<span style="color:#888780">⟳ Importiere Bestellungen...</span>';
+  setLoading(true);
+  if(el) el.innerHTML='';
   try{
     const s=settings.shopify;
     const res=await fetch(`${BACKEND_URL}/shopify/sync`,{
@@ -2170,12 +2185,15 @@ async function triggerManualSync(){
       if(dbSynced) await saveSettingToSupabase('conn_shopify',JSON.stringify(settings.shopify));
       renderConnStatus();
       await syncFromSupabase();
+      setLoading(false);
       await showPapierkorbModal(data);
     } else {
       if(el) el.innerHTML=`<span style="color:#E24B4A">✗ ${data.error}</span>`;
+      setLoading(false);
     }
   }catch(err){
     if(el) el.innerHTML=`<span style="color:#E24B4A">✗ Backend nicht erreichbar: ${err.message}</span>`;
+    setLoading(false);
   }
 }
 

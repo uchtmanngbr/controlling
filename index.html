@@ -1616,7 +1616,7 @@ var _suppressRealtime=false; // Verhindert Realtime-Reload bei eigenen Änderung
 async function syncFromSupabase(){
   try{
     const [orders,orderItems,fixkosten,marketing,mpg,rechnungen,versand,settings,products]=await Promise.all([
-      sbFetch('orders','GET',null,'?select=*&order=id.desc'),
+      sbFetch('orders','GET',null,'?select=*&deleted=is.false&order=id.desc'),
       sbFetch('order_items','GET',null,'?select=*'),
       sbFetch('fixkosten','GET',null,'?select=*'),
       sbFetch('marketing','GET',null,'?select=*'),
@@ -1945,7 +1945,58 @@ function deleteCustomKat(i){
 }
 
 
-/* ── API VERBINDUNGEN ── */
+/* ── PAPIERKORB ── */
+async function getDeletedOrders(){
+  // Letzte 10 gelöschte Bestellungen aus Supabase holen
+  const data=await sbFetch('orders','GET',null,'?deleted=is.true&order=id.desc&limit=10');
+  return data||[];
+}
+
+async function showPapierkorbModal(importResult){
+  const summary=document.getElementById('papierkorb-import-summary');
+  if(summary) summary.textContent=`${importResult.imported} neue Bestellung${importResult.imported!==1?'en':''} importiert, ${importResult.skipped} übersprungen.`;
+
+  const deleted=await getDeletedOrders();
+  const section=document.getElementById('papierkorb-section');
+  const list=document.getElementById('papierkorb-list');
+  const restoreBtn=document.getElementById('papierkorb-restore-btn');
+
+  if(deleted.length>0 && section && list){
+    section.style.display='block';
+    if(restoreBtn) restoreBtn.style.display='inline-flex';
+    list.innerHTML=deleted.map(o=>`
+      <label style="display:flex;align-items:center;gap:10px;padding:8px;border-bottom:0.5px solid #f5f5f3;cursor:pointer;">
+        <input type="checkbox" class="papierkorb-check" data-id="${o.id}"
+          style="width:16px;height:16px;accent-color:#003265;flex-shrink:0;">
+        <span style="flex:1;">
+          <span style="display:block;font-size:13px;font-weight:500;">${o.artikel||o.bestellnr||'—'}</span>
+          <span style="display:block;font-size:11px;color:#888780;">${o.bestellnr} · ${o.kanal} · ${o.datum}</span>
+        </span>
+        <span style="font-size:13px;font-weight:600;color:#003265;">${new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(o.umsatzBrutto||0)}</span>
+      </label>`).join('');
+  } else if(section){
+    section.style.display='none';
+  }
+
+  document.getElementById('papierkorb-modal-bg').style.display='flex';
+}
+
+function closePapierkorb(){
+  document.getElementById('papierkorb-modal-bg').style.display='none';
+}
+
+async function restoreSelected(){
+  const checked=[...document.querySelectorAll('.papierkorb-check:checked')];
+  if(!checked.length){closePapierkorb();return;}
+  for(const el of checked){
+    await sbFetch('orders','PATCH',{deleted:false},`?id=eq.${el.dataset.id}`);
+  }
+  closePapierkorb();
+  await syncFromSupabase();
+  showToast(`${checked.length} Bestellung${checked.length!==1?'en':''} wiederhergestellt.`);
+}
+
+
 const CONN_MARKETS=['shopify','ebay','otto'];
 
 function getConnSettings(){
@@ -2113,12 +2164,13 @@ async function triggerManualSync(){
     });
     const data=await res.json();
     if(data.ok){
-      if(el) el.innerHTML=`<span style="color:#1D9E75">✓ ${data.imported} Bestellungen importiert${data.skipped>0?' ('+data.skipped+' übersprungen)':''}</span>`;
+      if(el) el.innerHTML=`<span style="color:#1D9E75">✓ ${data.imported} Bestellung${data.imported!==1?'en':''} importiert</span>`;
       settings.shopify.lastSync=new Date().toISOString();
       setConnSettings(settings);
       if(dbSynced) await saveSettingToSupabase('conn_shopify',JSON.stringify(settings.shopify));
       renderConnStatus();
       await syncFromSupabase();
+      await showPapierkorbModal(data);
     } else {
       if(el) el.innerHTML=`<span style="color:#E24B4A">✗ ${data.error}</span>`;
     }
@@ -6342,7 +6394,7 @@ function initRealtime(){
         return;
       }
       const [orderData,itemData]=await Promise.all([
-        sbFetch('orders','GET',null,'?select=*&order=id.desc'),
+        sbFetch('orders','GET',null,'?select=*&deleted=is.false&order=id.desc'),
         sbFetch('order_items','GET',null,'?select=*'),
       ]);
       if(orderData){
@@ -6976,6 +7028,29 @@ async function initApp(){
       <div class="edit-modal-footer" style="margin-top:16px;">
         <span></span>
         <button class="btn" onclick="closeKatManager()">Schließen</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- PAPIERKORB MODAL -->
+  <div class="edit-modal-bg" id="papierkorb-modal-bg" style="display:none;" onclick="if(event.target===this) closePapierkorb()">
+    <div class="edit-modal" style="max-width:580px;">
+      <div class="edit-modal-title">Import abgeschlossen</div>
+      <div id="papierkorb-import-summary" style="font-size:13px;color:#888780;margin-bottom:16px;"></div>
+
+      <div id="papierkorb-section" style="display:none;">
+        <div style="font-size:11px;font-weight:600;color:#003265;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Gelöschte Bestellungen — Wiederherstellen?</div>
+        <div style="font-size:12px;color:#888780;margin-bottom:12px;">Diese Bestellungen wurden manuell gelöscht und nicht importiert. Wähle welche du wiederherstellen möchtest.</div>
+        <div id="papierkorb-list"></div>
+      </div>
+
+      <div class="edit-modal-footer" style="margin-top:16px;">
+        <span></span>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" onclick="closePapierkorb()">Keine wiederherstellen</button>
+          <button class="btn primary" onclick="restoreSelected()" id="papierkorb-restore-btn" style="display:none;">Ausgewählte wiederherstellen</button>
+        </div>
       </div>
     </div>
   </div>

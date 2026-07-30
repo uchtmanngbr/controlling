@@ -3288,7 +3288,7 @@ function editOrder(id){
   populateVersandDropdown();
   document.getElementById('ed-versand').value=o.versand||'';
   const edProfSel=document.getElementById('ed-versand-profil');
-  edProfSel.value=o.versandProfilId||'';
+  edProfSel.value=o.versandProfilId!=null?String(o.versandProfilId):'';
   document.getElementById('ed-provision').value=o.provision||'';
   document.getElementById('ed-fee-hint').innerHTML='';
   document.getElementById('ed-retoure-banner').style.display=isR?'block':'none';
@@ -3376,7 +3376,7 @@ async function saveEdit(){
     umsatzNetto: parseFloat(nettoVon(brutto).toFixed(2)),
     waren: parseFloat(waren.toFixed(2)),
     versand,
-    versandProfilId: document.getElementById('ed-versand-profil').value||null,
+    versandProfilId: document.getElementById('ed-versand-profil').value?parseInt(document.getElementById('ed-versand-profil').value):null,
     provision: parseFloat(document.getElementById('ed-provision').value)||0,
     retoure: 0,
     isRetoure: isR,
@@ -3601,7 +3601,7 @@ async function saveOrder(){
     umsatzNetto:parseFloat(nettoVon(brutto).toFixed(2)),
     waren,
     versand:parseFloat(document.getElementById('f-versand').value)||0,
-    versandProfilId:document.getElementById('f-versand-profil').value||null,
+    versandProfilId:document.getElementById('f-versand-profil').value?parseInt(document.getElementById('f-versand-profil').value):null,
     provision:parseFloat(document.getElementById('f-provision').value)||0,
     retoure:0,
   };

@@ -1485,6 +1485,22 @@ tr:last-child td{border-bottom:none;}
         <div id="conn-result-otto" style="margin-top:10px;font-size:12px;"></div>
       </div>
 
+      <!-- SYNC-INTERVALL -->
+      <div class="form-card" style="margin-top:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="section-title" style="margin:0;">Automatischer Sync</div>
+            <div class="text-sm" style="margin-top:2px;">Wie oft sollen neue Bestellungen automatisch importiert werden?</div>
+          </div>
+          <select id="sync-interval-select" onchange="saveSyncInterval()" style="padding:8px 12px;border:0.5px solid #c8c8c0;border-radius:8px;outline:none;font-size:13px;">
+            <option value="15">Alle 15 Minuten</option>
+            <option value="30">Alle 30 Minuten</option>
+            <option value="60">Jede Stunde</option>
+          </select>
+        </div>
+        <div id="sync-interval-status" style="margin-top:8px;font-size:12px;"></div>
+      </div>
+
       <!-- MANUELLER IMPORT -->
       <div class="form-card" style="margin-top:12px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -1714,6 +1730,7 @@ async function syncFromSupabase(){
         if(s.key==='verkaufsprovision') localStorage.setItem('ec_verkaufsprovision',s.value);
         if(s.key==='ret_zustaende') localStorage.setItem('ec_ret_zustaende',s.value);
         if(s.key==='dash_channels') localStorage.setItem('ec_dash_channels',s.value);
+        if(s.key==='sync_interval_minutes') localStorage.setItem('ec_sync_interval',s.value);
         if(s.key==='conn_shopify'||s.key==='conn_ebay'||s.key==='conn_otto'){
           try{
             const mp=s.key.replace('conn_','');
@@ -2213,6 +2230,29 @@ function showConnResult(mp, ok, msg){
 }
 
 const BACKEND_URL='https://profitviewer-backend-production.up.railway.app';
+
+function getSyncInterval(){
+  return parseInt(localStorage.getItem('ec_sync_interval')||'60');
+}
+
+function renderSyncInterval(){
+  const sel=document.getElementById('sync-interval-select');
+  if(sel) sel.value=String(getSyncInterval());
+}
+
+async function saveSyncInterval(){
+  const sel=document.getElementById('sync-interval-select');
+  const val=sel?sel.value:'60';
+  localStorage.setItem('ec_sync_interval', val);
+  const status=document.getElementById('sync-interval-status');
+  if(status) status.innerHTML='<span style="color:#888780">Speichere...</span>';
+  try{
+    if(dbSynced) await saveSettingToSupabase('sync_interval_minutes', val);
+    if(status) status.innerHTML='<span style="color:#1D9E75">✓ Gespeichert</span>';
+  }catch(err){
+    if(status) status.innerHTML='<span style="color:#E24B4A">✗ Fehler beim Speichern</span>';
+  }
+}
 
 async function testConn(mp){
   const result=document.getElementById('conn-result-'+mp);
@@ -6244,7 +6284,7 @@ function showPraef(sub){
     renderRetZustaendeList();
   }
   if(sub==='dashboard'){ loadDashChannels(); initDashKachelnGrid(); }
-  if(sub==='verbindungen') renderConnStatus();
+  if(sub==='verbindungen'){ renderConnStatus(); renderSyncInterval(); }
   if(sub==='zahlungsgebuehren') renderPaymentFees();
 }
 

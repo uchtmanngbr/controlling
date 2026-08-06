@@ -1429,16 +1429,12 @@ tr:last-child td{border-bottom:none;}
           <div class="section-title" style="margin:0;">Shopify einrichten</div>
           <button class="btn" onclick="closeConnSetup('shopify')">✕</button>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div class="field"><label>Shop-URL</label><input type="text" id="conn-shopify-url" placeholder="meinshop.myshopify.com"></div>
-          <div class="field"><label>Admin API Access Token</label><input type="password" id="conn-shopify-key" placeholder="shpat_..."></div>
-        </div>
+        <div class="field"><label>Shop-Domain</label><input type="text" id="conn-shopify-domain" placeholder="meinshop.myshopify.com"></div>
         <div style="background:#E6F1FB;border-radius:8px;padding:10px 14px;font-size:12px;color:#185FA5;margin:12px 0;line-height:1.5;">
-          <b>Wo finde ich den Token?</b> Shopify Admin → Einstellungen → Apps → App entwickeln → App erstellen → Admin API-Zugriffstoken generieren
+          Du wirst zu Shopify weitergeleitet und meldest dich dort sicher an. Profitviewer erhält danach automatisch Zugriff — kein manuelles Kopieren von Zugangsdaten nötig.
         </div>
         <div style="display:flex;gap:8px;">
-          <button class="btn" onclick="testConn('shopify')" style="display:flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Zm4.5 7.5-5 5a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 1 1 1.06-1.06L11 12.94l4.44-4.44a.75.75 0 0 1 1.06 1.06Z"/></svg>Verbindung testen</button>
-          <button class="btn primary" onclick="saveConn('shopify')">Speichern &amp; verbinden</button>
+          <button class="btn primary" onclick="connectShopify()">Mit Shopify verbinden</button>
           <button class="btn" onclick="disconnectConn('shopify')" id="conn-disconnect-shopify" style="display:none;color:#E24B4A;border-color:#E24B4A;">Trennen</button>
         </div>
         <div id="conn-result-shopify" style="margin-top:10px;font-size:12px;"></div>
@@ -2187,10 +2183,8 @@ function openConnSetup(mp){
   // Pre-fill saved values
   const s=getConnSettings()[mp]||{};
   if(mp==='shopify'){
-    const url=document.getElementById('conn-shopify-url');
-    const key=document.getElementById('conn-shopify-key');
-    if(url) url.value=s.url||'';
-    if(key) key.value=s.key?'••••••••':'';
+    const domain=document.getElementById('conn-shopify-domain');
+    if(domain) domain.value=s.url||'';
   } else if(mp==='ebay'){
     const cid=document.getElementById('conn-ebay-clientid');
     const sec=document.getElementById('conn-ebay-secret');
@@ -2265,12 +2259,6 @@ async function testConn(mp){
   if(result) result.innerHTML='<span style="color:#888780">Teste Verbindung...</span>';
   try{
     let body={};
-    if(mp==='shopify'){
-      const url=document.getElementById('conn-shopify-url')?.value.trim();
-      const key=document.getElementById('conn-shopify-key')?.value.trim();
-      if(!url||!key){showConnResult(mp,false,'Bitte alle Felder ausfüllen.');return;}
-      body={shopUrl:url,accessToken:key};
-    }
     const res=await fetch(`${BACKEND_URL}/${mp}/test`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -2287,17 +2275,17 @@ async function testConn(mp){
   }
 }
 
+function connectShopify(){
+  const domain=document.getElementById('conn-shopify-domain')?.value.trim();
+  if(!domain){showConnResult('shopify',false,'Bitte Shop-Domain eingeben.');return;}
+  if(!domain.includes('.myshopify.com')){showConnResult('shopify',false,'Bitte eine gültige *.myshopify.com Domain eingeben.');return;}
+  window.location.href=`${BACKEND_URL}/shopify/auth?shop=${encodeURIComponent(domain)}`;
+}
+
 async function saveConn(mp){
   const settings=getConnSettings();
   if(!settings[mp]) settings[mp]={};
-  if(mp==='shopify'){
-    const url=document.getElementById('conn-shopify-url')?.value.trim();
-    const key=document.getElementById('conn-shopify-key')?.value.trim();
-    if(!url||!key){showConnResult(mp,false,'Bitte alle Felder ausfüllen.');return;}
-    if(!url.includes('.myshopify.com')&&!url.includes('.')){showConnResult(mp,false,'Bitte eine gültige Shop-URL eingeben.');return;}
-    if(!key.includes('••')) settings[mp].url=url;
-    if(!key.includes('••')) settings[mp].key=key;
-  } else if(mp==='ebay'){
+  if(mp==='ebay'){
     const cid=document.getElementById('conn-ebay-clientid')?.value.trim();
     const sec=document.getElementById('conn-ebay-secret')?.value.trim();
     const tok=document.getElementById('conn-ebay-token')?.value.trim();
@@ -2319,8 +2307,11 @@ async function saveConn(mp){
   showConnResult(mp, true, 'Gespeichert — Verbindung jetzt testen.');
 }
 
-function disconnectConn(mp){
+async function disconnectConn(mp){
   const settings=getConnSettings();
+  if(mp==='shopify'){
+    try{ await fetch(`${BACKEND_URL}/shopify/disconnect`,{method:'POST'}); }catch(err){}
+  }
   if(settings[mp]){
     delete settings[mp];
     setConnSettings(settings);
@@ -2353,12 +2344,7 @@ async function triggerManualSync(){
   setLoading(true);
   if(el) el.innerHTML='';
   try{
-    const s=settings.shopify;
-    const res=await fetch(`${BACKEND_URL}/shopify/sync`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({shopUrl:s.url,accessToken:s.key}),
-    });
+    const res=await fetch(`${BACKEND_URL}/shopify/sync-now`,{method:'POST'});
     const data=await res.json();
     if(data.ok){
       if(el) el.innerHTML=`<span style="color:#1D9E75">✓ ${data.imported} Bestellung${data.imported!==1?'en':''} importiert</span>`;
@@ -6735,6 +6721,12 @@ async function initApp(){
   renderDashboard();
   renderDay();
   renderRechnungen();
+  const urlParams=new URLSearchParams(window.location.search);
+  if(urlParams.get('shopify')==='connected'){
+    showToast('Shopify erfolgreich verbunden!');
+    renderConnStatus();
+    window.history.replaceState({},document.title,window.location.pathname);
+  }
 }
 
 </script>

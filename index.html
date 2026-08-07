@@ -4240,6 +4240,15 @@ function openRetCreate(){
   document.getElementById('ret-edit-info').style.display='none';
   document.getElementById('ret-fields-wrap').style.display='none';
   document.getElementById('ret-save-btn').disabled=true;
+  document.getElementById('ret-ek').value='';
+  document.getElementById('ret-label-kosten').value='';
+  document.getElementById('ret-versand').value='';
+  document.getElementById('ret-notiz').value='';
+  document.getElementById('ret-abschreibung').value='';
+  document.getElementById('ret-verlust-versand').textContent='—';
+  document.getElementById('ret-verlust-label').textContent='—';
+  document.getElementById('ret-verlust-abschr').textContent='—';
+  document.getElementById('ret-verlust-preview').textContent='—';
   document.getElementById('ret-edit-modal-bg').style.display='flex';
 }
 

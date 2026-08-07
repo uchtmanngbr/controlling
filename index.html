@@ -4228,15 +4228,17 @@ function renderRetouren(){
 }
 
 /* ── Retoure anlegen: Bestellnummer suchen, Artikel wählen ── */
-let retSelectedOrder=null, retSelectedItem=null;
+let retSelectedOrder=null, retSelectedItem=null, retStep1Selection=[];
 
 function openRetCreate(){
-  retSelectedOrder=null; retSelectedItem=null;
+  retSelectedOrder=null; retSelectedItem=null; retStep1Selection=[];
   document.getElementById('ret-edit-id').value='';
   document.getElementById('ret-edit-title').textContent='Retoure anlegen';
   document.getElementById('ret-search-wrap').style.display='block';
   document.getElementById('ret-search-bestellnr').value='';
   document.getElementById('ret-search-result').innerHTML='';
+  document.getElementById('ret-step1-next').style.display='none';
+  document.getElementById('ret-step2-wrap').style.display='none';
   document.getElementById('ret-edit-info').style.display='none';
   document.getElementById('ret-fields-wrap').style.display='none';
   document.getElementById('ret-multi-wrap').style.display='none';
@@ -4250,64 +4252,95 @@ function openRetCreate(){
 
 function retZustandOptionsHtml(){
   return `<option value="0">Einwandfrei (0%)</option>
-    <option value="20">Geöffnet / B-Ware (20%)</option>
-    <option value="50">Beschädigt / teilweise nutzbar (50%)</option>
-    <option value="100">Defekt / unverkäuflich (100%)</option>`;
+    <option value="20">Ge\u00f6ffnet / B-Ware (20%)</option>
+    <option value="50">Besch\u00e4digt / teilweise nutzbar (50%)</option>
+    <option value="100">Defekt / unverk\u00e4uflich (100%)</option>`;
 }
 
 function searchOrderForRetoure(){
   const q=document.getElementById('ret-search-bestellnr').value.trim().toLowerCase();
   const resEl=document.getElementById('ret-search-result');
-  document.getElementById('ret-multi-wrap').style.display='none';
-  document.getElementById('ret-save-btn').style.display='none';
+  document.getElementById('ret-step1-next').style.display='none';
   if(!q){resEl.innerHTML='';return;}
   const matches=getOrders().filter(o=>(o.bestellnr||'').toLowerCase().includes(q)).slice(0,8);
   if(!matches.length){resEl.innerHTML='<div class="text-xs" style="color:#888780;padding:8px 0">Keine Bestellung gefunden.</div>';return;}
   resEl.innerHTML=matches.map(o=>{
     const items=(o.items&&o.items.length)?o.items:[{id:null,sku:o.sku,name:o.artikel,menge:1,ek:o.waren||0,preis:o.umsatzBrutto||0}];
-    const totalMenge=items.reduce((s,i)=>s+(i.menge||1),0)||1;
-    const fallbackPreis=parseFloat(((o.umsatzBrutto||0)/totalMenge).toFixed(2));
     return `<div style="border:0.5px solid #ddddd5;border-radius:10px;padding:14px;margin-bottom:10px;background:#fff;">
-      <div style="font-weight:600;font-size:13px;margin-bottom:10px;">${o.bestellnr} <span style="font-weight:400;color:#888780">· ${o.kanal} · ${o.datum?o.datum.split('-').reverse().join('.'):''}</span></div>
+      <div style="font-weight:600;font-size:13px;margin-bottom:10px;">${o.bestellnr} <span style="font-weight:400;color:#888780">\u00b7 ${o.kanal} \u00b7 ${o.datum?o.datum.split('-').reverse().join('.'):''}</span></div>
       ${items.map(it=>{
         const bereitsRetour=getRetourenForOrder(o.id).filter(r=>r.order_item_id===it.id).reduce((s,r)=>s+(r.menge||1),0);
         const restMenge=(it.menge||1)-bereitsRetour;
         const idAttr=it.id===null?'':it.id;
-        const preisHasValue=it.preis&&it.preis>0;
-        const preisVal=preisHasValue?it.preis:fallbackPreis;
-        if(restMenge<=0) return `<div class="text-xs" style="color:#888780;padding:6px 0">${it.name||it.sku} — bereits vollständig retourniert</div>`;
-        return `<div class="ret-item-row" data-order-id="${o.id}" data-item-id="${idAttr}" data-max="${restMenge}" style="padding:8px 10px;margin-bottom:6px;border-radius:8px;background:#f9f9f7;">
-          <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
-            <input type="checkbox" class="ret-item-check" onchange="onRetItemCheck(this)" style="width:16px;height:16px;cursor:pointer;accent-color:#003265;flex-shrink:0;">
-            <span>${it.name||it.sku||'—'} <span style="color:#888780">(max. ${restMenge} Stück)</span></span>
-          </label>
-          <div class="ret-item-fields" style="display:none;margin-top:10px;padding-top:10px;border-top:0.5px solid #ddddd5;grid-template-columns:1fr 1fr;gap:10px;">
-            <div class="field" style="margin:0"><label style="font-size:11px">Menge</label><input type="number" class="ret-item-menge" min="1" max="${restMenge}" value="1" oninput="updateMultiPreview()" style="padding:7px 9px;font-size:12px;"></div>
-            <div class="field" style="margin:0"><label style="font-size:11px">Zustand</label><select class="ret-item-zustand" onchange="updateMultiPreview()" style="padding:7px 9px;font-size:12px;">${retZustandOptionsHtml()}</select></div>
-            <div class="field" style="margin:0"><label style="font-size:11px">EK/Stk (€)</label><input type="number" class="ret-item-ek" step="0.01" value="${it.ek||0}" oninput="updateMultiPreview()" style="padding:7px 9px;font-size:12px;"></div>
-            <div class="field" style="margin:0"><label style="font-size:11px">Verkaufspreis/Stk (€)${preisHasValue?'':' <span style="color:#E24B4A">⚠</span>'}</label><input type="number" class="ret-item-preis" step="0.01" value="${preisVal}" oninput="updateMultiPreview()" style="padding:7px 9px;font-size:12px;"></div>
-          </div>
-        </div>`;
+        if(restMenge<=0) return `<div class="text-xs" style="color:#888780;padding:6px 0">${it.name||it.sku} \u2014 bereits vollst\u00e4ndig retourniert</div>`;
+        return `<label class="ret-item-row" data-order-id="${o.id}" data-item-id="${idAttr}" data-max="${restMenge}" style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;padding:10px;margin-bottom:6px;border-radius:8px;background:#f9f9f7;">
+          <input type="checkbox" class="ret-item-check" onchange="onRetItemCheck()" style="width:16px;height:16px;cursor:pointer;accent-color:#003265;flex-shrink:0;">
+          <span>${it.name||it.sku||'\u2014'} <span style="color:#888780">(max. ${restMenge} St\u00fcck)</span></span>
+        </label>`;
       }).join('')}
     </div>`;
   }).join('');
 }
 
-function onRetItemCheck(cb){
-  const row=cb.closest('.ret-item-row');
-  const fields=row.querySelector('.ret-item-fields');
-  fields.style.display=cb.checked?'grid':'none';
+function onRetItemCheck(){
   const anyChecked=document.querySelectorAll('.ret-item-check:checked').length>0;
-  document.getElementById('ret-multi-wrap').style.display=anyChecked?'block':'none';
-  document.getElementById('ret-save-btn').style.display=anyChecked?'inline-flex':'none';
+  document.getElementById('ret-step1-next').style.display=anyChecked?'inline-flex':'none';
+}
+
+function goToRetStep2(){
+  const checked=[...document.querySelectorAll('.ret-item-check:checked')];
+  if(!checked.length) return;
+
+  retStep1Selection=checked.map(cb=>{
+    const row=cb.closest('.ret-item-row');
+    const orderId=parseInt(row.dataset.orderId);
+    const itemIdRaw=row.dataset.itemId;
+    const itemId=itemIdRaw===''?null:parseInt(itemIdRaw);
+    const o=getOrders().find(x=>x.id===orderId);
+    const it=(o.items||[]).find(i=>i.id===itemId)||{sku:o.sku,name:o.artikel,ek:o.waren||0,preis:o.umsatzBrutto||0};
+    const totalMenge=(o.items&&o.items.length)?o.items.reduce((s,i)=>s+(i.menge||1),0):1;
+    const fallbackPreis=parseFloat(((o.umsatzBrutto||0)/(totalMenge||1)).toFixed(2));
+    const preisHasValue=it.preis&&it.preis>0;
+    return {
+      orderId, itemId,
+      name: it.name||it.sku||'\u2014',
+      ek: it.ek||0,
+      preis: preisHasValue?it.preis:fallbackPreis,
+      preisEstimated: !preisHasValue,
+      maxMenge: parseInt(row.dataset.max)||1,
+    };
+  });
+
+  document.getElementById('ret-search-wrap').style.display='none';
+  document.getElementById('ret-step2-wrap').style.display='block';
+  document.getElementById('ret-multi-wrap').style.display='block';
+  document.getElementById('ret-save-btn').style.display='inline-flex';
+
+  document.getElementById('ret-step2-items').innerHTML=retStep1Selection.map(sel=>`
+    <div class="ret-item-row" data-order-id="${sel.orderId}" data-item-id="${sel.itemId===null?'':sel.itemId}" data-max="${sel.maxMenge}" style="border:0.5px solid #ddddd5;border-radius:10px;padding:12px;margin-bottom:10px;background:#fff;">
+      <div style="font-weight:600;font-size:13px;margin-bottom:10px;">${sel.name} <span style="font-weight:400;color:#888780">(max. ${sel.maxMenge} St\u00fcck)</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="field" style="margin:0"><label style="font-size:11px">Menge</label><input type="number" class="ret-item-menge" min="1" max="${sel.maxMenge}" value="1" oninput="updateMultiPreview()" style="padding:7px 9px;font-size:12px;"></div>
+        <div class="field" style="margin:0"><label style="font-size:11px">Zustand</label><select class="ret-item-zustand" onchange="updateMultiPreview()" style="padding:7px 9px;font-size:12px;">${retZustandOptionsHtml()}</select></div>
+        <div class="field" style="margin:0"><label style="font-size:11px">EK/Stk (\u20ac)</label><input type="number" class="ret-item-ek" step="0.01" value="${sel.ek}" oninput="updateMultiPreview()" style="padding:7px 9px;font-size:12px;"></div>
+        <div class="field" style="margin:0"><label style="font-size:11px">Verkaufspreis/Stk (\u20ac)${sel.preisEstimated?' <span style="color:#E24B4A">\u26a0</span>':''}</label><input type="number" class="ret-item-preis" step="0.01" value="${sel.preis}" style="padding:7px 9px;font-size:12px;"></div>
+      </div>
+    </div>`).join('');
+
   updateMultiPreview();
 }
 
+function backToRetStep1(){
+  document.getElementById('ret-step2-wrap').style.display='none';
+  document.getElementById('ret-multi-wrap').style.display='none';
+  document.getElementById('ret-save-btn').style.display='none';
+  document.getElementById('ret-search-wrap').style.display='block';
+}
+
 function updateMultiPreview(){
-  const checked=[...document.querySelectorAll('.ret-item-check:checked')];
+  const rows=[...document.querySelectorAll('#ret-step2-items .ret-item-row')];
   let abschrTotal=0;
-  checked.forEach(cb=>{
-    const row=cb.closest('.ret-item-row');
+  rows.forEach(row=>{
     const menge=parseFloat(row.querySelector('.ret-item-menge').value)||1;
     const ek=parseFloat(row.querySelector('.ret-item-ek').value)||0;
     const zustand=row.querySelector('.ret-item-zustand').value;
@@ -4318,10 +4351,10 @@ function updateMultiPreview(){
   const versand=parseFloat(document.getElementById('ret-m-versand').value)||0;
   const label=parseFloat(document.getElementById('ret-m-label').value)||0;
   const verlust=parseFloat((versand+label+abschrTotal).toFixed(2));
-  document.getElementById('ret-m-verlust-versand').textContent=versand>0?fmt(versand):'—';
-  document.getElementById('ret-m-verlust-label').textContent=label>0?fmt(label):'—';
-  document.getElementById('ret-m-verlust-abschr').textContent=abschrTotal>0?fmt(abschrTotal):'—';
-  document.getElementById('ret-m-verlust-preview').textContent=verlust>0?fmt(verlust):'0,00 €';
+  document.getElementById('ret-m-verlust-versand').textContent=versand>0?fmt(versand):'\u2014';
+  document.getElementById('ret-m-verlust-label').textContent=label>0?fmt(label):'\u2014';
+  document.getElementById('ret-m-verlust-abschr').textContent=abschrTotal>0?fmt(abschrTotal):'\u2014';
+  document.getElementById('ret-m-verlust-preview').textContent=verlust>0?fmt(verlust):'0,00 \u20ac';
 }
 
 function openRetEdit(id){
@@ -4408,18 +4441,17 @@ async function saveRetEdit(){
     return;
   }
 
-  // Neu anlegen — alle angehakten Artikel dieser Bestellung gemeinsam speichern
-  const checked=[...document.querySelectorAll('.ret-item-check:checked')];
-  if(!checked.length) return;
+  // Neu anlegen — alle Artikel aus Schritt 2 gemeinsam speichern
+  const rows=[...document.querySelectorAll('#ret-step2-items .ret-item-row')];
+  if(!rows.length) return;
   const versandTotal=parseFloat(document.getElementById('ret-m-versand').value)||0;
   const labelTotal=parseFloat(document.getElementById('ret-m-label').value)||0;
   const notiz=document.getElementById('ret-m-notiz').value;
-  const versandPerItem=parseFloat((versandTotal/checked.length).toFixed(2));
-  const labelPerItem=parseFloat((labelTotal/checked.length).toFixed(2));
+  const versandPerItem=parseFloat((versandTotal/rows.length).toFixed(2));
+  const labelPerItem=parseFloat((labelTotal/rows.length).toFixed(2));
 
   const ordersCache={};
-  for(const cb of checked){
-    const row=cb.closest('.ret-item-row');
+  for(const row of rows){
     const orderId=parseInt(row.dataset.orderId);
     const itemIdRaw=row.dataset.itemId;
     const itemId=itemIdRaw===''?null:parseInt(itemIdRaw);
@@ -7351,7 +7383,7 @@ async function initApp(){
 
   <!-- RETOURE BEARBEITEN MODAL -->
   <div class="edit-modal-bg" id="ret-edit-modal-bg" style="display:none;" onclick="if(event.target===this) closeRetEdit()">
-    <div class="edit-modal" style="max-width:460px">
+    <div class="edit-modal" style="max-width:640px">
       <input type="hidden" id="ret-edit-id">
       <div class="edit-modal-title" id="ret-edit-title">Retoure anlegen</div>
 
@@ -7361,6 +7393,14 @@ async function initApp(){
           <input type="text" id="ret-search-bestellnr" placeholder="z.B. BE20261702" oninput="searchOrderForRetoure()">
         </div>
         <div id="ret-search-result" style="margin-top:10px;max-height:340px;overflow-y:auto;padding-right:2px;"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+          <button class="btn primary" id="ret-step1-next" style="display:none;" onclick="goToRetStep2()">Weiter</button>
+        </div>
+      </div>
+
+      <div id="ret-step2-wrap" style="display:none;margin-bottom:1rem;">
+        <button class="btn" style="height:26px;padding:0 10px;font-size:12px;margin-bottom:10px;" onclick="backToRetStep1()">← Zurück zur Artikelauswahl</button>
+        <div id="ret-step2-items"></div>
       </div>
 
       <div id="ret-multi-wrap" style="display:none;background:#eef4fa;border-radius:10px;padding:14px;margin-bottom:1rem;">

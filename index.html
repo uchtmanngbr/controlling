@@ -4239,75 +4239,88 @@ function openRetCreate(){
   document.getElementById('ret-search-result').innerHTML='';
   document.getElementById('ret-edit-info').style.display='none';
   document.getElementById('ret-fields-wrap').style.display='none';
-  document.getElementById('ret-save-btn').disabled=true;
-  document.getElementById('ret-ek').value='';
-  document.getElementById('ret-label-kosten').value='';
-  document.getElementById('ret-versand').value='';
-  document.getElementById('ret-notiz').value='';
-  document.getElementById('ret-abschreibung').value='';
-  document.getElementById('ret-verlust-versand').textContent='—';
-  document.getElementById('ret-verlust-label').textContent='—';
-  document.getElementById('ret-verlust-abschr').textContent='—';
-  document.getElementById('ret-verlust-preview').textContent='—';
+  document.getElementById('ret-multi-wrap').style.display='none';
+  document.getElementById('ret-save-btn').style.display='none';
+  document.getElementById('ret-m-versand').value='';
+  document.getElementById('ret-m-label').value=getRetSettings().labelDefault||'';
+  document.getElementById('ret-m-notiz').value='';
   document.getElementById('ret-edit-modal-bg').style.display='flex';
+}
+
+function retZustandOptionsHtml(){
+  return `<option value="0">Einwandfrei (0%)</option>
+    <option value="20">Geöffnet / B-Ware (20%)</option>
+    <option value="50">Beschädigt / teilweise nutzbar (50%)</option>
+    <option value="100">Defekt / unverkäuflich (100%)</option>`;
 }
 
 function searchOrderForRetoure(){
   const q=document.getElementById('ret-search-bestellnr').value.trim().toLowerCase();
   const resEl=document.getElementById('ret-search-result');
+  document.getElementById('ret-multi-wrap').style.display='none';
+  document.getElementById('ret-save-btn').style.display='none';
   if(!q){resEl.innerHTML='';return;}
   const matches=getOrders().filter(o=>(o.bestellnr||'').toLowerCase().includes(q)).slice(0,8);
   if(!matches.length){resEl.innerHTML='<div class="text-xs" style="color:#888780;padding:8px 0">Keine Bestellung gefunden.</div>';return;}
   resEl.innerHTML=matches.map(o=>{
     const items=(o.items&&o.items.length)?o.items:[{id:null,sku:o.sku,name:o.artikel,menge:1,ek:o.waren||0,preis:o.umsatzBrutto||0}];
+    const totalMenge=items.reduce((s,i)=>s+(i.menge||1),0)||1;
+    const fallbackPreis=parseFloat(((o.umsatzBrutto||0)/totalMenge).toFixed(2));
     return `<div style="border:0.5px solid #ddddd5;border-radius:8px;padding:10px;margin-bottom:8px;">
       <div style="font-weight:600;font-size:13px;margin-bottom:6px;">${o.bestellnr} <span style="font-weight:400;color:#888780">· ${o.kanal} · ${o.datum?o.datum.split('-').reverse().join('.'):''}</span></div>
       ${items.map(it=>{
         const bereitsRetour=getRetourenForOrder(o.id).filter(r=>r.order_item_id===it.id).reduce((s,r)=>s+(r.menge||1),0);
         const restMenge=(it.menge||1)-bereitsRetour;
+        const idAttr=it.id===null?'':it.id;
+        const preisHasValue=it.preis&&it.preis>0;
+        const preisVal=preisHasValue?it.preis:fallbackPreis;
         if(restMenge<=0) return `<div class="text-xs" style="color:#888780;padding:4px 0">${it.name||it.sku} — bereits vollständig retourniert</div>`;
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">
-          <span style="font-size:13px;">${it.name||it.sku||'—'} <span style="color:#888780">(max. ${restMenge} Stück)</span></span>
-          <button class="btn" style="height:26px;padding:0 10px;font-size:12px;" onclick='selectRetItem(${o.id},${it.id===null?'null':it.id},${restMenge})'>Auswählen</button>
+        return `<div class="ret-item-row" data-order-id="${o.id}" data-item-id="${idAttr}" data-max="${restMenge}" style="padding:6px 0;border-top:0.5px solid #f5f5f3;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" class="ret-item-check" onchange="onRetItemCheck(this)" style="width:15px;height:15px;">
+            ${it.name||it.sku||'—'} <span style="color:#888780">(max. ${restMenge} Stück)</span>
+          </label>
+          <div class="ret-item-fields" style="display:none;margin:8px 0 4px 23px;display:none;grid-template-columns:1fr 1fr;gap:8px;">
+            <div class="field" style="margin:0"><label style="font-size:11px">Menge</label><input type="number" class="ret-item-menge" min="1" max="${restMenge}" value="1" style="padding:6px 8px;font-size:12px;"></div>
+            <div class="field" style="margin:0"><label style="font-size:11px">Zustand</label><select class="ret-item-zustand" style="padding:6px 8px;font-size:12px;">${retZustandOptionsHtml()}</select></div>
+            <div class="field" style="margin:0"><label style="font-size:11px">EK/Stk (€)</label><input type="number" class="ret-item-ek" step="0.01" value="${it.ek||0}" style="padding:6px 8px;font-size:12px;"></div>
+            <div class="field" style="margin:0"><label style="font-size:11px">Verkaufspreis/Stk (€)${preisHasValue?'':' <span style=&quot;color:#E24B4A&quot;>⚠</span>'}</label><input type="number" class="ret-item-preis" step="0.01" value="${preisVal}" style="padding:6px 8px;font-size:12px;"></div>
+          </div>
         </div>`;
       }).join('')}
     </div>`;
   }).join('');
 }
 
-function selectRetItem(orderId,itemId,maxMenge){
-  const o=getOrders().find(o=>o.id===orderId);
-  if(!o) return;
-  const item=(o.items||[]).find(i=>i.id===itemId)||{sku:o.sku,name:o.artikel,ek:o.waren||0,preis:o.umsatzBrutto||0,menge:1};
-  retSelectedOrder=o; retSelectedItem={...item,id:itemId,maxMenge};
+function onRetItemCheck(cb){
+  const row=cb.closest('.ret-item-row');
+  const fields=row.querySelector('.ret-item-fields');
+  fields.style.display=cb.checked?'grid':'none';
+  const anyChecked=document.querySelectorAll('.ret-item-check:checked').length>0;
+  document.getElementById('ret-multi-wrap').style.display=anyChecked?'block':'none';
+  document.getElementById('ret-save-btn').style.display=anyChecked?'inline-flex':'none';
+  updateMultiPreview();
+}
 
-  const totalMenge=(o.items&&o.items.length)?o.items.reduce((s,i)=>s+(i.menge||1),0):1;
-  const fallbackPreis=totalMenge>0?parseFloat(((o.umsatzBrutto||0)/totalMenge).toFixed(2)):0;
-  const preisHasValue=item.preis&&item.preis>0;
-
-  document.getElementById('ret-search-wrap').style.display='none';
-  document.getElementById('ret-edit-info').style.display='block';
-  document.getElementById('ret-edit-info').innerHTML=`
-    <div style="font-weight:600;margin-bottom:4px">${item.name||item.sku||'—'}</div>
-    <div style="color:#888780">${o.kanal||''} · ${o.datum?o.datum.split('-').reverse().join('.'):'—'} · ${o.bestellnr||''}</div>
-    <div style="margin-top:8px" class="field">
-      <label>Verkaufspreis pro Stück (€)${preisHasValue?'':' <span style="color:#E24B4A">— geschätzt, bitte prüfen</span>'}</label>
-      <input type="number" id="ret-preis" min="0" step="0.01" value="${preisHasValue?item.preis:fallbackPreis}" oninput="updateRetAbschreibung()">
-    </div>
-    <button class="btn" style="height:24px;padding:0 8px;font-size:11px;margin-top:8px;" onclick="openRetCreate()">✕ Andere Bestellung wählen</button>`;
-  document.getElementById('ret-fields-wrap').style.display='grid';
-  document.getElementById('ret-menge').max=maxMenge;
-  document.getElementById('ret-menge').value=1;
-  document.getElementById('ret-menge-hint').textContent=`max. ${maxMenge} Stück verfügbar`;
-  populateRetZustandSelect();
-  document.getElementById('ret-ek').value=item.ek||'';
-  document.getElementById('ret-versand').value='';
-  document.getElementById('ret-zustand').value='0';
-  document.getElementById('ret-label-kosten').value=getRetSettings().labelDefault||'';
-  document.getElementById('ret-notiz').value='';
-  document.getElementById('ret-custom-wrap').style.display='none';
-  document.getElementById('ret-save-btn').disabled=false;
-  updateRetAbschreibung();
+function updateMultiPreview(){
+  const checked=[...document.querySelectorAll('.ret-item-check:checked')];
+  let abschrTotal=0;
+  checked.forEach(cb=>{
+    const row=cb.closest('.ret-item-row');
+    const menge=parseFloat(row.querySelector('.ret-item-menge').value)||1;
+    const ek=parseFloat(row.querySelector('.ret-item-ek').value)||0;
+    const zustand=row.querySelector('.ret-item-zustand').value;
+    const pct=getRetZustandPct(zustand);
+    abschrTotal+=ek*menge*pct/100;
+  });
+  abschrTotal=parseFloat(abschrTotal.toFixed(2));
+  const versand=parseFloat(document.getElementById('ret-m-versand').value)||0;
+  const label=parseFloat(document.getElementById('ret-m-label').value)||0;
+  const verlust=parseFloat((versand+label+abschrTotal).toFixed(2));
+  document.getElementById('ret-m-verlust-versand').textContent=versand>0?fmt(versand):'—';
+  document.getElementById('ret-m-verlust-label').textContent=label>0?fmt(label):'—';
+  document.getElementById('ret-m-verlust-abschr').textContent=abschrTotal>0?fmt(abschrTotal):'—';
+  document.getElementById('ret-m-verlust-preview').textContent=verlust>0?fmt(verlust):'0,00 €';
 }
 
 function openRetEdit(id){
@@ -4317,6 +4330,7 @@ function openRetEdit(id){
   document.getElementById('ret-edit-id').value=id;
   document.getElementById('ret-edit-title').textContent='Retoure bearbeiten';
   document.getElementById('ret-search-wrap').style.display='none';
+  document.getElementById('ret-multi-wrap').style.display='none';
   document.getElementById('ret-menge-wrap').style.display='none';
   document.getElementById('ret-edit-info').style.display='block';
   document.getElementById('ret-edit-info').innerHTML=`
@@ -4333,7 +4347,7 @@ function openRetEdit(id){
   const isCustom=r.zustand==='custom';
   document.getElementById('ret-custom-wrap').style.display=isCustom?'block':'none';
   if(isCustom) document.getElementById('ret-custom-pct').value=r.abschreibung_pct||'';
-  document.getElementById('ret-save-btn').disabled=false;
+  document.getElementById('ret-save-btn').style.display='inline-flex';
   updateRetAbschreibung();
   document.getElementById('ret-edit-modal-bg').style.display='flex';
 }
@@ -4344,7 +4358,7 @@ function updateRetAbschreibung(){
   customWrap.style.display=zustand==='custom'?'block':'none';
   const ek=parseFloat(document.getElementById('ret-ek').value)||0;
   const editingId=document.getElementById('ret-edit-id').value;
-  const menge=editingId?(getRetouren().find(r=>r.id===parseInt(editingId))?.menge||1):(parseFloat(document.getElementById('ret-menge')?.value)||1);
+  const menge=editingId?(getRetouren().find(r=>r.id===parseInt(editingId))?.menge||1):1;
   let pct;
   if(zustand==='custom') pct=parseFloat(document.getElementById('ret-custom-pct').value)||0;
   else pct=getRetZustandPct(zustand);
@@ -4362,18 +4376,16 @@ function updateRetAbschreibung(){
 
 async function saveRetEdit(){
   const editingId=document.getElementById('ret-edit-id').value;
-  const zustand=document.getElementById('ret-zustand').value;
-  const ek=parseFloat(document.getElementById('ret-ek').value)||0;
-  const label=parseFloat(document.getElementById('ret-label-kosten').value)||0;
-  const versand=parseFloat(document.getElementById('ret-versand').value)||0;
-  const notiz=document.getElementById('ret-notiz').value;
-  let pct;
-  if(zustand==='custom') pct=parseFloat(document.getElementById('ret-custom-pct').value)||0;
-  else pct=getRetZustandPct(zustand);
-
-  let createdOrderId=null, createdBestellnr=null;
 
   if(editingId){
+    const zustand=document.getElementById('ret-zustand').value;
+    const ek=parseFloat(document.getElementById('ret-ek').value)||0;
+    const label=parseFloat(document.getElementById('ret-label-kosten').value)||0;
+    const versand=parseFloat(document.getElementById('ret-versand').value)||0;
+    const notiz=document.getElementById('ret-notiz').value;
+    let pct;
+    if(zustand==='custom') pct=parseFloat(document.getElementById('ret-custom-pct').value)||0;
+    else pct=getRetZustandPct(zustand);
     const existing=getRetouren().find(r=>r.id===parseInt(editingId));
     if(!existing) return;
     const abschr=parseFloat((ek*(existing.menge||1)*pct/100).toFixed(2));
@@ -4388,18 +4400,46 @@ async function saveRetEdit(){
       notiz,
       bearbeitet:true,
     });
-  } else {
-    if(!retSelectedOrder||!retSelectedItem) return;
-    const menge=parseInt(document.getElementById('ret-menge').value)||1;
-    const preis=parseFloat(document.getElementById('ret-preis').value)||0;
+    closeRetEdit();
+    renderRetouren();
+    renderDashboard();
+    return;
+  }
+
+  // Neu anlegen — alle angehakten Artikel dieser Bestellung gemeinsam speichern
+  const checked=[...document.querySelectorAll('.ret-item-check:checked')];
+  if(!checked.length) return;
+  const versandTotal=parseFloat(document.getElementById('ret-m-versand').value)||0;
+  const labelTotal=parseFloat(document.getElementById('ret-m-label').value)||0;
+  const notiz=document.getElementById('ret-m-notiz').value;
+  const versandPerItem=parseFloat((versandTotal/checked.length).toFixed(2));
+  const labelPerItem=parseFloat((labelTotal/checked.length).toFixed(2));
+
+  const ordersCache={};
+  for(const cb of checked){
+    const row=cb.closest('.ret-item-row');
+    const orderId=parseInt(row.dataset.orderId);
+    const itemIdRaw=row.dataset.itemId;
+    const itemId=itemIdRaw===''?null:parseInt(itemIdRaw);
+    const menge=parseInt(row.querySelector('.ret-item-menge').value)||1;
+    const zustand=row.querySelector('.ret-item-zustand').value;
+    const ek=parseFloat(row.querySelector('.ret-item-ek').value)||0;
+    const preis=parseFloat(row.querySelector('.ret-item-preis').value)||0;
+    const pct=getRetZustandPct(zustand);
     const abschr=parseFloat((ek*menge*pct/100).toFixed(2));
-    const o=retSelectedOrder, it=retSelectedItem;
+
+    if(!ordersCache[orderId]) ordersCache[orderId]=getOrders().find(o=>o.id===orderId);
+    const o=ordersCache[orderId];
+    if(!o) continue;
+    const it=(o.items||[]).find(i=>i.id===itemId)||{sku:o.sku,name:o.artikel};
+
     const bruttoAnteil=parseFloat((preis*menge).toFixed(2));
     const nettoRatio=(o.umsatzBrutto>0)?(o.umsatzNetto||0)/o.umsatzBrutto:1;
     const nettoAnteil=parseFloat((bruttoAnteil*nettoRatio).toFixed(2));
+
     await saveRetoureEntry({
       order_id:o.id,
-      order_item_id:it.id,
+      order_item_id:itemId,
       bestellnr:o.bestellnr,
       kanal:o.kanal,
       sku:it.sku||'',
@@ -4409,8 +4449,8 @@ async function saveRetEdit(){
       zustand,
       abschreibung_pct:zustand==='custom'?pct:null,
       abschreibung:abschr,
-      labelkosten:label,
-      versand,
+      labelkosten:labelPerItem,
+      versand:versandPerItem,
       umsatz_anteil_brutto:bruttoAnteil,
       umsatz_anteil_netto:nettoAnteil,
       datum:o.datum,
@@ -4418,24 +4458,10 @@ async function saveRetEdit(){
       notiz,
       bearbeitet:true,
     });
-    createdOrderId=o.id; createdBestellnr=o.bestellnr;
   }
   closeRetEdit();
   renderRetouren();
   renderDashboard();
-
-  if(createdOrderId){
-    const o=getOrders().find(x=>x.id===createdOrderId);
-    const hasRemaining=(o?.items||[]).some(it=>{
-      const bereits=getRetourenForOrder(createdOrderId).filter(r=>r.order_item_id===it.id).reduce((s,r)=>s+(r.menge||1),0);
-      return (it.menge||1)-bereits>0;
-    });
-    if(hasRemaining&&confirm('Weiteren Artikel dieser Bestellung retournieren?')){
-      openRetCreate();
-      document.getElementById('ret-search-bestellnr').value=createdBestellnr;
-      searchOrderForRetoure();
-    }
-  }
 }
 
 async function deleteRetoure(id){
@@ -4450,6 +4476,7 @@ function closeRetEdit(){
   document.getElementById('ret-menge-wrap').style.display='block';
   retSelectedOrder=null; retSelectedItem=null;
 }
+
 
 
 /* ── FIXKOSTEN LOGIK ── */
@@ -7334,6 +7361,25 @@ async function initApp(){
         <div id="ret-search-result" style="margin-top:8px;max-height:280px;overflow-y:auto;"></div>
       </div>
 
+      <div id="ret-multi-wrap" style="display:none;border-top:0.5px solid #ddddd5;padding-top:12px;margin-bottom:1rem;">
+        <div class="text-xs" style="margin-bottom:8px;color:#888780;">Gilt für alle ausgewählten Artikel zusammen (eine gemeinsame Rücksendung):</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="field"><label>Versandkosten gesamt (€)</label><input type="number" id="ret-m-versand" min="0" step="0.01" placeholder="0.00" oninput="updateMultiPreview()"></div>
+          <div class="field"><label>Retourenlabel gesamt (€)</label><input type="number" id="ret-m-label" min="0" step="0.01" placeholder="0.00" oninput="updateMultiPreview()"></div>
+          <div class="field" style="grid-column:1/-1"><label>Notiz</label><input type="text" id="ret-m-notiz" placeholder="Optional"></div>
+        </div>
+        <div style="background:#f5f5f3;border-radius:8px;padding:12px;margin-top:12px">
+          <div class="text-xs" style="margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Verlustrechnung</div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Versandkosten</span><span id="ret-m-verlust-versand">—</span></div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Retourenlabel</span><span id="ret-m-verlust-label">—</span></div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:0.5px solid #ddddd5"><span style="color:#888780">Abschreibung</span><span id="ret-m-verlust-abschr">—</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:4px">
+            <span style="color:#888780">Gesamtverlust</span>
+            <span id="ret-m-verlust-preview" style="font-size:16px;font-weight:600;color:#E24B4A">—</span>
+          </div>
+        </div>
+      </div>
+
       <div id="ret-edit-info" style="display:none;background:#f5f5f3;border-radius:8px;padding:12px;margin-bottom:1rem"></div>
 
       <div id="ret-fields-wrap" style="display:none;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem">
@@ -7394,7 +7440,7 @@ async function initApp(){
         <span></span>
         <div style="display:flex;gap:8px">
           <button class="btn" onclick="closeRetEdit()">Abbrechen</button>
-          <button class="btn primary" id="ret-save-btn" onclick="saveRetEdit()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
+          <button class="btn primary" id="ret-save-btn" style="display:none;" onclick="saveRetEdit()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
         </div>
       </div>
     </div>

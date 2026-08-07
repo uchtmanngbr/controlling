@@ -4281,13 +4281,20 @@ function selectRetItem(orderId,itemId,maxMenge){
   const item=(o.items||[]).find(i=>i.id===itemId)||{sku:o.sku,name:o.artikel,ek:o.waren||0,preis:o.umsatzBrutto||0,menge:1};
   retSelectedOrder=o; retSelectedItem={...item,id:itemId,maxMenge};
 
+  const totalMenge=(o.items&&o.items.length)?o.items.reduce((s,i)=>s+(i.menge||1),0):1;
+  const fallbackPreis=totalMenge>0?parseFloat(((o.umsatzBrutto||0)/totalMenge).toFixed(2)):0;
+  const preisHasValue=item.preis&&item.preis>0;
+
   document.getElementById('ret-search-wrap').style.display='none';
   document.getElementById('ret-edit-info').style.display='block';
   document.getElementById('ret-edit-info').innerHTML=`
     <div style="font-weight:600;margin-bottom:4px">${item.name||item.sku||'—'}</div>
     <div style="color:#888780">${o.kanal||''} · ${o.datum?o.datum.split('-').reverse().join('.'):'—'} · ${o.bestellnr||''}</div>
-    <div style="margin-top:4px;font-size:12px;color:#003265">Verkaufspreis/Stk: <b>${fmt(item.preis||0)}</b> · EK/Stk: <b>${fmt(item.ek||0)}</b></div>
-    <button class="btn" style="height:24px;padding:0 8px;font-size:11px;margin-top:6px;" onclick="openRetCreate()">✕ Andere Bestellung wählen</button>`;
+    <div style="margin-top:8px" class="field">
+      <label>Verkaufspreis pro Stück (€)${preisHasValue?'':' <span style="color:#E24B4A">— geschätzt, bitte prüfen</span>'}</label>
+      <input type="number" id="ret-preis" min="0" step="0.01" value="${preisHasValue?item.preis:fallbackPreis}" oninput="updateRetAbschreibung()">
+    </div>
+    <button class="btn" style="height:24px;padding:0 8px;font-size:11px;margin-top:8px;" onclick="openRetCreate()">✕ Andere Bestellung wählen</button>`;
   document.getElementById('ret-fields-wrap').style.display='grid';
   document.getElementById('ret-menge').max=maxMenge;
   document.getElementById('ret-menge').value=1;
@@ -4364,6 +4371,8 @@ async function saveRetEdit(){
   if(zustand==='custom') pct=parseFloat(document.getElementById('ret-custom-pct').value)||0;
   else pct=getRetZustandPct(zustand);
 
+  let createdOrderId=null, createdBestellnr=null;
+
   if(editingId){
     const existing=getRetouren().find(r=>r.id===parseInt(editingId));
     if(!existing) return;
@@ -4382,9 +4391,10 @@ async function saveRetEdit(){
   } else {
     if(!retSelectedOrder||!retSelectedItem) return;
     const menge=parseInt(document.getElementById('ret-menge').value)||1;
+    const preis=parseFloat(document.getElementById('ret-preis').value)||0;
     const abschr=parseFloat((ek*menge*pct/100).toFixed(2));
     const o=retSelectedOrder, it=retSelectedItem;
-    const bruttoAnteil=parseFloat(((it.preis||0)*menge).toFixed(2));
+    const bruttoAnteil=parseFloat((preis*menge).toFixed(2));
     const nettoRatio=(o.umsatzBrutto>0)?(o.umsatzNetto||0)/o.umsatzBrutto:1;
     const nettoAnteil=parseFloat((bruttoAnteil*nettoRatio).toFixed(2));
     await saveRetoureEntry({
@@ -4408,10 +4418,24 @@ async function saveRetEdit(){
       notiz,
       bearbeitet:true,
     });
+    createdOrderId=o.id; createdBestellnr=o.bestellnr;
   }
   closeRetEdit();
   renderRetouren();
   renderDashboard();
+
+  if(createdOrderId){
+    const o=getOrders().find(x=>x.id===createdOrderId);
+    const hasRemaining=(o?.items||[]).some(it=>{
+      const bereits=getRetourenForOrder(createdOrderId).filter(r=>r.order_item_id===it.id).reduce((s,r)=>s+(r.menge||1),0);
+      return (it.menge||1)-bereits>0;
+    });
+    if(hasRemaining&&confirm('Weiteren Artikel dieser Bestellung retournieren?')){
+      openRetCreate();
+      document.getElementById('ret-search-bestellnr').value=createdBestellnr;
+      searchOrderForRetoure();
+    }
+  }
 }
 
 async function deleteRetoure(id){

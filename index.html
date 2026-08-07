@@ -1683,7 +1683,7 @@ var _suppressRealtime=false; // Verhindert Realtime-Reload bei eigenen Änderung
 
 async function syncFromSupabase(){
   try{
-    const [orders,orderItems,fixkosten,marketing,mpg,rechnungen,versand,settings,products]=await Promise.all([
+    const [orders,orderItems,fixkosten,marketing,mpg,rechnungen,versand,settings,products,retouren]=await Promise.all([
       sbFetch('orders','GET',null,'?select=*&deleted=is.false&order=id.desc'),
       sbFetch('order_items','GET',null,'?select=*'),
       sbFetch('fixkosten','GET',null,'?select=*'),
@@ -1693,6 +1693,7 @@ async function syncFromSupabase(){
       sbFetch('versand','GET',null,'?select=*'),
       sbFetch('settings','GET',null,'?select=*'),
       sbFetch('products','GET',null,'?select=*'),
+      sbFetch('retouren','GET',null,'?select=*&order=id.desc'),
     ]);
     if(orders){
       // Items den Orders zuordnen
@@ -1704,6 +1705,7 @@ async function syncFromSupabase(){
           menge:it.menge||1,ek:it.ek||0,
           ek_manuell:it.ek_manuell||false,
           position:it.position||0,
+          id:it.id,
         });
       });
       const enriched=orders.map(o=>({
@@ -1720,6 +1722,7 @@ async function syncFromSupabase(){
       localStorage.setItem('ec_mpg',JSON.stringify(mpgObj));
     }
     if(rechnungen) localStorage.setItem('ec_rechnungen',JSON.stringify(rechnungen));
+    if(retouren) localStorage.setItem('ec_retouren_v2',JSON.stringify(retouren));
     if(versand) localStorage.setItem('ec_versand',JSON.stringify(versand));
     if(settings&&settings.length){
       settings.forEach(s=>{
@@ -3564,6 +3567,44 @@ function closeEdit(){
 }
 
 document.getElementById('header-date').textContent=new Date().toLocaleDateString('de-DE',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+function getRetouren(){try{return JSON.parse(localStorage.getItem('ec_retouren_v2')||'[]');}catch(e){return[];}}
+
+function getRetourenForOrder(orderId){
+  return getRetouren().filter(r=>r.order_id===orderId);
+}
+
+function hatRetoure(order){
+  return getRetourenForOrder(order.id).length>0;
+}
+
+function retourAnteilBrutto(order){
+  return getRetourenForOrder(order.id).reduce((s,r)=>s+(r.umsatz_anteil_brutto||0),0);
+}
+
+function retourAnteilNetto(order){
+  return getRetourenForOrder(order.id).reduce((s,r)=>s+(r.umsatz_anteil_netto||0),0);
+}
+
+// Effektiver Umsatz = Original minus dem Anteil, der durch Retouren zurückgeflossen ist
+function effBrutto(order){
+  return parseFloat(((order.umsatzBrutto||0)-retourAnteilBrutto(order)).toFixed(2));
+}
+function effNetto(order){
+  return parseFloat(((order.umsatzNetto||0)-retourAnteilNetto(order)).toFixed(2));
+}
+
+// Speichert eine Retoure (neu oder Update) in Supabase
+async function saveRetoureEntry(entry){
+  const res=await sbFetch('retouren', entry.id?'PATCH':'POST', entry, entry.id?`?id=eq.${entry.id}`:'');
+  await syncFromSupabase();
+  return res;
+}
+
+async function deleteRetoureEntry(id){
+  await sbFetch('retouren','DELETE',null,`?id=eq.${id}`);
+  await syncFromSupabase();
+}
 
 function getOrders(){try{return (JSON.parse(localStorage.getItem('ec_orders')||'[]')).filter(o=>!o.deleted);}catch(e){return[];}}
 function saveOrders(o){

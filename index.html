@@ -3342,15 +3342,6 @@ const MwSt=0.19;
 let lineInst=null,manualFee=false;
 let editId=null,edManual=false;
 
-function isEdRetoure(){ return document.getElementById('ed-is-retoure').checked; }
-
-function toggleEdRetoure(){
-  const isR=document.getElementById('ed-is-retoure').checked;
-  document.getElementById('ed-retoure-banner').style.display=isR?'block':'none';
-  edUpdatePreview();
-}
-
-
 function addEdItemRow(item=null){
   const idx=_edItems.length;
   const it=item||{sku:'',name:'',menge:1,ek:0,ek_manuell:false};
@@ -3448,8 +3439,6 @@ function editOrder(id){
   const o=getOrders().find(o=>String(o.id)===String(id));
   if(!o) return;
   editId=id; edManual=false;
-  const isR=o.isRetoure||false;
-  document.getElementById('ed-is-retoure').checked=isR;
   document.getElementById('ed-datum').value=o.datum||'';
   document.getElementById('ed-kanal').value=o.kanal||'Shopify';
   document.getElementById('ed-bestellnr').value=o.bestellnr||'';
@@ -3460,7 +3449,6 @@ function editOrder(id){
   edProfSel.value=o.versandProfilId!=null?String(o.versandProfilId):'';
   document.getElementById('ed-provision').value=o.provision||'';
   document.getElementById('ed-fee-hint').innerHTML='';
-  document.getElementById('ed-retoure-banner').style.display=isR?'block':'none';
 
   // Items laden
   clearEdItems();
@@ -3503,13 +3491,6 @@ function edManualFee(){
 }
 
 function edUpdatePreview(){
-  if(isEdRetoure()){
-    const versand=parseFloat(document.getElementById('ed-versand').value)||0;
-    const el=document.getElementById('ed-db-preview');
-    el.textContent=fmt(-versand); el.className='neg';
-    document.getElementById('ed-dbpct-preview').textContent='Retoure — nur Versandkosten';
-    return;
-  }
   const brutto=parseFloat(document.getElementById('ed-brutto').value)||0;
   const netto=nettoVon(brutto);
   const waren=parseFloat(document.getElementById('ed-waren').value)||0;
@@ -3529,7 +3510,6 @@ async function saveEdit(){
   const orders=getOrders();
   const idx=orders.findIndex(o=>String(o.id)===String(editId));
   if(idx===-1) return;
-  const isR=isEdRetoure();
   const brutto=parseFloat(document.getElementById('ed-brutto').value)||0;
   const versand=parseFloat(document.getElementById('ed-versand').value)||0;
   const waren=_edItems.reduce((s,it)=>s+(it.ek*(it.menge||1)),0);
@@ -3548,7 +3528,6 @@ async function saveEdit(){
     versandProfilId: document.getElementById('ed-versand-profil').value?parseInt(document.getElementById('ed-versand-profil').value):null,
     provision: parseFloat(document.getElementById('ed-provision').value)||0,
     retoure: 0,
-    isRetoure: isR,
   };
   saveOrders(orders);
   // Update per ID — verhindert Duplikate bei Marktplatz-Änderung
@@ -7268,11 +7247,6 @@ async function initApp(){
     <div class="edit-modal">
       <div class="edit-modal-title">Bestellung bearbeiten</div>
 
-      <!-- RETOURE TOGGLE -->
-      <div id="ed-retoure-banner" style="display:none;background:#FAEEDA;border-radius:8px;padding:10px 14px;margin-bottom:12px;color:#854F0B">
-        ⚠ Retoure — Umsatz wird auf 0 gesetzt, Versandkosten bleiben als Verlust
-      </div>
-
       <div class="edit-modal-grid" id="ed-fields-normal">
         <div class="field"><label>Datum</label><input type="date" id="ed-datum"></div>
         <div class="field"><label>Marktplatz</label>
@@ -7313,15 +7287,6 @@ async function initApp(){
           <input type="hidden" id="ed-versand" value="0">
         </div>
         <div class="field"><label>Marktplatzgebühr (€)</label><input type="number" id="ed-provision" min="0" step="0.01" oninput="edManualFee()"><span class="fee-hint" id="ed-fee-hint"></span></div>
-        <div class="field" style="justify-content:flex-end">
-          <label for="ed-is-retoure" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f5f5f3;border-radius:8px;cursor:pointer;margin-top:20px">
-            <input type="checkbox" id="ed-is-retoure" style="cursor:pointer;width:15px;height:15px;flex-shrink:0;" onchange="toggleEdRetoure()">
-            <div>
-              <div style="font-weight:500;color:#1a1a18">Als Retoure markieren</div>
-              <div style="font-size:11px;color:#888780">Umsatz = 0 € · nur Versand bleibt</div>
-            </div>
-          </label>
-        </div>
         <div class="field" style="background:#f5f5f3;border-radius:8px;padding:10px 12px">
           <div class="text-xs" style="margin-bottom:4px">Deckungsbeitrag (live)</div>
           <div style="font-size:18px;font-weight:500;" id="ed-db-preview">—</div>

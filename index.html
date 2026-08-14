@@ -5928,7 +5928,30 @@ async function deleteSelected(){
   if(!checked.length) return;
   if(!await customConfirm('<strong>'+checked.length+' Bestellungen</strong> wirklich löschen?<br><span style="font-size:12px">Diese Aktion kann nicht rückgängig gemacht werden.</span>','Bestellungen löschen')) return;
   const ids=new Set(checked.map(cb=>parseInt(cb.dataset.id)));
-  saveOrders(getOrders().filter(o=>!ids.has(o.id)));
+  const allOrders=getOrders();
+
+  if(dbSynced){
+    for(const id of ids){
+      const o=allOrders.find(o=>o.id===id);
+      const isApiOrder=o?.kanal==='Shopify'; // Wird erweitert wenn eBay/Otto kommen
+      try{
+        if(isApiOrder){
+          await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`,{
+            method:'PATCH',
+            headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'},
+            body:JSON.stringify({deleted:true})
+          });
+        } else {
+          await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${id}`,{
+            method:'DELETE',
+            headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+          });
+        }
+      }catch(e){ console.warn('Supabase delete error für Order '+id+':', e); }
+    }
+  }
+
+  saveOrders(allOrders.filter(o=>!ids.has(o.id)));
   renderOrders(); renderDashboard(); renderDay();
 }
 

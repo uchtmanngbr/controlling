@@ -168,6 +168,34 @@ tr:last-child td{border-bottom:none;}
 .fk-del-btn:hover{color:#E24B4A;}
 .fk-empty{text-align:center;padding:2.5rem;color:#888780;line-height:1.8;}
 .save-flash{font-size:12px;color:#1D9E75;display:none;margin-top:6px;display:none;}
+
+/* ── STATUS-PANEL (Ampel) ── */
+#status-widget{position:fixed;bottom:24px;right:24px;z-index:2000;font-family:'Inter',sans-serif;}
+#status-ampel-btn{position:relative;width:52px;height:52px;border-radius:50%;background:#fff;border:0.5px solid #ddddd5;box-shadow:0 4px 16px rgba(0,0,0,0.12);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s;}
+#status-ampel-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,0.16);}
+#status-ampel-dot{width:14px;height:14px;border-radius:50%;background:#1D9E75;transition:background .2s;box-shadow:0 0 0 3px rgba(29,158,117,0.15);}
+#status-ampel-dot.amber{background:#D9A441;box-shadow:0 0 0 3px rgba(217,164,65,0.18);}
+#status-ampel-dot.red{background:#E24B4A;box-shadow:0 0 0 3px rgba(226,75,74,0.18);}
+#status-ampel-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:99px;background:#E24B4A;color:#fff;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;border:2px solid #f5f5f3;}
+#status-panel{position:absolute;bottom:64px;right:0;width:340px;max-height:440px;background:#fff;border:0.5px solid #ddddd5;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.14);display:none;flex-direction:column;overflow:hidden;}
+#status-panel.open{display:flex;}
+#status-panel-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:0.5px solid #ddddd5;background:#f5f5f3;}
+#status-panel-title{font-size:13px;font-weight:600;color:#1a1a18;}
+#status-panel-dot{width:9px;height:9px;border-radius:50%;background:#1D9E75;flex-shrink:0;}
+#status-panel-dot.amber{background:#D9A441;}
+#status-panel-dot.red{background:#E24B4A;}
+#status-panel-close{background:none;border:none;color:#888780;font-size:14px;cursor:pointer;padding:2px 4px;line-height:1;}
+#status-panel-close:hover{color:#1a1a18;}
+#status-panel-body{overflow-y:auto;flex:1;}
+#status-panel-list{display:flex;flex-direction:column;}
+.status-item{display:flex;gap:10px;padding:10px 16px;border-bottom:0.5px solid #f5f5f3;}
+.status-item:last-child{border-bottom:none;}
+.status-item-dot{width:7px;height:7px;border-radius:50%;background:#1D9E75;flex-shrink:0;margin-top:5px;}
+.status-item-dot.amber{background:#D9A441;}
+.status-item-dot.red{background:#E24B4A;}
+.status-item-content{flex:1;min-width:0;}
+.status-item-text{font-size:12px;color:#1a1a18;line-height:1.4;}
+.status-item-time{font-size:10px;color:#888780;margin-top:2px;}
 </style>
 </head>
 <body>
@@ -2229,6 +2257,136 @@ function showConnResult(mp, ok, msg){
 }
 
 const BACKEND_URL='https://profitviewer-backend-production.up.railway.app';
+
+/* ── STATUS-PANEL (Ampel) ── */
+// Alle Meldungen nur für diese Sitzung (kein Speichern, verschwindet bei Reload)
+let statusEvents=[];
+let statusUnread=0;
+let statusPanelOpen=false;
+let statusEventSource=null;
+let statusHadConnectionError=false;
+
+// Ordnet jedem Event-Typ vom Backend eine Ampel-Stufe zu: 0=grün, 1=bernstein, 2=rot
+const STATUS_SEVERITY={
+  sync_completed:0,
+  order_received:0,
+  retoure_created:1,
+  error:2,
+};
+const STATUS_LABELS={
+  sync_completed:'Sync',
+  order_received:'Bestellung',
+  retoure_created:'Retoure',
+  error:'Fehler',
+};
+
+function connectStatusStream(){
+  if(statusEventSource) statusEventSource.close();
+  statusEventSource=new EventSource(`${BACKEND_URL}/events/stream`);
+
+  statusEventSource.onmessage=function(msg){
+    const event=JSON.parse(msg.data);
+    if(event.type==='connected'){
+      // Erste Verbindung bzw. erfolgreiche Wiederverbindung
+      if(statusHadConnectionError){
+        statusHadConnectionError=false;
+        addStatusEvent({type:'sync_completed',text:'Verbindung zum Server wiederhergestellt',timestamp:new Date().toISOString()});
+      }
+      return;
+    }
+    addStatusEvent(event);
+  };
+
+  statusEventSource.onerror=function(){
+    if(!statusHadConnectionError){
+      statusHadConnectionError=true;
+      addStatusEvent({type:'error',text:'Serververbindung unterbrochen — versuche erneut zu verbinden...',timestamp:new Date().toISOString()});
+    }
+    // EventSource verbindet automatisch neu, kein manueller Reconnect nötig
+  };
+}
+
+function addStatusEvent(event){
+  statusEvents.unshift(event); // neueste zuerst
+  if(statusEvents.length>50) statusEvents.pop(); // Feed nicht unbegrenzt wachsen lassen
+  if(!statusPanelOpen) statusUnread++;
+  renderStatusWidget();
+}
+
+function getOverallSeverity(){
+  // Höchste (schlimmste) Ampel-Stufe seit Sitzungsbeginn — sinkt nicht von selbst wieder,
+  // damit ein aufgetretener Fehler nicht "verschwindet" ohne dass man ihn gesehen hat
+  let max=0;
+  for(const e of statusEvents){
+    const sev=STATUS_SEVERITY[e.type]??0;
+    if(sev>max) max=sev;
+  }
+  return max;
+}
+
+function severityClass(sev){
+  return sev===2?'red':sev===1?'amber':'';
+}
+
+function renderStatusWidget(){
+  const sev=getOverallSeverity();
+  const cls=severityClass(sev);
+
+  const ampelDot=document.getElementById('status-ampel-dot');
+  const panelDot=document.getElementById('status-panel-dot');
+  const panelTitle=document.getElementById('status-panel-title');
+  const badge=document.getElementById('status-ampel-badge');
+
+  if(ampelDot) ampelDot.className=cls;
+  if(panelDot) panelDot.className=cls;
+  if(panelTitle) panelTitle.textContent=sev===2?'Etwas ist fehlgeschlagen':sev===1?'Etwas braucht Aufmerksamkeit':'Alles läuft';
+
+  if(badge){
+    if(statusUnread>0 && !statusPanelOpen){
+      badge.style.display='flex';
+      badge.textContent=statusUnread>9?'9+':statusUnread;
+    } else {
+      badge.style.display='none';
+    }
+  }
+
+  const list=document.getElementById('status-panel-list');
+  const empty=document.getElementById('status-panel-empty');
+  if(!list) return;
+
+  if(statusEvents.length===0){
+    if(empty) empty.style.display='block';
+    list.innerHTML='';
+    return;
+  }
+  if(empty) empty.style.display='none';
+
+  list.innerHTML=statusEvents.map(e=>{
+    const itemSev=STATUS_SEVERITY[e.type]??0;
+    const itemCls=severityClass(itemSev);
+    const time=e.timestamp?new Date(e.timestamp).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'';
+    return `<div class="status-item">
+      <span class="status-item-dot ${itemCls}"></span>
+      <div class="status-item-content">
+        <div class="status-item-text">${e.text}</div>
+        <div class="status-item-time">${time}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleStatusPanel(){
+  statusPanelOpen=!statusPanelOpen;
+  const panel=document.getElementById('status-panel');
+  if(panel) panel.classList.toggle('open',statusPanelOpen);
+  if(statusPanelOpen){
+    statusUnread=0; // beim Öffnen gelten alle Meldungen als gesehen
+    renderStatusWidget();
+  }
+}
+
+// Verbindung direkt beim Laden der Seite aufbauen
+connectStatusStream();
 
 function getSyncInterval(){
   return parseInt(localStorage.getItem('ec_sync_interval')||'60');
@@ -7534,6 +7692,27 @@ async function initApp(){
     </div>
   </div>
 
+<!-- STATUS-PANEL (Ampel) -->
+<div id="status-widget">
+  <button id="status-ampel-btn" onclick="toggleStatusPanel()" title="Status & Meldungen">
+    <span id="status-ampel-dot"></span>
+    <span id="status-ampel-badge" style="display:none;"></span>
+  </button>
+
+  <div id="status-panel">
+    <div id="status-panel-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="status-panel-dot"></span>
+        <span id="status-panel-title">Alles läuft</span>
+      </div>
+      <button id="status-panel-close" onclick="toggleStatusPanel()">✕</button>
+    </div>
+    <div id="status-panel-body">
+      <div id="status-panel-empty" class="empty" style="padding:1.5rem;">Noch keine Meldungen in dieser Sitzung.</div>
+      <div id="status-panel-list"></div>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

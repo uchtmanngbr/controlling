@@ -3967,6 +3967,16 @@ async function saveOrder(){
     const all=getOrders();
     const idx=all.findIndex(o=>o.id===order.id);
     if(idx>=0){ all[idx].id=supabaseId; saveOrders(all); }
+
+    // Datenqualitäts-Check im Backend anstoßen (fehlender EK/Versandprofil/SKU) — läuft im
+    // Hintergrund, blockiert das Speichern nicht und wird bei Fehlern nur geloggt, nicht
+    // dem Nutzer angezeigt (Ampel-Meldung ist ein Zusatznutzen, kein kritischer Pfad)
+    const skus=(order.items||[]).map(it=>it.sku||'');
+    fetch(`${BACKEND_URL}/orders/check-quality`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({bestellnr:order.bestellnr||String(supabaseId),skus}),
+    }).catch(err=>console.error('Datenqualitäts-Check fehlgeschlagen:',err));
   }
   const syncEl=document.getElementById('sync-indicator');
   if(syncEl){syncEl.textContent='✓ Gespeichert';setTimeout(()=>syncEl.style.opacity='0',2000);}

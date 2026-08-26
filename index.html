@@ -2265,20 +2265,30 @@ let statusUnread=0;
 let statusPanelOpen=false;
 let statusEventSource=null;
 let statusHadConnectionError=false;
+let statusCurrentlyConnected=true; // aktueller Live-Status, unabhängig vom Verlauf
 
 // Ordnet jedem Event-Typ vom Backend eine Ampel-Stufe zu: 0=grün, 1=bernstein, 2=rot
+// (connection_lost/connection_restored sind rein lokale Verbindungsmeldungen, siehe getOverallSeverity)
 const STATUS_SEVERITY={
   sync_completed:0,
   order_received:0,
   retoure_created:1,
   error:2,
+  connection_lost:2,
+  connection_restored:0,
 };
 const STATUS_LABELS={
   sync_completed:'Sync',
   order_received:'Bestellung',
   retoure_created:'Retoure',
   error:'Fehler',
+  connection_lost:'Verbindung',
+  connection_restored:'Verbindung',
 };
+// Diese Typen fließen NICHT in die "schlimmster Zustand seit Sitzungsbeginn"-Berechnung ein,
+// weil sie reine Verbindungs-Blips sind, die sich von selbst wieder lösen (z.B. Laptop-Standby).
+// Der aktuelle Verbindungsstatus (statusCurrentlyConnected) wird stattdessen live berücksichtigt.
+const STATUS_TRANSIENT_TYPES=new Set(['connection_lost','connection_restored']);
 
 function connectStatusStream(){
   if(statusEventSource) statusEventSource.close();
@@ -2287,10 +2297,13 @@ function connectStatusStream(){
   statusEventSource.onmessage=function(msg){
     const event=JSON.parse(msg.data);
     if(event.type==='connected'){
+      statusCurrentlyConnected=true;
       // Erste Verbindung bzw. erfolgreiche Wiederverbindung
       if(statusHadConnectionError){
         statusHadConnectionError=false;
-        addStatusEvent({type:'sync_completed',text:'Verbindung zum Server wiederhergestellt',timestamp:new Date().toISOString()});
+        addStatusEvent({type:'connection_restored',text:'Verbindung zum Server wiederhergestellt',timestamp:new Date().toISOString()});
+      } else {
+        renderStatusWidget();
       }
       return;
     }
@@ -2298,9 +2311,12 @@ function connectStatusStream(){
   };
 
   statusEventSource.onerror=function(){
+    statusCurrentlyConnected=false;
     if(!statusHadConnectionError){
       statusHadConnectionError=true;
-      addStatusEvent({type:'error',text:'Serververbindung unterbrochen — versuche erneut zu verbinden...',timestamp:new Date().toISOString()});
+      addStatusEvent({type:'connection_lost',text:'Serververbindung unterbrochen — versuche erneut zu verbinden...',timestamp:new Date().toISOString()});
+    } else {
+      renderStatusWidget(); // Ampel sofort auf rot, auch ohne neuen Feed-Eintrag
     }
     // EventSource verbindet automatisch neu, kein manueller Reconnect nötig
   };
@@ -2314,10 +2330,14 @@ function addStatusEvent(event){
 }
 
 function getOverallSeverity(){
-  // Höchste (schlimmste) Ampel-Stufe seit Sitzungsbeginn — sinkt nicht von selbst wieder,
-  // damit ein aufgetretener Fehler nicht "verschwindet" ohne dass man ihn gesehen hat
-  let max=0;
+  // Live-Verbindungsstatus fließt direkt ein: aktuell getrennt = mindestens rot
+  let max=statusCurrentlyConnected?0:2;
+  // Höchste (schlimmste) Ampel-Stufe unter den ECHTEN fachlichen Ereignissen seit Sitzungsbeginn
+  // (Sync-Fehler, fehlender EK etc.) — sinkt nicht von selbst, damit nichts unbemerkt verschwindet.
+  // Reine Verbindungs-Blips (connection_lost/restored) zählen hier bewusst NICHT mit, da sie sich
+  // von selbst lösen (z.B. Laptop-Standby) und sonst die Ampel dauerhaft fälschlich rot färben würden.
   for(const e of statusEvents){
+    if(STATUS_TRANSIENT_TYPES.has(e.type)) continue;
     const sev=STATUS_SEVERITY[e.type]??0;
     if(sev>max) max=sev;
   }

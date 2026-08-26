@@ -2429,7 +2429,18 @@ async function loadOpenQualityIssues(){
     const res=await fetch(`${BACKEND_URL}/orders/open-quality-issues`);
     if(!res.ok) return;
     const data=await res.json();
-    (data.issues||[]).forEach(o=>orderQualityMap.set(String(o.id),'amber'));
+    (data.issues||[]).forEach(o=>{
+      orderQualityMap.set(String(o.id),'amber');
+      addStatusEvent({
+        type:'order_quality',
+        severity:'amber',
+        ok:false,
+        orderId:o.id,
+        bestellnr:o.bestellnr,
+        text:o.datenproblem_text||`Bestellung ${o.bestellnr} hat weiterhin ein offenes Datenproblem`,
+        timestamp:new Date().toISOString(),
+      });
+    });
     renderStatusWidget();
   }catch(err){
     console.error('Konnte offene Datenqualitäts-Probleme nicht laden:',err);

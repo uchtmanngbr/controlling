@@ -2267,14 +2267,20 @@ let statusEventSource=null;
 let statusHadConnectionError=false;
 let statusCurrentlyConnected=true; // aktueller Live-Status, unabhängig vom Verlauf
 
+// Aktueller Datenqualitäts-Zustand PRO BESTELLUNG (bestellnr -> 'amber'|'ok'). Wird bei jeder
+// Prüfung überschrieben (Anlegen, Bearbeiten, Löschen) — dadurch löst sich eine Ampel-Warnung
+// automatisch auf, sobald der EK nachgetragen oder die Bestellung gelöscht wird, ohne dass
+// der Feed selbst (das Protokoll "was ist passiert") rückwirkend verändert werden muss.
+let orderQualityMap=new Map();
+
 // Rangfolge der Ampel-Stufen. Das Backend legt "severity" direkt im Event fest (eine Quelle
 // der Wahrheit) — das Frontend übersetzt das hier nur noch in eine Zahl zum Vergleichen.
 const SEVERITY_RANK={green:0,amber:1,red:2};
 
-// Diese Typen entstehen rein lokal im Frontend (Verbindungs-Blips) und tragen ihre eigene
-// severity direkt am Event mit — sie fließen bewusst NICHT in die "schlimmster Zustand
-// seit Sitzungsbeginn"-Berechnung ein, weil sie sich von selbst lösen (z.B. Laptop-Standby).
-const STATUS_TRANSIENT_TYPES=new Set(['connection_lost','connection_restored']);
+// Diese Typen fließen NICHT in die "schlimmster Zustand seit Sitzungsbeginn"-Berechnung ein,
+// weil sie einen SELBST-HEILENDEN Live-Zustand abbilden statt eines dauerhaften Vorfalls:
+// connection_lost/restored → statusCurrentlyConnected, order_incomplete/order_quality → orderQualityMap.
+const STATUS_TRANSIENT_TYPES=new Set(['connection_lost','connection_restored','order_incomplete','order_quality']);
 
 function connectStatusStream(){
   if(statusEventSource) statusEventSource.close();
@@ -2293,6 +2299,26 @@ function connectStatusStream(){
       }
       return;
     }
+
+    // Datenqualitäts-Ereignisse pro Bestellung: Zustand immer aktualisieren, aber nur dann
+    // sichtbar im Feed zeigen, wenn es entweder ein neues/bestehendes Problem ist, oder ein
+    // zuvor gemeldetes Problem gerade behoben wurde (Bearbeiten/Löschen) — sonst still bleiben,
+    // damit nicht jede einwandfreie Bestellung eine grüne Meldung im Feed erzeugt.
+    // Schlüssel ist orderId (Supabase-Primärschlüssel), NICHT die Bestellnummer — die ist über
+    // Kanäle hinweg nicht zwingend eindeutig und bei manuellen Bestellungen sogar optional.
+    if(event.type==='order_incomplete' || event.type==='order_quality'){
+      const isOk=event.type==='order_quality' && event.ok;
+      const key=event.orderId!==undefined&&event.orderId!==null?String(event.orderId):undefined;
+      const prev=key!==undefined?orderQualityMap.get(key):undefined;
+      if(key!==undefined) orderQualityMap.set(key, isOk?'ok':'amber');
+      if(isOk && prev!=='amber'){
+        renderStatusWidget(); // war schon ok / unbekannt — nur Ampel aktualisieren, kein Feed-Spam
+        return;
+      }
+      addStatusEvent(event);
+      return;
+    }
+
     addStatusEvent(event);
   };
 
@@ -2318,10 +2344,14 @@ function addStatusEvent(event){
 function getOverallSeverity(){
   // Live-Verbindungsstatus fließt direkt ein: aktuell getrennt = mindestens rot
   let max=statusCurrentlyConnected?0:2;
-  // Höchste (schlimmste) Ampel-Stufe unter den ECHTEN fachlichen Ereignissen seit Sitzungsbeginn
-  // (Sync-Fehler, fehlender EK etc.) — sinkt nicht von selbst, damit nichts unbemerkt verschwindet.
-  // Reine Verbindungs-Blips (connection_lost/restored) zählen hier bewusst NICHT mit, da sie sich
-  // von selbst lösen (z.B. Laptop-Standby) und sonst die Ampel dauerhaft fälschlich rot färben würden.
+  // Live-Zustand pro Bestellung (fehlender EK/Versandprofil etc.) — löst sich automatisch,
+  // sobald die Bestellung bearbeitet oder gelöscht wird, ohne den Feed selbst zu verändern.
+  for(const v of orderQualityMap.values()){
+    if(v==='amber') max=Math.max(max,1);
+  }
+  // Höchste (schlimmste) Ampel-Stufe unter den übrigen, NICHT selbst-heilenden Ereignissen
+  // seit Sitzungsbeginn (z.B. Sync-Fehler) — sinkt nicht von selbst, damit nichts unbemerkt
+  // verschwindet. Verbindungs-Blips und bestellungsbezogene Events sind oben schon behandelt.
   for(const e of statusEvents){
     if(STATUS_TRANSIENT_TYPES.has(e.type)) continue;
     const sev=SEVERITY_RANK[e.severity]??0;
@@ -2391,8 +2421,24 @@ function toggleStatusPanel(){
   }
 }
 
+// Fragt beim Laden der Seite einmal ab, welche Bestellungen AKTUELL ein offenes
+// Datenqualitäts-Problem haben — sonst würde die Ampel nach jedem Reload wieder bei
+// "alles grün" anfangen, obwohl ein Problem in Wahrheit noch besteht.
+async function loadOpenQualityIssues(){
+  try{
+    const res=await fetch(`${BACKEND_URL}/orders/open-quality-issues`);
+    if(!res.ok) return;
+    const data=await res.json();
+    (data.issues||[]).forEach(o=>orderQualityMap.set(String(o.id),'amber'));
+    renderStatusWidget();
+  }catch(err){
+    console.error('Konnte offene Datenqualitäts-Probleme nicht laden:',err);
+  }
+}
+
 // Verbindung direkt beim Laden der Seite aufbauen
 connectStatusStream();
+loadOpenQualityIssues();
 
 function getSyncInterval(){
   return parseInt(localStorage.getItem('ec_sync_interval')||'60');
@@ -3696,6 +3742,16 @@ async function saveEdit(){
   saveOrders(orders);
   // Update per ID — verhindert Duplikate bei Marktplatz-Änderung
   await updateOrderWithItems(orders[idx].id, orders[idx], _edItems);
+  // Datenqualitäts-Zustand neu prüfen — löst eine frühere Ampel-Warnung automatisch auf,
+  // falls z.B. gerade der fehlende EK nachgetragen wurde
+  if(orders[idx].id){
+    const skus=(orders[idx].items||[]).map(it=>it.sku||'');
+    fetch(`${BACKEND_URL}/orders/check-quality`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({orderId:orders[idx].id,bestellnr:orders[idx].bestellnr||String(orders[idx].id),skus}),
+    }).catch(err=>console.error('Datenqualitäts-Check fehlgeschlagen:',err));
+  }
   const syncEl2=document.getElementById('sync-indicator');
   if(syncEl2){syncEl2.textContent='✓ Gespeichert';setTimeout(()=>syncEl2.style.opacity='0',2000);}
   closeEdit();
@@ -3975,7 +4031,7 @@ async function saveOrder(){
     fetch(`${BACKEND_URL}/orders/check-quality`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({bestellnr:order.bestellnr||String(supabaseId),skus}),
+      body:JSON.stringify({orderId:supabaseId,bestellnr:order.bestellnr||String(supabaseId),skus}),
     }).catch(err=>console.error('Datenqualitäts-Check fehlgeschlagen:',err));
   }
   const syncEl=document.getElementById('sync-indicator');
@@ -4169,6 +4225,14 @@ async function deleteOrder(id){
   }
   saveOrders(getOrders().filter(o=>String(o.id)!==String(id)));
   renderOrders(); renderDashboard();
+  // Falls die Bestellung eine offene Ampel-Warnung hatte, jetzt auflösen
+  if(_o?.id){
+    fetch(`${BACKEND_URL}/orders/check-quality`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({orderId:_o.id,bestellnr:_o.bestellnr||String(_o.id),deleted:true}),
+    }).catch(err=>console.error('Datenqualitäts-Check (Löschen) fehlgeschlagen:',err));
+  }
 }
 async function deleteAll(){
   if(!await customConfirm('<strong>Alle Bestellungen</strong> wirklich löschen?<br><span style="font-size:12px">Diese Aktion kann nicht rückgängig gemacht werden.</span>','Alle Bestellungen löschen','Alle löschen')) return;

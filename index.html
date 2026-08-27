@@ -2275,15 +2275,22 @@ let statusCurrentlyConnected=true; // aktueller Live-Status, unabhängig vom Ver
 // der Feed selbst (das Protokoll "was ist passiert") rückwirkend verändert werden muss.
 let orderQualityMap=new Map();
 
+// Live-Zustand PRO CONNECTOR (z.B. 'Shopify', später 'Otto') — 'red' wenn die Anbindung
+// gerade gestört ist (z.B. Zugriffstoken ungültig), sonst kein Eintrag. Löst sich automatisch
+// auf, sobald ein API-Aufruf wieder erfolgreich ist — genau wie bei orderQualityMap, nur auf
+// Ebene der ganzen Anbindung statt einzelner Bestellungen.
+let connectorStatusMap=new Map();
+
 // Rangfolge der Ampel-Stufen. Das Backend legt "severity" direkt im Event fest (eine Quelle
 // der Wahrheit) — das Frontend übersetzt das hier nur noch in eine Zahl zum Vergleichen.
 const SEVERITY_RANK={green:0,amber:1,red:2};
 
 // Diese Typen fließen NICHT in die "schlimmster Zustand seit Sitzungsbeginn"-Berechnung ein,
 // weil sie einen SELBST-HEILENDEN Live-Zustand abbilden statt eines dauerhaften Vorfalls
-// (order_incomplete/order_quality → orderQualityMap). Der Verbindungsstatus selbst erzeugt
-// gar keine Feed-Einträge mehr (siehe unten), sondern nur noch die feste Statuszeile im Panel.
-const STATUS_TRANSIENT_TYPES=new Set(['order_incomplete','order_quality']);
+// (order_incomplete/order_quality → orderQualityMap, connector_status → connectorStatusMap).
+// Der Verbindungsstatus selbst erzeugt gar keine Feed-Einträge mehr (siehe unten), sondern
+// nur noch die feste Statuszeile im Panel.
+const STATUS_TRANSIENT_TYPES=new Set(['order_incomplete','order_quality','connector_status']);
 
 function connectStatusStream(){
   if(statusEventSource) statusEventSource.close();
@@ -2294,6 +2301,21 @@ function connectStatusStream(){
     if(event.type==='connected'){
       statusCurrentlyConnected=true;
       renderStatusWidget(); // aktualisiert nur die feste Verbindungszeile, kein Feed-Eintrag
+      return;
+    }
+
+    // Status einer externen Anbindung (aktuell Shopify, künftig z.B. Otto): Zustand immer
+    // aktualisieren, aber nur bei einer Zustandsänderung (Problem neu / gerade behoben) einen
+    // sichtbaren Feed-Eintrag zeigen — nicht bei jedem einzelnen erfolgreichen Aufruf erneut.
+    if(event.type==='connector_status'){
+      const key=event.connector;
+      const prev=key?connectorStatusMap.get(key):undefined;
+      if(key) connectorStatusMap.set(key, event.ok?'ok':'red');
+      if(event.ok && prev!=='red'){
+        renderStatusWidget();
+        return;
+      }
+      addStatusEvent(event);
       return;
     }
 
@@ -2340,6 +2362,11 @@ function getOverallSeverity(){
   // sobald die Bestellung bearbeitet oder gelöscht wird, ohne den Feed selbst zu verändern.
   for(const v of orderQualityMap.values()){
     if(v==='amber') max=Math.max(max,1);
+  }
+  // Live-Zustand pro externer Anbindung (Shopify, künftig weitere) — löst sich automatisch,
+  // sobald ein API-Aufruf wieder erfolgreich durchläuft.
+  for(const v of connectorStatusMap.values()){
+    if(v==='red') max=Math.max(max,2);
   }
   // Höchste (schlimmste) Ampel-Stufe unter den übrigen, NICHT selbst-heilenden Ereignissen
   // seit Sitzungsbeginn (z.B. Sync-Fehler) — sinkt nicht von selbst, damit nichts unbemerkt
@@ -2447,9 +2474,35 @@ async function loadOpenQualityIssues(){
   }
 }
 
+// Fragt beim Laden der Seite einmal ab, ob eine externe Anbindung (aktuell Shopify) AKTUELL
+// gestört ist — sonst würde die Ampel nach einem Reload wieder bei "alles ok" anfangen,
+// obwohl z.B. das Shopify-Zugriffstoken weiterhin ungültig ist.
+async function loadConnectorStatus(){
+  try{
+    const res=await fetch(`${BACKEND_URL}/connectors/status`);
+    if(!res.ok) return;
+    const data=await res.json();
+    (data.issues||[]).forEach(c=>{
+      connectorStatusMap.set(c.connector,'red');
+      addStatusEvent({
+        type:'connector_status',
+        severity:'red',
+        ok:false,
+        connector:c.connector,
+        text:`${c.connector}-Verbindung unterbrochen: ${c.message||'unbekannter Fehler'}`,
+        timestamp:new Date().toISOString(),
+      });
+    });
+    renderStatusWidget();
+  }catch(err){
+    console.error('Konnte Connector-Status nicht laden:',err);
+  }
+}
+
 // Verbindung direkt beim Laden der Seite aufbauen
 connectStatusStream();
 loadOpenQualityIssues();
+loadConnectorStatus();
 
 function getSyncInterval(){
   return parseInt(localStorage.getItem('ec_sync_interval')||'60');

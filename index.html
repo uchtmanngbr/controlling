@@ -186,6 +186,9 @@ tr:last-child td{border-bottom:none;}
 #status-panel-dot.red{background:#E24B4A;}
 #status-panel-close{background:none;border:none;color:#888780;font-size:14px;cursor:pointer;padding:2px 4px;line-height:1;}
 #status-panel-close:hover{color:#1a1a18;}
+#status-connection-line{display:flex;align-items:center;gap:7px;padding:8px 16px;font-size:11px;color:#888780;border-bottom:0.5px solid #f5f5f3;background:#fafaf8;}
+#status-connection-dot{width:7px;height:7px;border-radius:50%;background:#1D9E75;flex-shrink:0;}
+#status-connection-dot.red{background:#E24B4A;}
 #status-panel-body{overflow-y:auto;flex:1;}
 #status-panel-list{display:flex;flex-direction:column;}
 .status-item{display:flex;gap:10px;padding:10px 16px;border-bottom:0.5px solid #f5f5f3;}
@@ -2264,7 +2267,6 @@ let statusEvents=[];
 let statusUnread=0;
 let statusPanelOpen=false;
 let statusEventSource=null;
-let statusHadConnectionError=false;
 let statusCurrentlyConnected=true; // aktueller Live-Status, unabhängig vom Verlauf
 
 // Aktueller Datenqualitäts-Zustand PRO BESTELLUNG (bestellnr -> 'amber'|'ok'). Wird bei jeder
@@ -2278,9 +2280,10 @@ let orderQualityMap=new Map();
 const SEVERITY_RANK={green:0,amber:1,red:2};
 
 // Diese Typen fließen NICHT in die "schlimmster Zustand seit Sitzungsbeginn"-Berechnung ein,
-// weil sie einen SELBST-HEILENDEN Live-Zustand abbilden statt eines dauerhaften Vorfalls:
-// connection_lost/restored → statusCurrentlyConnected, order_incomplete/order_quality → orderQualityMap.
-const STATUS_TRANSIENT_TYPES=new Set(['connection_lost','connection_restored','order_incomplete','order_quality']);
+// weil sie einen SELBST-HEILENDEN Live-Zustand abbilden statt eines dauerhaften Vorfalls
+// (order_incomplete/order_quality → orderQualityMap). Der Verbindungsstatus selbst erzeugt
+// gar keine Feed-Einträge mehr (siehe unten), sondern nur noch die feste Statuszeile im Panel.
+const STATUS_TRANSIENT_TYPES=new Set(['order_incomplete','order_quality']);
 
 function connectStatusStream(){
   if(statusEventSource) statusEventSource.close();
@@ -2290,13 +2293,7 @@ function connectStatusStream(){
     const event=JSON.parse(msg.data);
     if(event.type==='connected'){
       statusCurrentlyConnected=true;
-      // Erste Verbindung bzw. erfolgreiche Wiederverbindung
-      if(statusHadConnectionError){
-        statusHadConnectionError=false;
-        addStatusEvent({type:'connection_restored',severity:'green',text:'Verbindung zum Server wiederhergestellt',timestamp:new Date().toISOString()});
-      } else {
-        renderStatusWidget();
-      }
+      renderStatusWidget(); // aktualisiert nur die feste Verbindungszeile, kein Feed-Eintrag
       return;
     }
 
@@ -2324,12 +2321,7 @@ function connectStatusStream(){
 
   statusEventSource.onerror=function(){
     statusCurrentlyConnected=false;
-    if(!statusHadConnectionError){
-      statusHadConnectionError=true;
-      addStatusEvent({type:'connection_lost',severity:'red',text:'Serververbindung unterbrochen — versuche erneut zu verbinden...',timestamp:new Date().toISOString()});
-    } else {
-      renderStatusWidget(); // Ampel sofort auf rot, auch ohne neuen Feed-Eintrag
-    }
+    renderStatusWidget(); // nur die feste Verbindungszeile + Ampel aktualisieren, kein Feed-Eintrag
     // EventSource verbindet automatisch neu, kein manueller Reconnect nötig
   };
 }
@@ -2385,6 +2377,14 @@ function renderStatusWidget(){
       badge.style.display='none';
     }
   }
+
+  // Feste Verbindungszeile — aktualisiert sich selbst, statt bei jedem Aussetzer/Reconnect
+  // einen neuen Feed-Eintrag zu erzeugen (das nervt bei instabilen Verbindungen, z.B. wenn
+  // Railway oder der Laptop-Standby die Leitung häufiger kappt).
+  const connDot=document.getElementById('status-connection-dot');
+  const connText=document.getElementById('status-connection-text');
+  if(connDot) connDot.className=statusCurrentlyConnected?'':'red';
+  if(connText) connText.textContent=statusCurrentlyConnected?'Serververbindung: Verbunden':'Serververbindung: Getrennt — verbinde erneut...';
 
   const list=document.getElementById('status-panel-list');
   const empty=document.getElementById('status-panel-empty');
@@ -7797,6 +7797,10 @@ async function initApp(){
         <span id="status-panel-title">Alles läuft</span>
       </div>
       <button id="status-panel-close" onclick="toggleStatusPanel()">✕</button>
+    </div>
+    <div id="status-connection-line">
+      <span id="status-connection-dot"></span>
+      <span id="status-connection-text">Serververbindung: Verbunden</span>
     </div>
     <div id="status-panel-body">
       <div id="status-panel-empty" class="empty" style="padding:1.5rem;">Noch keine Meldungen in dieser Sitzung.</div>

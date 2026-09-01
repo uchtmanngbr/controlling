@@ -3807,13 +3807,14 @@ async function saveEdit(){
   // Update per ID — verhindert Duplikate bei Marktplatz-Änderung
   await updateOrderWithItems(orders[idx].id, orders[idx], _edItems);
   // Datenqualitäts-Zustand neu prüfen — löst eine frühere Ampel-Warnung automatisch auf,
-  // falls z.B. gerade der fehlende EK nachgetragen wurde
+  // falls z.B. gerade der fehlende EK nachgetragen wurde. Prüft die eingegebenen Werte direkt,
+  // nicht ob die SKU in der Produkttabelle steht (das wäre bei manueller Erfassung normal).
   if(orders[idx].id){
-    const skus=(orders[idx].items||[]).map(it=>it.sku||'');
+    const items=(orders[idx].items||[]).map(it=>({sku:it.sku||'',name:it.name||'',ek:it.ek||0}));
     fetch(`${BACKEND_URL}/orders/check-quality`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({orderId:orders[idx].id,bestellnr:orders[idx].bestellnr||String(orders[idx].id),skus}),
+      body:JSON.stringify({orderId:orders[idx].id,bestellnr:orders[idx].bestellnr||String(orders[idx].id),items,versandProfilId:orders[idx].versandProfilId||null}),
     }).catch(err=>console.error('Datenqualitäts-Check fehlgeschlagen:',err));
   }
   const syncEl2=document.getElementById('sync-indicator');
@@ -4088,14 +4089,15 @@ async function saveOrder(){
     const idx=all.findIndex(o=>o.id===order.id);
     if(idx>=0){ all[idx].id=supabaseId; saveOrders(all); }
 
-    // Datenqualitäts-Check im Backend anstoßen (fehlender EK/Versandprofil/SKU) — läuft im
-    // Hintergrund, blockiert das Speichern nicht und wird bei Fehlern nur geloggt, nicht
-    // dem Nutzer angezeigt (Ampel-Meldung ist ein Zusatznutzen, kein kritischer Pfad)
-    const skus=(order.items||[]).map(it=>it.sku||'');
+    // Datenqualitäts-Check im Backend anstoßen — prüft die TATSÄCHLICH EINGEGEBENEN Werte
+    // (Artikelname, EK, Versandprofil), NICHT ob die SKU in der Produkttabelle steht. Das ist
+    // bei manueller Erfassung normal (Produkt ggf. noch nicht angelegt) und kein Fehler.
+    // Läuft im Hintergrund, blockiert das Speichern nicht.
+    const items=(order.items||[]).map(it=>({sku:it.sku||'',name:it.name||'',ek:it.ek||0}));
     fetch(`${BACKEND_URL}/orders/check-quality`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({orderId:supabaseId,bestellnr:order.bestellnr||String(supabaseId),skus}),
+      body:JSON.stringify({orderId:supabaseId,bestellnr:order.bestellnr||String(supabaseId),items,versandProfilId:order.versandProfilId||null}),
     }).catch(err=>console.error('Datenqualitäts-Check fehlgeschlagen:',err));
   }
   const syncEl=document.getElementById('sync-indicator');

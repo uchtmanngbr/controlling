@@ -2960,7 +2960,7 @@ function renderBerichte(){
     totalBrutto+=effBrutto(o);
     totalNetto+=effNetto(o);
     totalDB+=db;
-    totalWaren+=(o.waren||0);
+    totalWaren+=effWaren(o);
     totalVersand+=(o.versand||0);
     totalProv+=(o.provision||0);
     if(byChannel[o.kanal]){byChannel[o.kanal].db+=db;byChannel[o.kanal].netto+=effNetto(o);byChannel[o.kanal].n++;}
@@ -3125,7 +3125,7 @@ function getMonthStats(month, year){
   orders.forEach(o=>{
     umsatzBrutto+=effBrutto(o);
     umsatzNetto+=effNetto(o);
-    waren+=(o.waren||0);
+    waren+=effWaren(o);
     versand+=(o.versand||0);
     provision+=(o.provision||0);
     retoure+=(o.retoure||0);
@@ -3856,6 +3856,16 @@ function effNetto(order){
   return parseFloat(((order.umsatzNetto||0)-retourAnteilNetto(order)).toFixed(2));
 }
 
+// Wieviel vom ursprünglichen Wareneinsatz ist durch eine Retoure wieder "wertvoll" (nicht abgeschrieben)?
+// Bei 0% Abschreibung (Einwandfrei) ist die Ware weiterhin komplett verkaufsfähig — der volle EK
+// fließt zurück. Bei 100% (Defekt) bleibt der volle EK als tatsächlicher Verlust stehen.
+function retourWarenErstattung(order){
+  return getRetourenForOrder(order.id).reduce((s,r)=>s+((r.ek||0)*(r.menge||1)-(r.abschreibung||0)),0);
+}
+function effWaren(order){
+  return parseFloat(((order.waren||0)-retourWarenErstattung(order)).toFixed(2));
+}
+
 // Speichert eine Retoure (neu oder Update) in Supabase
 async function saveRetoureEntry(entry){
   const res=await sbFetch('retouren', entry.id?'PATCH':'POST', entry, entry.id?`?id=eq.${entry.id}`:'');
@@ -3894,8 +3904,11 @@ function fmtS(n){return new Intl.NumberFormat('de-DE',{style:'currency',currency
 function nettoVon(b){return b/(1+MwSt);}
 function mwstVon(b){return b-nettoVon(b);}
 function calcDB(o){
-  const retLoss=getRetourenForOrder(o.id).reduce((s,r)=>s+(r.abschreibung||0)+(r.labelkosten||0),0);
-  return effNetto(o)-(o.waren||0)-(o.versand||0)-(o.provision||0)-(o.retoure||0)-(o.payment_fee||0)-retLoss;
+  // Abschreibung steckt schon in effWaren() (reduziert die "Rückgewinnung" der Warenkosten) —
+  // hier NICHT nochmal abziehen, sonst wird sie doppelt gezählt. Nur Label + Rücksendekosten
+  // sind zusätzliche, rein retourenbedingte Kosten.
+  const retLoss=getRetourenForOrder(o.id).reduce((s,r)=>s+(r.labelkosten||0)+(r.versand||0),0);
+  return effNetto(o)-effWaren(o)-(o.versand||0)-(o.provision||0)-(o.retoure||0)-(o.payment_fee||0)-retLoss;
 }
 
 function onKanalChange(){manualFee=false;autoCalc();populateVersandDropdown();}
@@ -6023,15 +6036,22 @@ function openOrderDetail(id){
 
 
 
-  // Kostenaufstellung
+  // Kostenaufstellung — bei Retouren die bereinigten (effektiven) Werte zeigen,
+  // damit die Zahlen hier mit dem tatsächlichen Deckungsbeitrag darunter übereinstimmen
+  const effBr=effBrutto(o), effNe=effNetto(o), effWa=effWaren(o);
+  const retLossItems=getRetourenForOrder(o.id).reduce((s,r)=>s+(r.labelkosten||0)+(r.versand||0),0);
   const rows=[
-    {label:'Bruttoumsatz', val:o.umsatzBrutto||0, cls:''},
-    {label:'Nettoumsatz', val:o.umsatzNetto||0, cls:''},
-    {label:'− Warenkosten', val:-(o.waren||0), cls:'neg'},
+    {label:'Bruttoumsatz', val:effBr, cls:''},
+    {label:'Nettoumsatz', val:effNe, cls:''},
+    {label:'− Warenkosten', val:-effWa, cls:'neg'},
     {label:'− Versandkosten', val:-(o.versand||0), cls:'neg'},
     {label:'− Marktplatzgebühren', val:-(o.provision||0), cls:'neg'},
     {label:'− Zahlungsgebühr', val:-(o.payment_fee||0), cls:'neg', hide:!o.payment_fee},
+    {label:'− Retourenkosten (Label/Rückversand)', val:-retLossItems, cls:'neg', hide:!isR||retLossItems===0},
   ].filter(r=>!r.hide);
+
+  const hintEl=document.getElementById('od-retoure-hint');
+  if(hintEl) hintEl.style.display=isR?'block':'none';
 
   document.getElementById('od-rows').innerHTML=rows.map(r=>`
     <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid #f5f5f3">
@@ -7665,6 +7685,9 @@ async function initApp(){
       <!-- KOSTENAUFSTELLUNG -->
       <div style="padding:16px 24px;">
         <div style="font-size:11px;font-weight:600;color:#003265;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Kostenaufstellung</div>
+        <div id="od-retoure-hint" style="display:none;background:#FAEEDA;color:#854F0B;border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:10px;">
+          ⚠ Diese Bestellung hat eine Retoure — die Werte unten sind bereits um den retournierten Anteil bereinigt.
+        </div>
         <div id="od-rows"></div>
         <div id="od-result" style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:2px solid #003265">
           <span style="font-weight:700;font-size:14px;color:#003265">Deckungsbeitrag</span>

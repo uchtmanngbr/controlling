@@ -4495,14 +4495,15 @@ function renderRetouren(){
       <th style="text-align:right;color:#888780;font-weight:400;padding:10px 8px">Versand</th>
       <th style="text-align:right;color:#888780;font-weight:400;padding:10px 8px">Abschreibung</th>
       <th style="text-align:right;color:#888780;font-weight:400;padding:10px 8px">Label</th>
-      <th style="text-align:right;color:#888780;font-weight:400;padding:10px 12px">Gesamtverlust</th>
+      <th style="text-align:right;color:#888780;font-weight:400;padding:10px 12px">Gesamtwirkung</th>
       <th style="padding:10px 12px"></th>
     </tr></thead>
     <tbody>${retouren.map(r=>{
       const abschr=r.abschreibung||0;
       const label=r.labelkosten||0;
       const versandK=r.versand||0;
-      const verlust=parseFloat((versandK+abschr+label).toFixed(2));
+      const order=allOrders.find(o=>o.id===r.order_id);
+      const verlust=parseFloat((versandK+abschr+label+(order?.versand||0)+(order?.provision||0)).toFixed(2));
       const zustandLabel=!r.bearbeitet?'<span style="font-size:10px;padding:1px 6px;border-radius:99px;background:#FAEEDA;color:#854F0B">⚠ Zu bearbeiten</span>':(r.zustand==='custom'?`Individuell (${r.abschreibung_pct||0}%)`:((z=>z?z.label:'—')(getRetZustaende().find(z=>z.id===r.zustand))));
       return `<tr style="border-bottom:0.5px solid #f5f5f3;" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
         <td style="padding:10px 12px;color:#888780;white-space:nowrap">${r.datum?r.datum.split('-').reverse().join('.'):'—'}</td>

@@ -4641,12 +4641,14 @@ function backToRetStep1(){
 function updateMultiPreview(){
   const rows=[...document.querySelectorAll('#ret-step2-items .ret-item-row')];
   let abschrTotal=0;
+  const orderIds=new Set();
   rows.forEach(row=>{
     const menge=parseFloat(row.querySelector('.ret-item-menge').value)||1;
     const ek=parseFloat(row.querySelector('.ret-item-ek').value)||0;
     const zustand=row.querySelector('.ret-item-zustand').value;
     const pct=getRetZustandPct(zustand);
     abschrTotal+=ek*menge*pct/100;
+    orderIds.add(parseInt(row.dataset.orderId));
   });
   abschrTotal=parseFloat(abschrTotal.toFixed(2));
   const versand=parseFloat(document.getElementById('ret-m-versand').value)||0;
@@ -4656,6 +4658,17 @@ function updateMultiPreview(){
   document.getElementById('ret-m-verlust-label').textContent=label>0?fmt(label):'\u2014';
   document.getElementById('ret-m-verlust-abschr').textContent=abschrTotal>0?fmt(abschrTotal):'\u2014';
   document.getElementById('ret-m-verlust-preview').textContent=verlust>0?fmt(verlust):'0,00 \u20ac';
+
+  // Gesamtwirkung: zusaetzliche Retourenkosten + urspruenglicher Versand/Gebuehr aller betroffenen Bestellungen
+  const allOrders=getOrders();
+  let orderCosts=0;
+  orderIds.forEach(oid=>{
+    const o=allOrders.find(x=>x.id===oid);
+    if(o) orderCosts+=(o.versand||0)+(o.provision||0);
+  });
+  const gesamt=parseFloat((verlust+orderCosts).toFixed(2));
+  const gesamtEl=document.getElementById('ret-m-verlust-gesamt');
+  if(gesamtEl) gesamtEl.textContent=fmt(gesamt);
 }
 
 function openRetEdit(id){
@@ -4697,12 +4710,13 @@ function updateRetAbschreibung(){
   customWrap.style.display=zustand==='custom'?'block':'none';
   const ek=parseFloat(document.getElementById('ret-ek').value)||0;
   const editingId=document.getElementById('ret-edit-id').value;
-  const menge=editingId?(getRetouren().find(r=>r.id===parseInt(editingId))?.menge||1):1;
+  const existingRet=editingId?getRetouren().find(r=>r.id===parseInt(editingId)):null;
+  const menge=existingRet?(existingRet.menge||1):1;
   let pct;
   if(zustand==='custom') pct=parseFloat(document.getElementById('ret-custom-pct').value)||0;
   else pct=getRetZustandPct(zustand);
   const abschr=parseFloat((ek*menge*pct/100).toFixed(2));
-  document.getElementById('ret-abschreibung').value=abschr||'';
+  document.getElementById('ret-abschreibung').value=abschr.toFixed(2);
   const label=parseFloat(document.getElementById('ret-label-kosten').value)||0;
   const versand=parseFloat(document.getElementById('ret-versand').value)||0;
   const verlust=parseFloat((versand+abschr+label).toFixed(2));
@@ -4711,6 +4725,19 @@ function updateRetAbschreibung(){
   if(el('ret-verlust-label')) el('ret-verlust-label').textContent=label>0?fmt(label):'—';
   if(el('ret-verlust-abschr')) el('ret-verlust-abschr').textContent=abschr>0?fmt(abschr):'—';
   el('ret-verlust-preview').textContent=verlust>0?fmt(verlust):'0,00 €';
+
+  // Gesamtwirkung auf die Bestellung: zusätzliche Retourenkosten + ursprünglicher Versand/Gebühr,
+  // die trotz Retoure angefallen sind
+  const order=existingRet?getOrders().find(o=>o.id===existingRet.order_id):null;
+  const gesamtEl=el('ret-verlust-gesamt');
+  if(gesamtEl){
+    if(order){
+      const gesamt=parseFloat((verlust+(order.versand||0)+(order.provision||0)).toFixed(2));
+      gesamtEl.textContent=fmt(gesamt);
+    } else {
+      gesamtEl.textContent='—';
+    }
+  }
 }
 
 async function saveRetEdit(){
@@ -7735,9 +7762,14 @@ async function initApp(){
           <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Retourenlabel</span><span id="ret-m-verlust-label">—</span></div>
           <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:0.5px solid #ddddd5"><span style="color:#888780">Abschreibung</span><span id="ret-m-verlust-abschr">—</span></div>
           <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:4px">
-            <span style="color:#888780">Gesamtverlust</span>
+            <span style="color:#888780">Zusätzliche Retourenkosten</span>
             <span id="ret-m-verlust-preview" style="font-size:16px;font-weight:600;color:#E24B4A">—</span>
           </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:8px;border-top:0.5px solid #ddddd5">
+            <span style="color:#888780">Gesamtwirkung auf Bestellung</span>
+            <span id="ret-m-verlust-gesamt" style="font-size:16px;font-weight:600;color:#E24B4A">—</span>
+          </div>
+          <div class="text-xs" style="margin-top:4px;color:#888780">inkl. ursprünglicher Versandkosten &amp; Marktplatzgebühr, die trotz Retoure angefallen sind</div>
         </div>
       </div>
 
@@ -7792,9 +7824,14 @@ async function initApp(){
         <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Retourenlabel</span><span id="ret-verlust-label">—</span></div>
         <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:0.5px solid #ddddd5"><span style="color:#888780">Abschreibung</span><span id="ret-verlust-abschr">—</span></div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:4px">
-          <span style="color:#888780">Gesamtverlust</span>
+          <span style="color:#888780">Zusätzliche Retourenkosten</span>
           <span id="ret-verlust-preview" style="font-size:16px;font-weight:600;color:#E24B4A">—</span>
         </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:8px;border-top:0.5px solid #ddddd5">
+          <span style="color:#888780">Gesamtwirkung auf Bestellung</span>
+          <span id="ret-verlust-gesamt" style="font-size:16px;font-weight:600;color:#E24B4A">—</span>
+        </div>
+        <div class="text-xs" style="margin-top:4px;color:#888780">inkl. ursprünglicher Versandkosten &amp; Marktplatzgebühr, die trotz Retoure angefallen sind</div>
       </div>
 
       <div class="edit-modal-footer">

@@ -2261,6 +2261,20 @@ function showConnResult(mp, ok, msg){
 
 const BACKEND_URL='https://profitviewer-backend-production.up.railway.app';
 
+// WICHTIG: hier den echten Key aus Railway (INTERNAL_API_KEY) eintragen, bevor du deployst.
+// Nur dieser eine Platzhalter muss noch ersetzt werden.
+const INTERNAL_API_KEY='e18cecadf1d4b1fe7ccfdab27700fbb0c745c9e4790fb15e232988567290f22c';
+
+// Schickt bei jedem fetch() an unser eigenes Backend automatisch den Authorization-Header mit.
+// Aufrufe an SUPABASE_URL bleiben davon unberührt (andere Absicherung, siehe Supabase RLS).
+const _originalFetch=window.fetch;
+window.fetch=function(url, options={}){
+  if(typeof url==='string' && url.startsWith(BACKEND_URL)){
+    options={...options, headers:{...(options.headers||{}), 'Authorization':`Bearer ${INTERNAL_API_KEY}`}};
+  }
+  return _originalFetch(url, options);
+};
+
 /* ── STATUS-PANEL (Ampel) ── */
 // Alle Meldungen nur für diese Sitzung (kein Speichern, verschwindet bei Reload)
 let statusEvents=[];
@@ -2294,7 +2308,9 @@ const STATUS_TRANSIENT_TYPES=new Set(['order_incomplete','order_quality','connec
 
 function connectStatusStream(){
   if(statusEventSource) statusEventSource.close();
-  statusEventSource=new EventSource(`${BACKEND_URL}/events/stream`);
+  // EventSource kann keine eigenen Header mitschicken -> Key hier als Query-Parameter,
+  // die Middleware im Backend akzeptiert beides (Header ODER ?apiKey=...).
+  statusEventSource=new EventSource(`${BACKEND_URL}/events/stream?apiKey=${encodeURIComponent(INTERNAL_API_KEY)}`);
 
   statusEventSource.onmessage=function(msg){
     const event=JSON.parse(msg.data);

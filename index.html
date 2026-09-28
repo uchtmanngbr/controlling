@@ -3882,6 +3882,18 @@ function effWaren(order){
   return parseFloat(((order.waren||0)-retourWarenErstattung(order)).toFixed(2));
 }
 
+// Marktplatzgebühr wird bei einer Retoure vom Marktplatz zurückerstattet (Annahme: gilt für
+// alle Kanäle) — anteilig zum zurückgeflossenen Umsatz, damit bei Teilretouren nicht die
+// komplette Gebühr gutgeschrieben wird, sondern nur der betroffene Teil.
+function retourAnteilProvision(order){
+  if(!order.umsatzNetto) return 0;
+  const anteil=retourAnteilNetto(order)/order.umsatzNetto;
+  return parseFloat(((order.provision||0)*anteil).toFixed(2));
+}
+function effProvision(order){
+  return parseFloat(((order.provision||0)-retourAnteilProvision(order)).toFixed(2));
+}
+
 // Speichert eine Retoure (neu oder Update) in Supabase
 async function saveRetoureEntry(entry){
   const res=await sbFetch('retouren', entry.id?'PATCH':'POST', entry, entry.id?`?id=eq.${entry.id}`:'');
@@ -3924,7 +3936,7 @@ function calcDB(o){
   // hier NICHT nochmal abziehen, sonst wird sie doppelt gezählt. Nur Label + Rücksendekosten
   // sind zusätzliche, rein retourenbedingte Kosten.
   const retLoss=getRetourenForOrder(o.id).reduce((s,r)=>s+(r.labelkosten||0)+(r.versand||0),0);
-  return effNetto(o)-effWaren(o)-(o.versand||0)-(o.provision||0)-(o.retoure||0)-(o.payment_fee||0)-retLoss;
+  return effNetto(o)-effWaren(o)-(o.versand||0)-effProvision(o)-(o.retoure||0)-(o.payment_fee||0)-retLoss;
 }
 
 function onKanalChange(){manualFee=false;autoCalc();populateVersandDropdown();}
@@ -4519,7 +4531,7 @@ function renderRetouren(){
       const label=r.labelkosten||0;
       const versandK=r.versand||0;
       const order=allOrders.find(o=>o.id===r.order_id);
-      const verlust=parseFloat((versandK+abschr+label+(order?.versand||0)+(order?.provision||0)).toFixed(2));
+      const verlust=parseFloat((versandK+abschr+label+(order?.versand||0)).toFixed(2));
       const zustandLabel=!r.bearbeitet?'<span style="font-size:10px;padding:1px 6px;border-radius:99px;background:#FAEEDA;color:#854F0B">⚠ Zu bearbeiten</span>':(r.zustand==='custom'?`Individuell (${r.abschreibung_pct||0}%)`:((z=>z?z.label:'—')(getRetZustaende().find(z=>z.id===r.zustand))));
       return `<tr style="border-bottom:0.5px solid #f5f5f3;" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
         <td style="padding:10px 12px;color:#888780;white-space:nowrap">${r.datum?r.datum.split('-').reverse().join('.'):'—'}</td>
@@ -4681,7 +4693,7 @@ function updateMultiPreview(){
   let orderCosts=0;
   orderIds.forEach(oid=>{
     const o=allOrders.find(x=>x.id===oid);
-    if(o) orderCosts+=(o.versand||0)+(o.provision||0);
+    if(o) orderCosts+=(o.versand||0);
   });
   const gesamt=parseFloat((verlust+orderCosts).toFixed(2));
   const gesamtEl=document.getElementById('ret-m-verlust-gesamt');
@@ -4749,7 +4761,7 @@ function updateRetAbschreibung(){
   const gesamtEl=el('ret-verlust-gesamt');
   if(gesamtEl){
     if(order){
-      const gesamt=parseFloat((verlust+(order.versand||0)+(order.provision||0)).toFixed(2));
+      const gesamt=parseFloat((verlust+(order.versand||0)).toFixed(2));
       gesamtEl.textContent=fmt(gesamt);
     } else {
       gesamtEl.textContent='—';
@@ -6082,14 +6094,14 @@ function openOrderDetail(id){
 
   // Kostenaufstellung — bei Retouren die bereinigten (effektiven) Werte zeigen,
   // damit die Zahlen hier mit dem tatsächlichen Deckungsbeitrag darunter übereinstimmen
-  const effBr=effBrutto(o), effNe=effNetto(o), effWa=effWaren(o);
+  const effBr=effBrutto(o), effNe=effNetto(o), effWa=effWaren(o), effProv=effProvision(o);
   const retLossItems=getRetourenForOrder(o.id).reduce((s,r)=>s+(r.labelkosten||0)+(r.versand||0),0);
   const rows=[
     {label:'Bruttoumsatz', val:effBr, cls:''},
     {label:'Nettoumsatz', val:effNe, cls:''},
     {label:'− Warenkosten', val:-effWa, cls:'neg'},
     {label:'− Versandkosten', val:-(o.versand||0), cls:'neg'},
-    {label:'− Marktplatzgebühren', val:-(o.provision||0), cls:'neg'},
+    {label:'− Marktplatzgebühren', val:-effProv, cls:'neg'},
     {label:'− Zahlungsgebühr', val:-(o.payment_fee||0), cls:'neg', hide:!o.payment_fee},
     {label:'− Retourenkosten (Label/Rückversand)', val:-retLossItems, cls:'neg', hide:!isR||retLossItems===0},
   ].filter(r=>!r.hide);
@@ -7786,7 +7798,7 @@ async function initApp(){
             <span style="color:#888780">Gesamtwirkung auf Bestellung</span>
             <span id="ret-m-verlust-gesamt" style="font-size:16px;font-weight:600;color:#E24B4A">—</span>
           </div>
-          <div class="text-xs" style="margin-top:4px;color:#888780">inkl. ursprünglicher Versandkosten &amp; Marktplatzgebühr, die trotz Retoure angefallen sind</div>
+          <div class="text-xs" style="margin-top:4px;color:#888780">inkl. ursprünglicher Versandkosten, die trotz Retoure angefallen sind (Marktplatzgebühr wird zurückerstattet)</div>
         </div>
       </div>
 
@@ -7848,7 +7860,7 @@ async function initApp(){
           <span style="color:#888780">Gesamtwirkung auf Bestellung</span>
           <span id="ret-verlust-gesamt" style="font-size:16px;font-weight:600;color:#E24B4A">—</span>
         </div>
-        <div class="text-xs" style="margin-top:4px;color:#888780">inkl. ursprünglicher Versandkosten &amp; Marktplatzgebühr, die trotz Retoure angefallen sind</div>
+        <div class="text-xs" style="margin-top:4px;color:#888780">inkl. ursprünglicher Versandkosten, die trotz Retoure angefallen sind (Marktplatzgebühr wird zurückerstattet)</div>
       </div>
 
       <div class="edit-modal-footer">

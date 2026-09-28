@@ -3263,7 +3263,7 @@ function populateCfFilters(){
 function getMonthStats(month, year){
   const orders=getOrders().filter(o=>{const d=new Date(o.datum);return d.getMonth()+1===month&&d.getFullYear()===year;});
   const rechnungen=getRechForMonth(month,year);
-  let umsatzBrutto=0,umsatzNetto=0,waren=0,versand=0,provision=0,retoure=0,db=0;
+  let umsatzBrutto=0,umsatzNetto=0,waren=0,versand=0,provision=0,retoure=0,retoureAbschreibung=0,db=0;
   orders.forEach(o=>{
     umsatzBrutto+=effBrutto(o);
     umsatzNetto+=effNetto(o);
@@ -3271,6 +3271,7 @@ function getMonthStats(month, year){
     versand+=(o.versand||0);
     provision+=(o.provision||0);
     retoure+=(o.retoure||0)+retoureZusatzkosten(o);
+    retoureAbschreibung+=retourAbschreibungSumme(o);
     db+=calcDB(o);
   });
   // Rechnungen: Einnahmen zum Bruttoumsatz addieren, Gewinn zum DB
@@ -3306,7 +3307,7 @@ function getMonthStats(month, year){
   // Nur variable Kosten (DB) hochrechnen — Fixkosten bleiben fix
   const hochrechnungDB=db*hochrechnungFaktor;
   const hochrechnungCf=hochrechnungDB-fix-mkTotal-totalMpg;
-  return {orders:orders.length,umsatzBrutto,umsatzNetto,waren,versand,provision,retoure,db,fix,mkTotal,totalMpg,fixTotal,cashflow,rechGewinn,roi,dbMarge,warenQuote,beNeeded,beWaren,hochrechnungDB,hochrechnungCf,tageBisher,tageImMonat,istAktuellerMonat};
+  return {orders:orders.length,umsatzBrutto,umsatzNetto,waren,versand,provision,retoure,retoureAbschreibung,db,fix,mkTotal,totalMpg,fixTotal,cashflow,rechGewinn,roi,dbMarge,warenQuote,beNeeded,beWaren,hochrechnungDB,hochrechnungCf,tageBisher,tageImMonat,istAktuellerMonat};
 }
 
 function fmtDiff(val){
@@ -3342,12 +3343,18 @@ function renderCashflow(){
   ].map(m=>`<div class="metric"><div class="metric-label">${m.label}</div><div class="metric-value ${m.cls}">${m.value}</div></div>`).join('');
 
   // Cashflow Aufschlüsselung
+  // Abschreibung wird für die ANZEIGE aus "Warenkosten" in "Retouren" verschoben (reine
+  // Umsortierung, Summe bleibt identisch) — so stehen unter "Retouren" alle drei vom Nutzer
+  // erwarteten Posten (Versand, Label, Abschreibung), ohne die Deckungsbeitrag-Rechnung
+  // (calcDB/effWaren) selbst anzufassen.
+  const warenAnzeige=s.waren-s.retoureAbschreibung;
+  const retoureAnzeige=s.retoure+s.retoureAbschreibung;
   const cfRows=[
     {label:'Nettoumsatz',val:s.umsatzNetto,sign:'+',bold:false},
-    {label:'− Warenkosten',val:-s.waren,sign:'',bold:false},
+    {label:'− Warenkosten',val:-warenAnzeige,sign:'',bold:false},
     {label:'− Versandkosten',val:-s.versand,sign:'',bold:false},
     {label:'− Marktplatzprovisionen',val:-s.provision,sign:'',bold:false},
-    {label:'− Retouren',val:-s.retoure,sign:'',bold:false},
+    {label:'− Retouren',val:-retoureAnzeige,sign:'',bold:false},
     {label:'= Deckungsbeitrag',val:s.db,sign:'',bold:true},
     {label:'− Fixkosten',val:-s.fix,sign:'',bold:false},
     {label:'− Marketing',val:-s.mkTotal,sign:'',bold:false},
@@ -3362,8 +3369,8 @@ function renderCashflow(){
         <span style="font-weight:${r.bold?'500':'400'};color:${r.highlight?(s.cashflow>=0?'#1D9E75':'#E24B4A'):(r.val<0?'#E24B4A':'#1a1a18')}">${r.val===0&&!r.bold?'—':fmtS(r.val)}</span>
       </div>`;
     }).join('')}
-    ${s.retoure>0?`<div style="margin-top:6px;font-size:11px;color:#888780">
-      ℹ️ Retouren: Rücksendeversand + Label. Abschreibungen stecken bereits in „− Warenkosten", Marktplatzgebühren bleiben unabhängig von der Retoure bestehen.
+    ${retoureAnzeige>0?`<div style="margin-top:6px;font-size:11px;color:#888780">
+      ℹ️ Retouren: Rücksendeversand + Retourenlabel + Abschreibung. Marktplatzgebühren bleiben unabhängig von der Retoure bestehen und zählen hier bewusst nicht mit.
     </div>`:''}
     ${s.istAktuellerMonat?`<div style="margin-top:10px;padding-top:8px;border-top:0.5px solid #ddddd5;font-size:11px;color:#888780">
       📅 Tag ${s.tageBisher} von ${s.tageImMonat} — Hochrechnung Cashflow: <b style="color:${s.hochrechnungCf>=0?'#1D9E75':'#E24B4A'}">${fmtS(s.hochrechnungCf)}</b>
@@ -4075,6 +4082,13 @@ function mwstVon(b){return b-nettoVon(b);}
 // Marktplatzgebühr (die bleibt unabhängig von einer Retoure bestehen, siehe o.provision).
 function retoureZusatzkosten(order){
   return getRetourenForOrder(order.id).reduce((s,r)=>s+(r.labelkosten||0)+(r.versand||0),0);
+}
+// Abschreibungssumme aus der Retouren-Tabelle — NUR für die Cashflow-Aufschlüsselung
+// (renderCashflow), um sie dort sichtbar unter "− Retouren" statt versteckt in
+// "− Warenkosten" auszuweisen. Ändert NICHTS an effWaren()/calcDB() — die interne
+// Rechnung bleibt exakt wie sie war, das ist rein eine Umsortierung für die Anzeige.
+function retourAbschreibungSumme(order){
+  return getRetourenForOrder(order.id).reduce((s,r)=>s+(r.abschreibung||0),0);
 }
 
 function calcDB(o){

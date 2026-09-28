@@ -1408,7 +1408,7 @@ tr:last-child td{border-bottom:none;}
     <div id="praef-verbindungen" style="display:none;">
       <div style="margin-bottom:20px;">
         <div class="section-title">API-Verbindungen</div>
-        <div class="text-sm" style="margin-top:4px;margin-bottom:20px;">Verbinde deine Marktplätze um Bestellungen automatisch zu importieren. Der Import läuft stündlich im Hintergrund.</div>
+        <div class="text-sm" style="margin-top:4px;margin-bottom:20px;">Verbinde deine Marktplätze um Bestellungen automatisch zu importieren. Der Import läuft im eingestellten Intervall im Hintergrund.</div>
       </div>
 
       <!-- STATUS KACHELN -->
@@ -1435,13 +1435,13 @@ tr:last-child td{border-bottom:none;}
         </div>
 
         <!-- Otto -->
-        <div class="form-card" style="margin:0;padding:16px;display:flex;align-items:center;gap:14px;opacity:0.5;">
+        <div class="form-card" style="margin:0;padding:16px;display:flex;align-items:center;gap:14px;cursor:pointer;" onclick="openConnSetup('otto')">
           <div style="width:40px;height:40px;border-radius:10px;background:#CC0000;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;font-weight:700;color:white;font-family:sans-serif;">O</div>
           <div style="flex:1;min-width:0;">
             <div style="font-weight:600;font-size:14px;">Otto</div>
             <div id="conn-status-otto" style="font-size:12px;color:#888780;margin-top:2px;">Nicht verbunden</div>
           </div>
-          <span style="font-size:10px;background:#FAEEDA;color:#854F0B;padding:2px 8px;border-radius:99px;font-weight:600;white-space:nowrap;">Bald verfügbar</span>
+          <div id="conn-badge-otto" style="width:10px;height:10px;border-radius:50%;background:#ddddd5;flex-shrink:0;"></div>
         </div>
 
         <!-- Amazon -->
@@ -1498,17 +1498,23 @@ tr:last-child td{border-bottom:none;}
           <div class="section-title" style="margin:0;">Otto einrichten</div>
           <button class="btn" onclick="closeConnSetup('otto')">✕</button>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div class="field"><label>API-Benutzername</label><input type="text" id="conn-otto-user" placeholder="Dein OPC-Benutzername"></div>
-          <div class="field"><label>API-Passwort</label><input type="password" id="conn-otto-key" placeholder="Dein OPC API-Passwort"></div>
+        <div style="background:#E6F1FB;border-radius:8px;padding:10px 14px;font-size:12px;color:#185FA5;margin-bottom:14px;line-height:1.5;">
+          Die Otto-Zugangsdaten sind zentral im Backend hinterlegt — hier steuerst du nur, ob und wie oft automatisch importiert wird.
         </div>
-        <div style="background:#E6F1FB;border-radius:8px;padding:10px 14px;font-size:12px;color:#185FA5;margin:12px 0;line-height:1.5;">
-          <b>Wo finde ich die Zugangsdaten?</b> Otto Partner Connect (OPC) Portal → Einstellungen → API → API-Zugangsdaten
+        <div class="field" style="margin-bottom:14px;">
+          <label>Automatisches Sync-Intervall</label>
+          <select id="otto-interval-select" onchange="saveOttoInterval()" style="padding:8px 12px;border:0.5px solid #c8c8c0;border-radius:8px;outline:none;font-size:13px;">
+            <option value="10">Alle 10 Minuten</option>
+            <option value="20">Alle 20 Minuten</option>
+            <option value="30">Alle 30 Minuten</option>
+            <option value="60">Jede Stunde</option>
+          </select>
+          <div id="otto-interval-status" style="margin-top:6px;font-size:12px;"></div>
         </div>
         <div style="display:flex;gap:8px;">
           <button class="btn" onclick="testConn('otto')" style="display:flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2Zm4.5 7.5-5 5a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 1 1 1.06-1.06L11 12.94l4.44-4.44a.75.75 0 0 1 1.06 1.06Z"/></svg>Verbindung testen</button>
-          <button class="btn primary" onclick="saveConn('otto')">Speichern &amp; verbinden</button>
-          <button class="btn" onclick="disconnectConn('otto')" id="conn-disconnect-otto" style="display:none;color:#E24B4A;border-color:#E24B4A;">Trennen</button>
+          <button class="btn primary" onclick="saveConn('otto')" id="conn-activate-otto">Automatischen Import aktivieren</button>
+          <button class="btn" onclick="disconnectConn('otto')" id="conn-disconnect-otto" style="display:none;color:#E24B4A;border-color:#E24B4A;">Pausieren</button>
         </div>
         <div id="conn-result-otto" style="margin-top:10px;font-size:12px;"></div>
       </div>
@@ -1763,6 +1769,7 @@ async function syncFromSupabase(){
         if(s.key==='ret_zustaende') localStorage.setItem('ec_ret_zustaende',s.value);
         if(s.key==='dash_channels') localStorage.setItem('ec_dash_channels',s.value);
         if(s.key==='sync_interval_minutes') localStorage.setItem('ec_sync_interval',s.value);
+        if(s.key==='otto_sync_interval_minutes') localStorage.setItem('ec_otto_sync_interval',s.value);
         if(s.key==='conn_shopify'||s.key==='conn_ebay'||s.key==='conn_otto'){
           try{
             const mp=s.key.replace('conn_','');
@@ -2229,14 +2236,15 @@ function openConnSetup(mp){
     if(sec) sec.value=s.secret?'••••••••':'';
     if(tok) tok.value=s.token?'••••••••':'';
   } else if(mp==='otto'){
-    const usr=document.getElementById('conn-otto-user');
-    const key=document.getElementById('conn-otto-key');
-    if(usr) usr.value=s.user||'';
-    if(key) key.value=s.key?'••••••••':'';
+    renderOttoSyncInterval();
   }
   const disc=document.getElementById('conn-disconnect-'+mp);
   const settings=getConnSettings();
   if(disc) disc.style.display=settings[mp]?.connected?'inline-flex':'none';
+  if(mp==='otto'){
+    const activate=document.getElementById('conn-activate-otto');
+    if(activate) activate.style.display=settings.otto?.connected?'none':'inline-flex';
+  }
   clearConnResult(mp);
 }
 
@@ -2549,6 +2557,35 @@ async function saveSyncInterval(){
   }
 }
 
+function getOttoSyncInterval(){
+  return parseInt(localStorage.getItem('ec_otto_sync_interval')||'20');
+}
+
+function renderOttoSyncInterval(){
+  const sel=document.getElementById('otto-interval-select');
+  if(sel) sel.value=String(getOttoSyncInterval());
+}
+
+async function saveOttoInterval(){
+  const sel=document.getElementById('otto-interval-select');
+  const val=sel?sel.value:'20';
+  localStorage.setItem('ec_otto_sync_interval', val);
+  const status=document.getElementById('otto-interval-status');
+  if(status) status.innerHTML='<span style="color:#888780">Speichere...</span>';
+  try{
+    if(dbSynced) await saveSettingToSupabase('otto_sync_interval_minutes', val);
+    const res=await fetch(`${BACKEND_URL}/otto/reschedule`,{method:'POST'});
+    const data=await res.json();
+    if(data.ok){
+      if(status) status.innerHTML='<span style="color:#1D9E75">✓ Gespeichert — Otto-Intervall aktiv</span>';
+    } else {
+      if(status) status.innerHTML='<span style="color:#E24B4A">✗ Gespeichert, aber Backend meldet: '+(data.error||'Fehler')+'</span>';
+    }
+  }catch(err){
+    if(status) status.innerHTML='<span style="color:#E24B4A">✗ Gespeichert, aber Backend nicht erreichbar: '+err.message+'</span>';
+  }
+}
+
 async function testConn(mp){
   const result=document.getElementById('conn-result-'+mp);
   if(result) result.innerHTML='<span style="color:#888780">Teste Verbindung...</span>';
@@ -2588,24 +2625,45 @@ async function saveConn(mp){
     if(!cid.includes('••')) settings[mp].clientId=cid;
     if(!sec.includes('••')) settings[mp].secret=sec;
     if(!tok.includes('••')) settings[mp].token=tok;
-  } else if(mp==='otto'){
-    const usr=document.getElementById('conn-otto-user')?.value.trim();
-    const key=document.getElementById('conn-otto-key')?.value.trim();
-    if(!usr||!key){showConnResult(mp,false,'Bitte alle Felder ausfüllen.');return;}
-    if(!usr.includes('••')) settings[mp].user=usr;
-    if(!key.includes('••')) settings[mp].key=key;
   }
+  // Otto braucht keine vom Nutzer eingegebenen Zugangsdaten — die laufen zentral über
+  // das Backend (Umgebungsvariablen). Hier wird nur der automatische Import aktiviert.
   settings[mp].connected=true;
   setConnSettings(settings);
   if(dbSynced) await saveSettingToSupabase('conn_'+mp, JSON.stringify(settings[mp]));
   renderConnStatus();
-  showConnResult(mp, true, 'Gespeichert — Verbindung jetzt testen.');
+  if(mp==='otto'){
+    const activate=document.getElementById('conn-activate-otto');
+    if(activate) activate.style.display='none';
+    const disc=document.getElementById('conn-disconnect-otto');
+    if(disc) disc.style.display='inline-flex';
+    try{
+      const res=await fetch(`${BACKEND_URL}/otto/reschedule`,{method:'POST'});
+      const data=await res.json();
+      if(data.ok) showConnResult(mp,true,'Automatischer Otto-Import aktiviert.');
+      else showConnResult(mp,false,'Gespeichert, aber Backend meldet: '+(data.error||'Fehler'));
+    }catch(err){
+      showConnResult(mp,false,'Gespeichert, aber Backend nicht erreichbar: '+err.message);
+    }
+  } else {
+    showConnResult(mp, true, 'Gespeichert — Verbindung jetzt testen.');
+  }
 }
 
 async function disconnectConn(mp){
   const settings=getConnSettings();
   if(mp==='shopify'){
     try{ await fetch(`${BACKEND_URL}/shopify/disconnect`,{method:'POST'}); }catch(err){}
+  }
+  if(mp==='otto'){
+    settings.otto={...(settings.otto||{}),connected:false};
+    setConnSettings(settings);
+    if(dbSynced) await saveSettingToSupabase('conn_otto', JSON.stringify(settings.otto));
+    try{ await fetch(`${BACKEND_URL}/otto/reschedule`,{method:'POST'}); }catch(err){}
+    renderConnStatus();
+    closeConnSetup('otto');
+    showToast('Otto-Sync pausiert.');
+    return;
   }
   if(settings[mp]){
     delete settings[mp];
@@ -2632,32 +2690,46 @@ async function triggerManualSync(){
   };
 
   const settings=getConnSettings();
-  if(!settings.shopify?.connected){
+  const targets=[];
+  if(settings.shopify?.connected) targets.push('shopify');
+  if(settings.otto?.connected) targets.push('otto');
+
+  if(targets.length===0){
     if(el) el.textContent='Kein Marktplatz verbunden.';
     return;
   }
+
   setLoading(true);
   if(el) el.innerHTML='';
-  try{
-    const res=await fetch(`${BACKEND_URL}/shopify/sync-now`,{method:'POST'});
-    const data=await res.json();
-    if(data.ok){
-      if(el) el.innerHTML=`<span style="color:#1D9E75">✓ ${data.imported} Bestellung${data.imported!==1?'en':''} importiert</span>`;
-      settings.shopify.lastSync=new Date().toISOString();
-      setConnSettings(settings);
-      if(dbSynced) await saveSettingToSupabase('conn_shopify',JSON.stringify(settings.shopify));
-      renderConnStatus();
-      await syncFromSupabase();
-      setLoading(false);
-      await showPapierkorbModal(data);
-    } else {
-      if(el) el.innerHTML=`<span style="color:#E24B4A">✗ ${data.error}</span>`;
-      setLoading(false);
+  const lines=[];
+  let papierkorbData=null; // Papierkorb-Modal zeigt bisher nur Shopify-Retouren/-Stornos an
+
+  for(const mp of targets){
+    const label=mp.charAt(0).toUpperCase()+mp.slice(1);
+    try{
+      // Manueller Import: 30 Tage, passend zum Hinweistext über dem Button
+      const url=mp==='otto'?`${BACKEND_URL}/otto/sync-now?days=30`:`${BACKEND_URL}/shopify/sync-now`;
+      const res=await fetch(url,{method:'POST'});
+      const data=await res.json();
+      if(data.ok){
+        lines.push(`<span style="color:#1D9E75">✓ ${label}: ${data.imported} importiert</span>`);
+        settings[mp].lastSync=new Date().toISOString();
+        setConnSettings(settings);
+        if(dbSynced) await saveSettingToSupabase('conn_'+mp,JSON.stringify(settings[mp]));
+        if(mp==='shopify') papierkorbData=data;
+      } else {
+        lines.push(`<span style="color:#E24B4A">✗ ${label}: ${data.error}</span>`);
+      }
+    }catch(err){
+      lines.push(`<span style="color:#E24B4A">✗ ${label}: Backend nicht erreichbar: ${err.message}</span>`);
     }
-  }catch(err){
-    if(el) el.innerHTML=`<span style="color:#E24B4A">✗ Backend nicht erreichbar: ${err.message}</span>`;
-    setLoading(false);
   }
+
+  renderConnStatus();
+  await syncFromSupabase();
+  setLoading(false);
+  if(el) el.innerHTML=lines.map(l=>`<div>${l}</div>`).join('');
+  if(papierkorbData) await showPapierkorbModal(papierkorbData);
 }
 
 /* ── MARKETING ── */
@@ -3882,18 +3954,6 @@ function effWaren(order){
   return parseFloat(((order.waren||0)-retourWarenErstattung(order)).toFixed(2));
 }
 
-// Marktplatzgebühr wird bei einer Retoure vom Marktplatz zurückerstattet (Annahme: gilt für
-// alle Kanäle) — anteilig zum zurückgeflossenen Umsatz, damit bei Teilretouren nicht die
-// komplette Gebühr gutgeschrieben wird, sondern nur der betroffene Teil.
-function retourAnteilProvision(order){
-  if(!order.umsatzNetto) return 0;
-  const anteil=retourAnteilNetto(order)/order.umsatzNetto;
-  return parseFloat(((order.provision||0)*anteil).toFixed(2));
-}
-function effProvision(order){
-  return parseFloat(((order.provision||0)-retourAnteilProvision(order)).toFixed(2));
-}
-
 // Speichert eine Retoure (neu oder Update) in Supabase
 async function saveRetoureEntry(entry){
   const res=await sbFetch('retouren', entry.id?'PATCH':'POST', entry, entry.id?`?id=eq.${entry.id}`:'');
@@ -3936,7 +3996,7 @@ function calcDB(o){
   // hier NICHT nochmal abziehen, sonst wird sie doppelt gezählt. Nur Label + Rücksendekosten
   // sind zusätzliche, rein retourenbedingte Kosten.
   const retLoss=getRetourenForOrder(o.id).reduce((s,r)=>s+(r.labelkosten||0)+(r.versand||0),0);
-  return effNetto(o)-effWaren(o)-(o.versand||0)-effProvision(o)-(o.retoure||0)-(o.payment_fee||0)-retLoss;
+  return effNetto(o)-effWaren(o)-(o.versand||0)-(o.provision||0)-(o.retoure||0)-(o.payment_fee||0)-retLoss;
 }
 
 function onKanalChange(){manualFee=false;autoCalc();populateVersandDropdown();}
@@ -4531,7 +4591,7 @@ function renderRetouren(){
       const label=r.labelkosten||0;
       const versandK=r.versand||0;
       const order=allOrders.find(o=>o.id===r.order_id);
-      const verlust=parseFloat((versandK+abschr+label+(order?.versand||0)).toFixed(2));
+      const verlust=parseFloat((versandK+abschr+label+(order?.versand||0)+(order?.provision||0)).toFixed(2));
       const zustandLabel=!r.bearbeitet?'<span style="font-size:10px;padding:1px 6px;border-radius:99px;background:#FAEEDA;color:#854F0B">⚠ Zu bearbeiten</span>':(r.zustand==='custom'?`Individuell (${r.abschreibung_pct||0}%)`:((z=>z?z.label:'—')(getRetZustaende().find(z=>z.id===r.zustand))));
       return `<tr style="border-bottom:0.5px solid #f5f5f3;" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
         <td style="padding:10px 12px;color:#888780;white-space:nowrap">${r.datum?r.datum.split('-').reverse().join('.'):'—'}</td>
@@ -4693,7 +4753,7 @@ function updateMultiPreview(){
   let orderCosts=0;
   orderIds.forEach(oid=>{
     const o=allOrders.find(x=>x.id===oid);
-    if(o) orderCosts+=(o.versand||0);
+    if(o) orderCosts+=(o.versand||0)+(o.provision||0);
   });
   const gesamt=parseFloat((verlust+orderCosts).toFixed(2));
   const gesamtEl=document.getElementById('ret-m-verlust-gesamt');
@@ -4761,7 +4821,7 @@ function updateRetAbschreibung(){
   const gesamtEl=el('ret-verlust-gesamt');
   if(gesamtEl){
     if(order){
-      const gesamt=parseFloat((verlust+(order.versand||0)).toFixed(2));
+      const gesamt=parseFloat((verlust+(order.versand||0)+(order.provision||0)).toFixed(2));
       gesamtEl.textContent=fmt(gesamt);
     } else {
       gesamtEl.textContent='—';
@@ -6094,14 +6154,14 @@ function openOrderDetail(id){
 
   // Kostenaufstellung — bei Retouren die bereinigten (effektiven) Werte zeigen,
   // damit die Zahlen hier mit dem tatsächlichen Deckungsbeitrag darunter übereinstimmen
-  const effBr=effBrutto(o), effNe=effNetto(o), effWa=effWaren(o), effProv=effProvision(o);
+  const effBr=effBrutto(o), effNe=effNetto(o), effWa=effWaren(o);
   const retLossItems=getRetourenForOrder(o.id).reduce((s,r)=>s+(r.labelkosten||0)+(r.versand||0),0);
   const rows=[
     {label:'Bruttoumsatz', val:effBr, cls:''},
     {label:'Nettoumsatz', val:effNe, cls:''},
     {label:'− Warenkosten', val:-effWa, cls:'neg'},
     {label:'− Versandkosten', val:-(o.versand||0), cls:'neg'},
-    {label:'− Marktplatzgebühren', val:-effProv, cls:'neg'},
+    {label:'− Marktplatzgebühren', val:-(o.provision||0), cls:'neg'},
     {label:'− Zahlungsgebühr', val:-(o.payment_fee||0), cls:'neg', hide:!o.payment_fee},
     {label:'− Retourenkosten (Label/Rückversand)', val:-retLossItems, cls:'neg', hide:!isR||retLossItems===0},
   ].filter(r=>!r.hide);
@@ -6918,7 +6978,7 @@ function showPraef(sub){
     renderRetZustaendeList();
   }
   if(sub==='dashboard'){ loadDashChannels(); initDashKachelnGrid(); }
-  if(sub==='verbindungen'){ renderConnStatus(); renderSyncInterval(); }
+  if(sub==='verbindungen'){ renderConnStatus(); renderSyncInterval(); renderOttoSyncInterval(); }
   if(sub==='zahlungsgebuehren') renderPaymentFees();
 }
 
@@ -7798,7 +7858,7 @@ async function initApp(){
             <span style="color:#888780">Gesamtwirkung auf Bestellung</span>
             <span id="ret-m-verlust-gesamt" style="font-size:16px;font-weight:600;color:#E24B4A">—</span>
           </div>
-          <div class="text-xs" style="margin-top:4px;color:#888780">inkl. ursprünglicher Versandkosten, die trotz Retoure angefallen sind (Marktplatzgebühr wird zurückerstattet)</div>
+          <div class="text-xs" style="margin-top:4px;color:#888780">inkl. ursprünglicher Versandkosten &amp; Marktplatzgebühr, die trotz Retoure angefallen sind</div>
         </div>
       </div>
 
@@ -7860,7 +7920,7 @@ async function initApp(){
           <span style="color:#888780">Gesamtwirkung auf Bestellung</span>
           <span id="ret-verlust-gesamt" style="font-size:16px;font-weight:600;color:#E24B4A">—</span>
         </div>
-        <div class="text-xs" style="margin-top:4px;color:#888780">inkl. ursprünglicher Versandkosten, die trotz Retoure angefallen sind (Marktplatzgebühr wird zurückerstattet)</div>
+        <div class="text-xs" style="margin-top:4px;color:#888780">inkl. ursprünglicher Versandkosten &amp; Marktplatzgebühr, die trotz Retoure angefallen sind</div>
       </div>
 
       <div class="edit-modal-footer">

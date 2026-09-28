@@ -2297,6 +2297,13 @@ let statusCurrentlyConnected=true; // aktueller Live-Status, unabhängig vom Ver
 // der Feed selbst (das Protokoll "was ist passiert") rückwirkend verändert werden muss.
 let orderQualityMap=new Map();
 
+// Aktueller Bearbeitet-Zustand PRO RETOURE (retoureId -> 'amber'|'ok') — genau wie
+// orderQualityMap, nur für Retouren. Eigene Map (nicht orderQualityMap mitbenutzt), weil
+// Retouren- und Bestellungs-IDs unterschiedliche ID-Räume sind und sich sonst überschreiben
+// könnten. Retouren werden direkt gegen Supabase geschrieben (kein Umweg über den Server),
+// deshalb meldet das Frontend den Zustand selbst per Fire-and-Forget an /retouren/check-status.
+let retoureQualityMap=new Map();
+
 // Live-Zustand PRO CONNECTOR (z.B. 'Shopify', später 'Otto') — 'red' wenn die Anbindung
 // gerade gestört ist (z.B. Zugriffstoken ungültig), sonst kein Eintrag. Löst sich automatisch
 // auf, sobald ein API-Aufruf wieder erfolgreich ist — genau wie bei orderQualityMap, nur auf
@@ -2309,10 +2316,10 @@ const SEVERITY_RANK={green:0,amber:1,red:2};
 
 // Diese Typen fließen NICHT in die "schlimmster Zustand seit Sitzungsbeginn"-Berechnung ein,
 // weil sie einen SELBST-HEILENDEN Live-Zustand abbilden statt eines dauerhaften Vorfalls
-// (order_incomplete/order_quality → orderQualityMap, connector_status → connectorStatusMap).
-// Der Verbindungsstatus selbst erzeugt gar keine Feed-Einträge mehr (siehe unten), sondern
-// nur noch die feste Statuszeile im Panel.
-const STATUS_TRANSIENT_TYPES=new Set(['order_incomplete','order_quality','connector_status']);
+// (order_incomplete/order_quality → orderQualityMap, retoure_status → retoureQualityMap,
+// connector_status → connectorStatusMap). Der Verbindungsstatus selbst erzeugt gar keine
+// Feed-Einträge mehr (siehe unten), sondern nur noch die feste Statuszeile im Panel.
+const STATUS_TRANSIENT_TYPES=new Set(['order_incomplete','order_quality','retoure_status','connector_status']);
 
 function connectStatusStream(){
   if(statusEventSource) statusEventSource.close();
@@ -2362,6 +2369,21 @@ function connectStatusStream(){
       return;
     }
 
+    // Bearbeitet-Zustand pro Retoure: gleiches Muster wie order_quality oben, nur mit eigener
+    // Map (retoureQualityMap), da Retouren- und Bestellungs-IDs unterschiedliche ID-Räume sind.
+    if(event.type==='retoure_status'){
+      const isOk=event.ok;
+      const key=event.retoureId!==undefined&&event.retoureId!==null?String(event.retoureId):undefined;
+      const prev=key!==undefined?retoureQualityMap.get(key):undefined;
+      if(key!==undefined) retoureQualityMap.set(key, isOk?'ok':'amber');
+      if(isOk && prev!=='amber'){
+        renderStatusWidget();
+        return;
+      }
+      addStatusEvent(event);
+      return;
+    }
+
     addStatusEvent(event);
   };
 
@@ -2385,6 +2407,11 @@ function getOverallSeverity(){
   // Live-Zustand pro Bestellung (fehlender EK/Versandprofil etc.) — löst sich automatisch,
   // sobald die Bestellung bearbeitet oder gelöscht wird, ohne den Feed selbst zu verändern.
   for(const v of orderQualityMap.values()){
+    if(v==='amber') max=Math.max(max,1);
+  }
+  // Live-Zustand pro Retoure (unbearbeitet) — löst sich automatisch auf, sobald die Retoure
+  // bearbeitet oder gelöscht wird.
+  for(const v of retoureQualityMap.values()){
     if(v==='amber') max=Math.max(max,1);
   }
   // Live-Zustand pro externer Anbindung (Shopify, künftig weitere) — löst sich automatisch,
@@ -2523,10 +2550,37 @@ async function loadConnectorStatus(){
   }
 }
 
+// Fragt beim Laden der Seite einmal ab, welche Retouren AKTUELL unbearbeitet sind — sonst
+// würde die Ampel nach jedem Reload wieder bei "alles ok" anfangen, obwohl noch Retouren
+// offen sind (z.B. automatisch aus einem Shopify-Refund oder einer Otto-Retoure angelegte).
+async function loadOpenRetouren(){
+  try{
+    const res=await fetch(`${BACKEND_URL}/retouren/open-issues`);
+    if(!res.ok) return;
+    const data=await res.json();
+    (data.issues||[]).forEach(r=>{
+      retoureQualityMap.set(String(r.id),'amber');
+      addStatusEvent({
+        type:'retoure_status',
+        severity:'amber',
+        ok:false,
+        retoureId:r.id,
+        bestellnr:r.bestellnr,
+        text:`Retoure zu Bestellung ${r.bestellnr} noch nicht bearbeitet`,
+        timestamp:new Date().toISOString(),
+      });
+    });
+    renderStatusWidget();
+  }catch(err){
+    console.error('Konnte offene Retouren nicht laden:',err);
+  }
+}
+
 // Verbindung direkt beim Laden der Seite aufbauen
 connectStatusStream();
 loadOpenQualityIssues();
 loadConnectorStatus();
+loadOpenRetouren();
 
 function getSyncInterval(){
   return parseInt(localStorage.getItem('ec_sync_interval')||'60');
@@ -3958,12 +4012,33 @@ function effWaren(order){
 async function saveRetoureEntry(entry){
   const res=await sbFetch('retouren', entry.id?'PATCH':'POST', entry, entry.id?`?id=eq.${entry.id}`:'');
   await syncFromSupabase();
+
+  // Retouren werden direkt gegen Supabase geschrieben — der Server bekommt das sonst nicht
+  // mit. Fire-and-Forget-Meldung, damit die Ampel den aktuellen Bearbeitet-Status zeigt
+  // (analog zum bestehenden /orders/check-quality-Aufruf bei Bestellungen).
+  const retoureId=entry.id||(Array.isArray(res)&&res[0]?.id);
+  if(dbSynced && retoureId){
+    const bestellnr=entry.bestellnr||getRetouren().find(r=>r.id===retoureId)?.bestellnr||'';
+    fetch(`${BACKEND_URL}/retouren/check-status`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({retoureId, bestellnr, bearbeitet:!!entry.bearbeitet}),
+    }).catch(err=>console.error('Retouren-Status-Check fehlgeschlagen:',err));
+  }
   return res;
 }
 
 async function deleteRetoureEntry(id){
+  const bestellnr=getRetouren().find(r=>r.id===id)?.bestellnr||'';
   await sbFetch('retouren','DELETE',null,`?id=eq.${id}`);
   await syncFromSupabase();
+  if(dbSynced){
+    fetch(`${BACKEND_URL}/retouren/check-status`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({retoureId:id, bestellnr, deleted:true}),
+    }).catch(err=>console.error('Retouren-Status-Check (Löschen) fehlgeschlagen:',err));
+  }
 }
 
 function getOrders(){try{return (JSON.parse(localStorage.getItem('ec_orders')||'[]')).filter(o=>!o.deleted);}catch(e){return[];}}

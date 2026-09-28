@@ -3270,7 +3270,7 @@ function getMonthStats(month, year){
     waren+=effWaren(o);
     versand+=(o.versand||0);
     provision+=(o.provision||0);
-    retoure+=(o.retoure||0);
+    retoure+=(o.retoure||0)+retoureZusatzkosten(o);
     db+=calcDB(o);
   });
   // Rechnungen: Einnahmen zum Bruttoumsatz addieren, Gewinn zum DB
@@ -3362,6 +3362,9 @@ function renderCashflow(){
         <span style="font-weight:${r.bold?'500':'400'};color:${r.highlight?(s.cashflow>=0?'#1D9E75':'#E24B4A'):(r.val<0?'#E24B4A':'#1a1a18')}">${r.val===0&&!r.bold?'—':fmtS(r.val)}</span>
       </div>`;
     }).join('')}
+    ${s.retoure>0?`<div style="margin-top:6px;font-size:11px;color:#888780">
+      ℹ️ Retouren: Rücksendeversand + Label. Abschreibungen stecken bereits in „− Warenkosten", Marktplatzgebühren bleiben unabhängig von der Retoure bestehen.
+    </div>`:''}
     ${s.istAktuellerMonat?`<div style="margin-top:10px;padding-top:8px;border-top:0.5px solid #ddddd5;font-size:11px;color:#888780">
       📅 Tag ${s.tageBisher} von ${s.tageImMonat} — Hochrechnung Cashflow: <b style="color:${s.hochrechnungCf>=0?'#1D9E75':'#E24B4A'}">${fmtS(s.hochrechnungCf)}</b>
     </div>`:''}
@@ -4066,11 +4069,19 @@ function fmt(n){return new Intl.NumberFormat('de-DE',{style:'currency',currency:
 function fmtS(n){return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0);}
 function nettoVon(b){return b/(1+MwSt);}
 function mwstVon(b){return b-nettoVon(b);}
+// Retourenspezifische ZUSATZkosten (Label + Rücksendeversand) aus der Retouren-Tabelle —
+// geteilte Logik zwischen calcDB() und getMonthStats(), damit beide garantiert denselben
+// Wert verwenden. Bewusst OHNE Abschreibung (steckt schon in effWaren(), s.u.) und OHNE
+// Marktplatzgebühr (die bleibt unabhängig von einer Retoure bestehen, siehe o.provision).
+function retoureZusatzkosten(order){
+  return getRetourenForOrder(order.id).reduce((s,r)=>s+(r.labelkosten||0)+(r.versand||0),0);
+}
+
 function calcDB(o){
   // Abschreibung steckt schon in effWaren() (reduziert die "Rückgewinnung" der Warenkosten) —
   // hier NICHT nochmal abziehen, sonst wird sie doppelt gezählt. Nur Label + Rücksendekosten
   // sind zusätzliche, rein retourenbedingte Kosten.
-  const retLoss=getRetourenForOrder(o.id).reduce((s,r)=>s+(r.labelkosten||0)+(r.versand||0),0);
+  const retLoss=retoureZusatzkosten(o);
   return effNetto(o)-effWaren(o)-(o.versand||0)-(o.provision||0)-(o.retoure||0)-(o.payment_fee||0)-retLoss;
 }
 

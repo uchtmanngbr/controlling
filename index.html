@@ -2479,10 +2479,14 @@ function renderStatusWidget(){
     const itemSev=SEVERITY_RANK[e.severity]??0;
     const itemCls=severityClass(itemSev);
     const time=e.timestamp?new Date(e.timestamp).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'';
-    return `<div class="status-item">
+    // Meldungen zu einer konkreten Bestellung (z.B. "Provision manuell eintragen") sind klickbar
+    // und springen direkt zum Bearbeiten-Formular — sonst müsste man die Bestellung erst selbst
+    // suchen, obwohl der Text schon sagt, was zu tun ist.
+    const clickable=e.orderId!=null;
+    return `<div class="status-item"${clickable?` style="cursor:pointer" onclick="toggleStatusPanel();editOrder('${e.orderId}')"`:''}>
       <span class="status-item-dot ${itemCls}"></span>
       <div class="status-item-content">
-        <div class="status-item-text">${e.text}</div>
+        <div class="status-item-text">${e.text}${clickable?' <span style="color:#888780">→ Bestellung öffnen</span>':''}</div>
         <div class="status-item-time">${time}</div>
       </div>
     </div>`;

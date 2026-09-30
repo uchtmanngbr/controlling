@@ -6025,31 +6025,32 @@ function _renderDashboard(){
     dailyHasData.push(hasActivity);
     dailyLabels.push(d);
   }
-  // Berechnet saubere Y-Achsen-Grenzen ohne negative Werte wenn nicht nötig
+  // Y-Achsen-Grenzen NICHT mehr selbst krumm berechnen (z.B. dataMax*1.15 -> "354 €",
+  // dataMin-pad -> "-76 €" obwohl gar kein Tag diesen Wert hat) — stattdessen Chart.js selbst
+  // glatte, runde Werte wählen lassen. Nur positive Daten: fest bei 0 starten (übliches
+  // Balkendiagramm-Verhalten), Max automatisch. Gemischt positiv/negativ: weder min noch max
+  // vorgeben, nur etwas Randabstand (`grace`) anfordern — Chart.js wählt dann selbst runde
+  // Ticks inkl. der echten 0-Linie.
   function calcYAxis(data){
     const vals=data.filter(v=>typeof v==='number'&&!isNaN(v));
-    if(!vals.length) return {min:0,max:100};
-    const dataMin=Math.min(...vals);
-    const dataMax=Math.max(...vals);
-    const range=dataMax-dataMin||dataMax||100;
-    const pad=range*0.15;
-    const yMax=dataMax+pad;
-    const yMin=dataMin<0?dataMin-pad:0;
-    return {min:yMin, max:yMax};
+    const hasNegative=vals.some(v=>v<0);
+    return hasNegative
+      ? {min:undefined,max:undefined,grace:'10%'}
+      : {min:0,max:undefined,grace:undefined};
   }
   const chartConfigs={
     db:{data:dailyDB,colors:dailyDB.map((v,i)=>dailyHasData[i]?(v>=0?'#1D9E75':'#E24B4A'):'rgba(0,0,0,0.06)'),
       title:'Monatsverlauf — Deckungsbeitrag pro Tag',
       tooltip:v=>dailyHasData[v.dataIndex]?fmtS(v.raw)+' Deckungsbeitrag':'Keine Aktivität',
-      yTick:v=>fmtS(v),pad:true},
+      yTick:v=>fmtS(v)},
     brutto:{data:dailyBrutto,colors:dailyBrutto.map((v,i)=>dailyHasData[i]?'#378ADD':'rgba(0,0,0,0.06)'),
       title:'Monatsverlauf — Bruttoumsatz pro Tag',
       tooltip:v=>dailyHasData[v.dataIndex]?fmtS(v.raw)+' Bruttoumsatz':'Keine Aktivität',
-      yTick:v=>fmtS(v),pad:false},
+      yTick:v=>fmtS(v)},
     orders:{data:dailyOrderCounts,colors:dailyOrderCounts.map(v=>v>0?'#EF9F27':'rgba(0,0,0,0.06)'),
       title:'Monatsverlauf — Bestellungen pro Tag',
       tooltip:v=>v.raw+' Bestellung'+(v.raw!==1?'en':''),
-      yTick:v=>Number.isInteger(v)?v:'',pad:false},
+      yTick:v=>Number.isInteger(v)?v:''},
   };
   const cfg=chartConfigs[chartType]||chartConfigs.db;
   const titleEl=document.getElementById('dash-chart-title');
@@ -6059,9 +6060,10 @@ function _renderDashboard(){
     lineInst.data.labels=dailyLabels;
     lineInst.data.datasets[0].data=cfg.data;
     lineInst.data.datasets[0].backgroundColor=cfg.colors;
-    const yAxis=cfg.pad?calcYAxis(cfg.data):{min:0,max:undefined};
+    const yAxis=calcYAxis(cfg.data);
     lineInst.options.scales.y.min=yAxis.min;
     lineInst.options.scales.y.max=yAxis.max;
+    lineInst.options.scales.y.grace=yAxis.grace;
     lineInst.options.scales.y.afterDataLimits=undefined;
     lineInst.options.plugins.tooltip.callbacks.label=cfg.tooltip;
     lineInst.options.plugins.tooltip.callbacks.title=items=>{const dateObj=new Date(year,month-1,parseInt(items[0].label));return dateObj.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit'});};
@@ -6080,7 +6082,7 @@ function _renderDashboard(){
         scales:{
           x:{grid:{display:false},ticks:{color:'#888780',font:{size:10},maxTicksLimit:16}},
           y:{grid:{color:'rgba(200,200,192,0.4)'},ticks:{color:'#888780',font:{size:11},callback:cfg.yTick},
-            ...(cfg.pad?calcYAxis(cfg.data):{min:0}),
+            ...calcYAxis(cfg.data),
           }
         }
       }

@@ -3479,13 +3479,18 @@ function renderCashflow(){
   const dbMarge   = s.dbMarge !== null ? s.dbMarge / 100 : 0;   // DB / Nettoumsatz
   const warenQ    = s.warenQuote !== null ? s.warenQuote / 100 : 0; // Waren / Nettoumsatz
   const fix       = s.fixTotal;
+  // Gewinn aus Ausgangsrechnungen fließt genauso in die Reinvestition wie der DB der Bestellungen.
+  // Seit Marge/ROI nur noch auf Bestellungen basieren, steckt er nicht mehr in dbMarge und wird
+  // deshalb separat addiert — als fester Monatsbetrag (tatsächlicher Wert des Basismonats, bewusst
+  // NICHT hochgerechnet: Rechnungen kommen nicht gleichmäßig über den Monat verteilt).
+  const rechProMonat = s.rechGewinn || 0;
 
   // Prüfen ob genug Daten vorhanden
   const hasDaten  = basisWaren > 0 && roi > 0 && dbMarge > 0;
 
   if(!hasDaten) {
     document.getElementById('cf-prognose-head').innerHTML='';
-    document.getElementById('cf-prognose-body').innerHTML=`<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:#888780">Nicht genug Daten — bitte erst Bestellungen mit Warenkosten und Umsatz erfassen.</td></tr>`;
+    document.getElementById('cf-prognose-body').innerHTML=`<tr><td colspan="7" style="text-align:center;padding:1.5rem;color:#888780">Nicht genug Daten — bitte erst Bestellungen mit Warenkosten und Umsatz erfassen.</td></tr>`;
     document.getElementById('cf-prognose-hint').textContent='';
     return;
   }
@@ -3499,6 +3504,7 @@ function renderCashflow(){
     <th style="text-align:left;color:#888780;font-weight:400;padding:6px 8px 8px 0;white-space:nowrap">Monat</th>
     <th style="text-align:right;color:#888780;font-weight:400;padding:6px 8px 8px 0;white-space:nowrap">Wareneinsatz</th>
     <th style="text-align:right;color:#888780;font-weight:400;padding:6px 8px 8px 0;white-space:nowrap">Nettoumsatz</th>
+    ${rechProMonat?`<th style="text-align:right;color:#888780;font-weight:400;padding:6px 8px 8px 0;white-space:nowrap">Rechnungen</th>`:''}
     <th style="text-align:right;color:#888780;font-weight:400;padding:6px 8px 8px 0;white-space:nowrap">Deckungsbeitrag</th>
     <th style="text-align:right;color:#888780;font-weight:400;padding:6px 8px 8px 0;white-space:nowrap">Fixkosten</th>
     <th style="text-align:right;color:#888780;font-weight:400;padding:6px 8px 8px 0;white-space:nowrap">Cashflow</th>
@@ -3514,8 +3520,8 @@ function renderCashflow(){
 
     // Nettoumsatz = Wareneinsatz / Warenkostenquote
     const nettoumsatz = warenQ > 0 ? currentWaren / warenQ : 0;
-    // DB = Nettoumsatz × DB-Marge
-    const db_prog = nettoumsatz * dbMarge;
+    // DB = Nettoumsatz × DB-Marge (Bestellungen) + Gewinn aus Ausgangsrechnungen
+    const db_prog = nettoumsatz * dbMarge + rechProMonat;
     // Cashflow = DB - Fixkosten
     const cf_prog = db_prog - fix;
     // ROI-basierter Gewinn auf Wareneinsatz
@@ -3537,6 +3543,7 @@ function renderCashflow(){
       </td>
       <td style="padding:7px 8px 7px 0;text-align:right;color:#1a1a18">${fmtS(r.waren)}</td>
       <td style="padding:7px 8px 7px 0;text-align:right;color:#1a1a18">${fmtS(r.netto)}</td>
+      ${rechProMonat?`<td style="padding:7px 8px 7px 0;text-align:right;color:#888780">${fmtS(rechProMonat)}</td>`:''}
       <td style="padding:7px 8px 7px 0;text-align:right;color:${r.db>=0?'#1D9E75':'#E24B4A'};font-weight:500">${fmtS(r.db)}</td>
       <td style="padding:7px 8px 7px 0;text-align:right;color:#888780">−${fmtS(r.fix_val)}</td>
       <td style="padding:7px 8px 7px 0;text-align:right;color:${r.cf>=0?'#1D9E75':'#E24B4A'};font-weight:500">${fmtS(r.cf)}</td>
@@ -3544,7 +3551,7 @@ function renderCashflow(){
 
   const lastRow = rows[rows.length-1];
   document.getElementById('cf-prognose-hint').innerHTML =
-    `Annahmen: ROI ${(roi*100).toFixed(1)}% · DB-Marge ${(dbMarge*100).toFixed(1)}% · Warenkostenquote ${(warenQ*100).toFixed(1)}% · Fixkosten ${fmtS(fix)}/Monat gleichbleibend. Positiver Cashflow wird vollständig reinvestiert.`;
+    `Annahmen: ROI Bestellungen ${(roi*100).toFixed(1)}% · DB-Marge Bestellungen ${(dbMarge*100).toFixed(1)}% · Warenkostenquote ${(warenQ*100).toFixed(1)}% · Fixkosten ${fmtS(fix)}/Monat${rechProMonat?` · Gewinn aus Rechnungen ${fmtS(rechProMonat)}/Monat`:''} gleichbleibend. Positiver Cashflow wird vollständig reinvestiert.`;
 }
 
 /* ── RECHNUNGEN ── */

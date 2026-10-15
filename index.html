@@ -3676,7 +3676,7 @@ function saveRechEdit(){
   };
   setRechnungen(rechnungen);
   closeRechEdit();
-  renderRechnungen(); renderDashboard();
+  renderRechnungen(); renderDashboard(); renderDay();
 }
 
 function closeRechEdit(){
@@ -3689,7 +3689,7 @@ async function deleteRechnung(id){
   const _rnr=_r?(_r.nr||'#'+id):'#'+id;
   if(!await customConfirm(`Rechnung <strong>„${_rnr}"</strong> wirklich löschen?<br><span style="font-size:12px">Diese Aktion kann nicht rückgängig gemacht werden.</span>`,'Rechnung löschen')) return;
   setRechnungen(getRechnungen().filter(r=>r.id!==id));
-  renderRechnungen(); renderDashboard();
+  renderRechnungen(); renderDashboard(); renderDay();
 }
 
 function populateRechFilters(){
@@ -5388,18 +5388,23 @@ function renderDay(){
   badge.className='day-badge'+(isToday?' today':'');
   const orders=getOrders().filter(o=>o.datum===selDate);
   const dayRech=getRechnungen().filter(r=>r.datum===selDate);
-  let dayBrutto=0,dayNetto=0,dayDB=0;
-  orders.forEach(o=>{dayBrutto+=effBrutto(o);dayNetto+=effNetto(o);dayDB+=calcDB(o);});
-  dayRech.forEach(r=>{dayDB+=r.gewinn||0;});
-  const dbPct=dayNetto>0?(dayDB/dayNetto*100):null;
+  // Ausgangsrechnungen (Dienstleistungen ohne Wareneinsatz) zählen NUR in den Deckungsbeitrag —
+  // nicht in den Umsatz und nicht in die DB-Marge. Sonst stünde ihr Gewinn ohne passenden Umsatz
+  // in der Marge und triebe sie über 100 % (DB-Marge ist eine Kennzahl für das Warengeschäft).
+  let dayBrutto=0,dayNetto=0,dayDBBestellungen=0;
+  orders.forEach(o=>{dayBrutto+=effBrutto(o);dayNetto+=effNetto(o);dayDBBestellungen+=calcDB(o);});
+  const dayDBRechnungen=dayRech.reduce((s,r)=>s+(r.gewinn||0),0);
+  const dayDB=dayDBBestellungen+dayDBRechnungen;
+  const dbPct=dayNetto>0?(dayDBBestellungen/dayNetto*100):null;
   const totalItems=orders.length+dayRech.length;
+  const rechHinweis=dayRech.length?`inkl. ${fmt(dayDBRechnungen)} aus Rechnungen`:'';
   document.getElementById('day-metrics').innerHTML=[
     {label:'Umsatz brutto',value:fmt(dayBrutto),cls:'neu'},
     {label:'Umsatz netto',value:fmt(dayNetto),cls:'neu'},
-    {label:'Deckungsbeitrag',value:fmt(dayDB),cls:dayDB>=0?'pos':'neg'},
-    {label:'DB-Marge',value:dbPct!==null?(dbPct>=0?'+':'')+dbPct.toFixed(1)+'%':'—',cls:dbPct!==null?(dbPct>=0?'pos':'neg'):'neu'},
+    {label:'Deckungsbeitrag',value:fmt(dayDB),cls:dayDB>=0?'pos':'neg',sub:rechHinweis},
+    {label:'DB-Marge',value:dbPct!==null?(dbPct>=0?'+':'')+dbPct.toFixed(1)+'%':'—',cls:dbPct!==null?(dbPct>=0?'pos':'neg'):'neu',sub:dayRech.length?'nur Bestellungen':''},
     {label:'Aktivität',value:totalItems,cls:'neu'},
-  ].map(m=>`<div class="day-metric"><div class="day-metric-label">${m.label}</div><div class="day-metric-value ${m.cls}">${m.value}</div></div>`).join('');
+  ].map(m=>`<div class="day-metric"><div class="day-metric-label">${m.label}</div><div class="day-metric-value ${m.cls}">${m.value}</div>${m.sub?`<div style="font-size:11px;color:#888780;margin-top:2px">${m.sub}</div>`:''}</div>`).join('');
   const ordersWrap=document.getElementById('day-orders');
   if(!totalItems){
     ordersWrap.innerHTML=`<div class="day-orders-title">Aktivität</div><div class="day-empty">Keine Bestellungen oder Rechnungen an diesem Tag</div>`;
@@ -5416,12 +5421,21 @@ function renderDay(){
       <td style="padding:6px 0 6px 0;text-align:center;font-weight:500;white-space:nowrap;" class="${db>=0?'pos':'neg'}">${fmt(db)}</td>
     </tr>`;
   });
-  const rechRowsList=dayRech.map(r=>`<div class="day-order-row">
-    <span class="day-order-kanal"><span class="badge" style="background:#9B59B6;color:#fff;font-size:10px;padding:1px 6px;border-radius:4px">Rechnung</span></span>
-    <span class="day-order-artikel">${r.nr||r.partner||'—'}</span>
-    <span class="day-order-brutto">${r.typ==='einnahme'?fmt(r.brutto||0):'—'}</span>
-    <span class="day-order-db ${(r.gewinn||0)>=0?'pos':'neg'}">${fmt(r.gewinn||0)}</span>
-  </div>`);
+  // Rechnungen als echte Tabellenzeile (vorher ein <div> innerhalb des <tbody> — der Browser hat es
+  // aus der Tabelle herausgeschoben, deshalb saßen die Beträge außerhalb der Spalten).
+  // Brutto bewusst "—": Rechnungen zählen nicht zum Umsatz, nur ihr Gewinn zum Deckungsbeitrag.
+  const rechRowsList=dayRech.map(r=>{
+    const gewinn=r.gewinn||0;
+    const beschreibung=[r.partner,r.kategorie].filter(Boolean).join(' · ')||'—';
+    return `<tr data-rech-id="${r.id}" class="day-order-clickable" style="cursor:pointer;border-bottom:0.5px solid #f5f5f3;">
+      <td style="padding:6px 8px 6px 0"><span class="badge" style="background:#9B59B6;color:#fff">Rechnung</span></td>
+      <td style="padding:6px 8px 6px 0;color:#888780;white-space:nowrap">${r.nr||'—'}</td>
+      <td style="padding:6px 8px 6px 0;color:#1a1a18;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px">${beschreibung}</td>
+      <td style="padding:6px 8px 6px 0;color:#888780;white-space:nowrap">—</td>
+      <td style="padding:6px 8px 6px 0;text-align:right;white-space:nowrap;color:#888780">—</td>
+      <td style="padding:6px 0 6px 0;text-align:center;font-weight:500;white-space:nowrap;" class="${gewinn>=0?'pos':'neg'}">${fmt(gewinn)}</td>
+    </tr>`;
+  });
   const combined=[...allRows,...rechRowsList];
   const LIMIT_1=20, LIMIT_2=50;
   const showMore=combined.length>LIMIT_1;
@@ -7559,7 +7573,9 @@ async function initApp(){
   // Event delegation for day-orders table — fires once, handles all rows
   document.getElementById('day-orders')?.addEventListener('click', e=>{
     const tr=e.target.closest('tr[data-order-id]');
-    if(tr) openOrderDetail(parseInt(tr.dataset.orderId));
+    if(tr){ openOrderDetail(parseInt(tr.dataset.orderId)); return; }
+    const rechTr=e.target.closest('tr[data-rech-id]');
+    if(rechTr) editRechnung(Number(rechTr.dataset.rechId));
   });
   initApp();
     const cfg={locale:'de',dateFormat:'Y-m-d',allowInput:true,disableMobile:true};

@@ -3117,7 +3117,12 @@ function renderBerichte(){
     totalProv+=(o.provision||0);
     if(byChannel[o.kanal]){byChannel[o.kanal].db+=db;byChannel[o.kanal].netto+=effNetto(o);byChannel[o.kanal].n++;}
   });
-  rechnungen.forEach(r=>{totalDB+=(r.gewinn||0);});
+  // DB aus dem Warengeschäft separat festhalten: Marge und ROI beziehen sich NUR darauf.
+  // Ausgangsrechnungen (Dienstleistungen, 100 % Gewinn) und Eingangsrechnungen fließen in den
+  // Gesamt-DB, haben aber keinen Umsatz/Wareneinsatz — in der Marge würden sie sie verfälschen.
+  const dbBestellungen=totalDB;
+  const rechGewinn=totalRechGewinnForMonth(month,year);
+  totalDB+=rechGewinn;
   // Eingangsrechnungen als Kosten abziehen
   const eingangsRechB=getEingangsrechnungen().filter(r=>{
     const d=r.datum?.split('-');
@@ -3126,10 +3131,9 @@ function renderBerichte(){
   const eingangsRechTotalB=eingangsRechB.reduce((s,r)=>s+(r.brutto||0),0);
   totalDB-=eingangsRechTotalB;
 
-  const rechGewinn=totalRechGewinnForMonth(month,year);
   const cashflow=totalDB-fix-mkTotal-totalMpg;
-  const roi=totalWaren>0?(totalDB/totalWaren*100):null;
-  const dbMarge=totalNetto>0?(totalDB/totalNetto*100):null;
+  const roi=totalWaren>0?(dbBestellungen/totalWaren*100):null;
+  const dbMarge=totalNetto>0?(dbBestellungen/totalNetto*100):null;
   const warenQuote=totalNetto>0?(totalWaren/totalNetto*100):null;
 
   document.getElementById('ber-subtitle').textContent=`${orders.length} Bestellungen · ${rechnungen.length} Rechnungen`;
@@ -3138,10 +3142,13 @@ function renderBerichte(){
   const kpis=[
     {label:'Umsatz brutto',val:fmtS(totalBrutto),color:'#1a1a18'},
     {label:'Umsatz netto',val:fmtS(totalNetto),color:'#1a1a18'},
+    // Gesamt-DB (inkl. Rechnungen) geht in den Cashflow; Marge und ROI beziehen sich nur auf den
+    // DB der Bestellungen — deshalb beide DB-Werte nebeneinander, damit die Basis sichtbar ist.
     {label:'Deckungsbeitrag',val:fmtS(totalDB),color:totalDB>=0?'#1D9E75':'#E24B4A'},
-    {label:'DB-Marge',val:dbMarge!==null?dbMarge.toFixed(1)+'%':'—',color:dbMarge!==null&&dbMarge>=0?'#1D9E75':'#E24B4A'},
+    {label:'Deckungsbeitrag Bestellungen',val:fmtS(dbBestellungen),color:dbBestellungen>=0?'#1D9E75':'#E24B4A'},
+    {label:'DB-Marge Bestellungen',val:dbMarge!==null?dbMarge.toFixed(1)+'%':'—',color:dbMarge!==null&&dbMarge>=0?'#1D9E75':'#E24B4A'},
     {label:'Cashflow',val:fmtS(cashflow),color:cashflow>=0?'#1D9E75':'#E24B4A'},
-    {label:'ROI',val:roi!==null?roi.toFixed(1)+'%':'—',color:roi!==null&&roi>=0?'#1D9E75':'#E24B4A'},
+    {label:'ROI Bestellungen',val:roi!==null?roi.toFixed(1)+'%':'—',color:roi!==null&&roi>=0?'#1D9E75':'#E24B4A'},
     {label:'Warenquote',val:warenQuote!==null?warenQuote.toFixed(1)+'%':'—',color:'#1a1a18'},
     {label:'Fixkosten',val:fmtS(fix),color:'#888780'},
   ];
@@ -3236,12 +3243,15 @@ function renderBerichte(){
     ['Warenkosten',fmtS(totalWaren),warenQuote!==null?warenQuote.toFixed(1)+'% v. Netto':''],
     ['Versandkosten',fmtS(totalVersand),''],
     ['Marktplatzprovisionen',fmtS(totalProv),''],
-    ['Deckungsbeitrag',fmtS(totalDB),dbMarge!==null?dbMarge.toFixed(1)+'% DB-Marge':''],
+    ['DB aus Bestellungen',fmtS(dbBestellungen),dbMarge!==null?dbMarge.toFixed(1)+'% DB-Marge':''],
+    ['Ausgangsrechnungen (Gewinn)',fmtS(rechGewinn),rechnungen.length?'kein Umsatz, nur DB':''],
+    ['Eingangsrechnungen',fmtS(-eingangsRechTotalB),''],
+    ['Deckungsbeitrag gesamt',fmtS(totalDB),''],
     ['Fixkosten',fmtS(fix),''],
     ['Marketing',fmtS(mkTotal),''],
     ['Grundgebühren',fmtS(totalMpg),''],
     ['Cashflow',fmtS(cashflow),''],
-    ['ROI (DB/Warenkosten)',roi!==null?roi.toFixed(1)+'%':'—',''],
+    ['ROI (DB/Warenkosten)',roi!==null?roi.toFixed(1)+'%':'—','nur Bestellungen'],
   ];
   document.getElementById('ber-table').innerHTML=`<table style="width:100%;border-collapse:collapse">
     <thead><tr>
@@ -3284,12 +3294,12 @@ function getMonthStats(month, year){
     retoureAbschreibung+=retourAbschreibungSumme(o);
     db+=calcDB(o);
   });
-  // Rechnungen: Einnahmen zum Bruttoumsatz addieren, Gewinn zum DB
-  const rechEinnahmen=rechnungen.filter(r=>r.typ==='einnahme'||r.gewinn>0);
-  const rechBrutto=rechEinnahmen.reduce((s,r)=>s+(r.brutto||0),0);
-  rechnungen.forEach(r=>{db+=(r.gewinn||0);});
-  umsatzBrutto+=rechBrutto;
-  umsatzNetto+=rechEinnahmen.reduce((s,r)=>s+(r.netto||0),0);
+  // Ausgangsrechnungen (Dienstleistungen ohne Wareneinsatz = 100 % Gewinn) zählen NUR in den
+  // Deckungsbeitrag — nicht in den Umsatz (vorher hier zum Umsatz addiert, während Dashboard und
+  // Tagesübersicht sie nur im DB zählten) und nicht in Marge/ROI.
+  const dbBestellungen=db;
+  const rechGewinn=rechnungen.reduce((s,r)=>s+(r.gewinn||0),0);
+  db+=rechGewinn;
   const fix=totalFixkostenMonthly(month,year);
   const mkTotal=totalMkForMonth(month,year);
   const mpgData=getMpg();
@@ -3301,13 +3311,15 @@ function getMonthStats(month, year){
   });
   const eingangsRechTotal=eingangsRech.reduce((s,r)=>s+(r.brutto||0),0);
   db-=eingangsRechTotal;
-  const rechGewinn=totalRechGewinnForMonth(month,year);
   const cashflow=db-fix-mkTotal-totalMpg;
-  const roi=waren>0?((db/waren)*100):null;
-  const dbMarge=umsatzNetto>0?((db/umsatzNetto)*100):null;
+  const roi=waren>0?((dbBestellungen/waren)*100):null;
+  const dbMarge=umsatzNetto>0?((dbBestellungen/umsatzNetto)*100):null;
   const warenQuote=umsatzNetto>0?((waren/umsatzNetto)*100):null;
   const fixTotal=fix+mkTotal+totalMpg+eingangsRechTotal;
-  const beNeeded=dbMarge>0?(fixTotal/(dbMarge/100)-umsatzNetto):null;
+  // Break-Even: Was nach Abzug des Rechnungsgewinns an Kosten bleibt, muss das Warengeschäft mit
+  // seiner Marge decken. Vorher: fixTotal/Marge mit einer Marge, aus der die Eingangsrechnungen
+  // schon herausgerechnet waren — dadurch wurden sie doppelt abgezogen.
+  const beNeeded=dbMarge>0?((fixTotal-rechGewinn)/(dbMarge/100)-umsatzNetto):null;
   const beWaren=beNeeded!==null&&warenQuote!==null?(beNeeded*(warenQuote/100)):null;
   const tageImMonat=new Date(year,month,0).getDate();
   const heute=new Date();
@@ -3317,7 +3329,7 @@ function getMonthStats(month, year){
   // Nur variable Kosten (DB) hochrechnen — Fixkosten bleiben fix
   const hochrechnungDB=db*hochrechnungFaktor;
   const hochrechnungCf=hochrechnungDB-fix-mkTotal-totalMpg;
-  return {orders:orders.length,umsatzBrutto,umsatzNetto,waren,versand,provision,retoure,retoureAbschreibung,db,fix,mkTotal,totalMpg,fixTotal,cashflow,rechGewinn,roi,dbMarge,warenQuote,beNeeded,beWaren,hochrechnungDB,hochrechnungCf,tageBisher,tageImMonat,istAktuellerMonat};
+  return {orders:orders.length,umsatzBrutto,umsatzNetto,waren,versand,provision,retoure,retoureAbschreibung,db,dbBestellungen,eingangsRechTotal,fix,mkTotal,totalMpg,fixTotal,cashflow,rechGewinn,roi,dbMarge,warenQuote,beNeeded,beWaren,hochrechnungDB,hochrechnungCf,tageBisher,tageImMonat,istAktuellerMonat};
 }
 
 function fmtDiff(val){
@@ -3365,6 +3377,9 @@ function renderCashflow(){
     {label:'− Versandkosten',val:-s.versand,sign:'',bold:false},
     {label:'− Marktplatzprovisionen',val:-s.provision,sign:'',bold:false},
     {label:'− Retouren',val:-retoureAnzeige,sign:'',bold:false},
+    {label:'= DB aus Bestellungen',val:s.dbBestellungen,sign:'',bold:true},
+    {label:'± Ausgangsrechnungen (Gewinn)',val:s.rechGewinn,sign:'',bold:false},
+    {label:'− Eingangsrechnungen',val:-s.eingangsRechTotal,sign:'',bold:false},
     {label:'= Deckungsbeitrag',val:s.db,sign:'',bold:true},
     {label:'− Fixkosten',val:-s.fix,sign:'',bold:false},
     {label:'− Marketing',val:-s.mkTotal,sign:'',bold:false},

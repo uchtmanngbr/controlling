@@ -333,7 +333,7 @@ tr:last-child td{border-bottom:none;}
       <div class="preview-box">
         <div class="preview-rows">
           <div class="preview-row"><span>Verkaufspreis brutto</span><span id="prev-brutto">0,00 €</span></div>
-          <div class="preview-row"><span>− MwSt. 19%</span><span id="prev-mwst" class="neg">0,00 €</span></div>
+          <div class="preview-row"><span id="prev-mwst-label">− MwSt. 19%</span><span id="prev-mwst" class="neg">0,00 €</span></div>
           <div class="preview-row"><span>= Nettoumsatz</span><span id="prev-netto">0,00 €</span></div>
           <hr class="preview-divider">
           <div class="preview-row"><span>− Warenkosten</span><span id="prev-waren" class="neg">0,00 €</span></div>
@@ -1579,6 +1579,13 @@ tr:last-child td{border-bottom:none;}
           <div class="field"><label>ASIN / Marktplatz-ID</label><input type="text" id="prod-asin" placeholder="z.B. B08XYZ"></div>
           <div class="field"><label>Artikelname *</label><input type="text" id="prod-name" placeholder="z.B. Kopfhörer XY Schwarz"></div>
           <div class="field"><label>Netto EK (€)</label><input type="number" id="prod-ek" min="0" step="0.01" placeholder="0.00"></div>
+          <div class="field"><label>MwSt.-Satz</label>
+            <select id="prod-mwst" style="width:100%">
+              <option value="19">19 % (Regelsatz)</option>
+              <option value="7">7 % (ermäßigt)</option>
+              <option value="0">0 % (steuerfrei)</option>
+            </select>
+          </div>
           <div class="field"><label>Versandprofil</label>
             <select id="prod-versand-profil" style="width:100%">
               <option value="">Kein Profil</option>
@@ -1611,11 +1618,12 @@ tr:last-child td{border-bottom:none;}
           <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400">ASIN</th>
           <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400">Artikelname</th>
           <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400">Netto EK</th>
+          <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400">MwSt.</th>
           <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400">Versandprofil</th>
           <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400">Status</th>
           <th style="padding:10px 12px"></th>
         </tr></thead>
-        <tbody id="prod-tbody"><tr><td colspan="7" class="empty">Noch keine Produkte angelegt</td></tr></tbody>
+        <tbody id="prod-tbody"><tr><td colspan="8" class="empty">Noch keine Produkte angelegt</td></tr></tbody>
       </table>
     </div>
     <div id="prod-count" style="font-size:12px;color:#888780;margin-top:8px;text-align:right"></div>
@@ -1793,7 +1801,7 @@ async function syncFromSupabase(){
     if(products&&products.length){
       const mapped=products.map(p=>({
         sku:p.sku, asin:p.asin||'', name:p.name||'', ek:p.ek||0,
-        versandProfilId:p.versand_profil_id||null, kategorie:p.kategorie||'', aktiv:p.aktiv!==false
+        mwstSatz:normMwstSatz(p.mwst_satz)??MWST_STANDARD, versandProfilId:p.versand_profil_id||null, kategorie:p.kategorie||'', aktiv:p.aktiv!==false
       }));
       localStorage.setItem('ec_produkte',JSON.stringify(mapped));
     }
@@ -3867,7 +3875,7 @@ function autofillEdItemRow(idx){
     p.sku.toLowerCase()===item.sku.toLowerCase()||
     (p.asin&&p.asin.toLowerCase()===item.sku.toLowerCase())
   );
-  if(!p) return;
+  if(!p){ edUpdatePreview(); return; } // MwSt-Satz kann sich mit der SKU geändert haben
   const tbody=document.getElementById('ed-items-tbody');
   const row=tbody?.querySelector(`tr[data-idx="${idx}"]`);
   if(!item.name&&p.name){
@@ -3948,9 +3956,21 @@ function edManualFee(){
   edUpdatePreview();
 }
 
+// Fallback-Satz beim Bearbeiten: Ist keine Position einem Produkt zugeordnet, den Satz beibehalten,
+// der sich aus den gespeicherten Werten der Bestellung ergibt (z. B. echte MwSt aus dem Otto- oder
+// Amazon-Import) — statt ihn beim Speichern still auf 19 % zurückzusetzen.
+function edFallbackSatz(){
+  const o=getOrders().find(o=>String(o.id)===String(editId));
+  if(o&&o.umsatzBrutto>0&&o.umsatzNetto>0){
+    const satz=Math.round((o.umsatzBrutto/o.umsatzNetto-1)*100);
+    const naechster=MWST_SAETZE.reduce((a,b)=>Math.abs(b-satz)<Math.abs(a-satz)?b:a);
+    if(Math.abs(naechster-satz)<=1) return naechster;
+  }
+  return MWST_STANDARD;
+}
 function edUpdatePreview(){
   const brutto=parseFloat(document.getElementById('ed-brutto').value)||0;
-  const netto=nettoVon(brutto);
+  const netto=mwstFuerItems(_edItems,brutto,edFallbackSatz()).netto;
   const waren=parseFloat(document.getElementById('ed-waren').value)||0;
   const versand=parseFloat(document.getElementById('ed-versand').value)||0;
   const prov=parseFloat(document.getElementById('ed-provision').value)||0;
@@ -3980,7 +4000,7 @@ async function saveEdit(){
     artikel: itemsToNameString(_edItems),
     sku: itemsToSkuString(_edItems),
     umsatzBrutto: brutto,
-    umsatzNetto: parseFloat(nettoVon(brutto).toFixed(2)),
+    umsatzNetto: parseFloat(mwstFuerItems(_edItems,brutto,edFallbackSatz()).netto.toFixed(2)),
     waren: parseFloat(waren.toFixed(2)),
     versand,
     versandProfilId: document.getElementById('ed-versand-profil').value?parseInt(document.getElementById('ed-versand-profil').value):null,
@@ -4111,6 +4131,58 @@ function fmt(n){return new Intl.NumberFormat('de-DE',{style:'currency',currency:
 function fmtS(n){return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0);}
 function nettoVon(b){return b/(1+MwSt);}
 function mwstVon(b){return b-nettoVon(b);}
+
+// ── MwSt pro Produkt ──
+// Erlaubte Sätze in Deutschland: 19 % Regelsatz, 7 % ermäßigt, 0 % steuerfrei/Nullsatz.
+// Produkte ohne hinterlegten Satz (Altbestand) gelten als 19 %.
+const MWST_SAETZE=[19,7,0];
+const MWST_STANDARD=19;
+function normMwstSatz(v){
+  const n=parseFloat(String(v??'').replace('%','').replace(',','.').trim());
+  return MWST_SAETZE.includes(n)?n:null;
+}
+function findProduktBySkuOrAsin(sku){
+  if(!sku) return null;
+  const key=String(sku).trim().toLowerCase();
+  return getProdukte().find(p=>(p.sku||'').toLowerCase()===key||(p.asin&&p.asin.toLowerCase()===key))||null;
+}
+function mwstSatzVonSku(sku){
+  const p=findProduktBySkuOrAsin(sku);
+  if(!p) return null;
+  return normMwstSatz(p.mwstSatz)??MWST_STANDARD;
+}
+// Netto aus Brutto für eine Bestellung mit mehreren Positionen.
+// Manuelle Bestellungen haben nur EINEN Bruttobetrag, keine Preise je Position. Bei gleichem Satz
+// für alle Positionen ist die Rechnung exakt. Bei gemischten Sätzen wird der Bruttobetrag anteilig
+// nach EK auf die Positionen verteilt — das ist eine Näherung und wird in der Vorschau angezeigt.
+// fallbackSatz greift, wenn keine Position einem Produkt zugeordnet werden kann.
+function mwstFuerItems(items, brutto, fallbackSatz=MWST_STANDARD){
+  const pos=(items||[]).filter(it=>it&&(it.sku||it.name));
+  const bekannt=pos.map(it=>({it,satz:mwstSatzVonSku(it.sku)})).filter(x=>x.satz!==null);
+  if(!bekannt.length){
+    const netto=brutto/(1+fallbackSatz/100);
+    return {netto,mwst:brutto-netto,saetze:[fallbackSatz],gemischt:false,ausProdukt:false};
+  }
+  // Positionen ohne Produkt bekommen den Fallback-Satz
+  const alle=pos.map(it=>({it,satz:mwstSatzVonSku(it.sku)??fallbackSatz}));
+  const saetze=[...new Set(alle.map(x=>x.satz))];
+  if(saetze.length===1){
+    const netto=brutto/(1+saetze[0]/100);
+    return {netto,mwst:brutto-netto,saetze,gemischt:false,ausProdukt:true};
+  }
+  const gewicht=x=>(Number(x.it.ek)||0)*(x.it.menge||1);
+  const summe=alle.reduce((s,x)=>s+gewicht(x),0);
+  let netto=0;
+  alle.forEach(x=>{
+    const anteil=summe>0?gewicht(x)/summe:1/alle.length;
+    netto+=(brutto*anteil)/(1+x.satz/100);
+  });
+  return {netto,mwst:brutto-netto,saetze,gemischt:true,ausProdukt:true};
+}
+function mwstLabel(info){
+  if(!info) return 'MwSt.';
+  return 'MwSt. '+info.saetze.slice().sort((a,b)=>b-a).map(x=>x+'%').join(' / ')+(info.gemischt?' (anteilig)':'');
+}
 // Retourenspezifische ZUSATZkosten (Label + Rücksendeversand) aus der Retouren-Tabelle —
 // geteilte Logik zwischen calcDB() und getMonthStats(), damit beide garantiert denselben
 // Wert verwenden. Bewusst OHNE Abschreibung (steckt schon in effWaren(), s.u.) und OHNE
@@ -4173,7 +4245,8 @@ function autofillFromSku(){
 function autoCalc(){
   const kanal=document.getElementById('f-kanal').value;
   const brutto=parseFloat(document.getElementById('f-brutto').value)||0;
-  document.getElementById('hint-netto').innerHTML=brutto>0?`Netto: <b>${fmt(nettoVon(brutto))}</b> &nbsp;·&nbsp; MwSt.: <b>${fmt(mwstVon(brutto))}</b>`:'';
+  const _mw=mwstFuerItems(_formItems,brutto);
+  document.getElementById('hint-netto').innerHTML=brutto>0?`Netto: <b>${fmt(_mw.netto)}</b> &nbsp;·&nbsp; ${mwstLabel(_mw)}: <b>${fmt(_mw.mwst)}</b>`:'';
   // Update label with live rate
   const rate=getFeeRate(kanal);
   const pctLabel=document.getElementById('hint-fee-pct');
@@ -4194,8 +4267,11 @@ function onManualFee(){
 }
 function updatePreview(){
   const brutto=parseFloat(document.getElementById('f-brutto').value)||0;
-  const netto=parseFloat(nettoVon(brutto).toFixed(2));
-  const mwst=parseFloat(mwstVon(brutto).toFixed(2));
+  const mwInfo=mwstFuerItems(_formItems,brutto);
+  const netto=parseFloat(mwInfo.netto.toFixed(2));
+  const mwst=parseFloat((brutto-netto).toFixed(2));
+  const mwLabelEl=document.getElementById('prev-mwst-label');
+  if(mwLabelEl) mwLabelEl.textContent='− '+mwstLabel(mwInfo);
   const waren=parseFloat(document.getElementById('f-waren').value)||0;
   const versand=parseFloat(document.getElementById('f-versand').value)||0;
   const fee=parseFloat(document.getElementById('f-provision').value)||0;
@@ -4305,7 +4381,7 @@ async function saveOrder(){
     sku:itemsToSkuString(_formItems),
     items:[..._formItems],
     umsatzBrutto:brutto,
-    umsatzNetto:parseFloat(nettoVon(brutto).toFixed(2)),
+    umsatzNetto:parseFloat(mwstFuerItems(_formItems,brutto).netto.toFixed(2)),
     waren,
     versand:parseFloat(document.getElementById('f-versand').value)||0,
     versandProfilId:document.getElementById('f-versand-profil').value?parseInt(document.getElementById('f-versand-profil').value):null,
@@ -4433,7 +4509,7 @@ function autofillItemRow(idx){
     p.sku.toLowerCase()===item.sku.toLowerCase()||
     (p.asin&&p.asin.toLowerCase()===item.sku.toLowerCase())
   );
-  if(!p) return;
+  if(!p){ updatePreview(); return; } // MwSt-Satz kann sich mit der SKU geändert haben
   // Artikelname befüllen wenn leer
   if(!item.name&&p.name){
     item.name=p.name;
@@ -5511,6 +5587,7 @@ function downloadProduktCSVTemplate(){
   document.getElementById('confirm-title').textContent='Hinweise zur CSV-Datei';
   document.getElementById('confirm-msg').innerHTML=
     `Den Netto-EK mit einem <strong>Punkt als Dezimaltrennzeichen</strong> angeben (z.&nbsp;B. <code>12.99</code> statt <code>12,99</code>).<br><br>
+    In der Spalte <strong>MwSt</strong> den Steuersatz als Zahl ohne %-Zeichen eintragen: <code>19</code>, <code>7</code> oder <code>0</code>. Leer gelassen gilt 19&nbsp;%.<br><br>
     Das Versandprofil muss <strong>exakt dem Namen</strong> eines gespeicherten Versandprofils entsprechen.`;
   const okBtn=document.getElementById('confirm-ok-btn');
   okBtn.textContent='Verstanden';
@@ -5530,7 +5607,7 @@ function downloadProduktCSVTemplate(){
 
 function _startCSVDownload(){
   document.getElementById('confirm-cancel-btn').style.display='';
-  const csv='SKU;ASIN;Name;EK;Versandprofil\nKOPFH-001;B08XYZ1234;Kopfhörer XY Schwarz;8.50;DHL Päckchen M\nKABEL-USB-002;B07ABC5678;USB-C Ladekabel 1m;2.20;Deutsche Post Warensendung';
+  const csv='SKU;ASIN;Name;EK;MwSt;Versandprofil\nKOPFH-001;B08XYZ1234;Kopfhörer XY Schwarz;8.50;19;DHL Päckchen M\nBUCH-003;3123456789;Kochbuch Pasta;6.80;7;Deutsche Post Warensendung';
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
   const url=window.URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -5554,6 +5631,7 @@ async function saveProdukteToSupabase(arr){
       'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
     body:JSON.stringify(arr.map(p=>({
       sku:p.sku, asin:p.asin||'', name:p.name||'', ek:p.ek||0,
+      mwst_satz:normMwstSatz(p.mwstSatz)??MWST_STANDARD,
       versand_profil_id:p.versandProfilId||null, kategorie:p.kategorie||'', aktiv:p.aktiv!==false
     })))
   });
@@ -5592,6 +5670,7 @@ function openProdForm(sku=null){
     document.getElementById('prod-asin').value=p.asin||'';
     document.getElementById('prod-name').value=p.name||'';
     document.getElementById('prod-ek').value=p.ek||'';
+    document.getElementById('prod-mwst').value=String(normMwstSatz(p.mwstSatz)??MWST_STANDARD);
     document.getElementById('prod-versand-profil').value=p.versandProfilId||'';
     document.getElementById('prod-aktiv').value=String(p.aktiv!==false);
   } else {
@@ -5601,6 +5680,7 @@ function openProdForm(sku=null){
     document.getElementById('prod-asin').value='';
     document.getElementById('prod-name').value='';
     document.getElementById('prod-ek').value='';
+    document.getElementById('prod-mwst').value=String(MWST_STANDARD);
     document.getElementById('prod-versand-profil').value='';
     document.getElementById('prod-aktiv').value='true';
   }
@@ -5628,9 +5708,12 @@ function saveProdForm(){
   const prod={
     sku, asin:document.getElementById('prod-asin').value.trim(),
     name, ek:parseFloat(document.getElementById('prod-ek').value)||0,
+    mwstSatz:normMwstSatz(document.getElementById('prod-mwst').value)??MWST_STANDARD,
     versandProfilId:document.getElementById('prod-versand-profil').value||null,
     aktiv:document.getElementById('prod-aktiv').value==='true',
   };
+  // Felder, die das Formular nicht kennt (z. B. kategorie), beim Bearbeiten nicht verlieren
+  if(editProdSku&&existing>=0) Object.keys(produkte[existing]).forEach(k=>{if(!(k in prod)) prod[k]=produkte[existing][k];});
 
   if(editProdSku){
     if(existing>=0) produkte[existing]=prod;
@@ -5664,7 +5747,7 @@ function renderProdukte(){
   const tbody=document.getElementById('prod-tbody');
   if(!tbody) return;
   if(!produkte.length){
-    tbody.innerHTML=`<tr><td colspan="7" class="empty">${search?'Keine Produkte gefunden':'Noch keine Produkte angelegt'}</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="8" class="empty">${search?'Keine Produkte gefunden':'Noch keine Produkte angelegt'}</td></tr>`;
     document.getElementById('prod-count').textContent='';
     return;
   }
@@ -5675,6 +5758,7 @@ function renderProdukte(){
       <td style="padding:9px 8px;font-size:12px;color:#888780;text-align:center">${p.asin||'—'}</td>
       <td style="padding:9px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center">${p.name||'—'}</td>
       <td style="padding:9px 8px;text-align:center">${p.ek?fmt(p.ek):'—'}</td>
+      <td style="padding:9px 8px;text-align:center">${normMwstSatz(p.mwstSatz)??MWST_STANDARD} %</td>
       <td style="padding:9px 8px;font-size:12px;color:#888780;text-align:center">${vp?(vp.name||vp.carrier):'—'}</td>
       <td style="padding:9px 8px;text-align:center">
         <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${p.aktiv!==false?'#e8f7f2':'#f5f5f3'};color:${p.aktiv!==false?'#1D9E75':'#888780'}">
@@ -5721,12 +5805,21 @@ function importProduktCSV(event){
       if(!sku){errors.push(`Zeile ${i+1}: SKU fehlt`);continue;}
       const versandName=get(row,['versandprofil','versand','shipping']);
       const matchedProfile=profiles.find(p=>(p.name||p.carrier||'').toLowerCase()===versandName.toLowerCase());
-      newProds.push({
+      // MwSt: Spalte optional. Leer → 19 %. Ungültiger Wert (z. B. 16) → Zeile übernehmen, aber
+      // mit 19 % und als Hinweis melden, statt still einen falschen Satz zu speichern.
+      const mwstRaw=get(row,['mwst','mwst.','mwst-satz','mwst satz','mwstsatz','ust','steuersatz','vat']);
+      const mwstParsed=normMwstSatz(mwstRaw);
+      if(mwstRaw&&mwstParsed===null) errors.push(`Zeile ${i+1} (${sku}): MwSt „${mwstRaw}" ungültig — 19 % verwendet (erlaubt: 19, 7, 0)`);
+      const prodRow={
         sku, asin:get(row,['asin','marktplatz-id','marketplace_id']),
         name:name||sku, ek:parseFloat(get(row,['ek','einkaufspreis','einkauf']).replace(',','.'))||0,
         versandProfilId:matchedProfile?String(matchedProfile.id):null,
         aktiv:get(row,['aktiv','active'])!=='false',
-      });
+      };
+      // Beim Aktualisieren bestehender Produkte einen vorhandenen Satz nur überschreiben, wenn die
+      // CSV wirklich einen Wert liefert — sonst bliebe nach einem Import ohne MwSt-Spalte alles auf 19 %.
+      if(mwstRaw) prodRow.mwstSatz=mwstParsed??MWST_STANDARD;
+      newProds.push(prodRow);
     }
 
     // Find duplicates
@@ -5762,7 +5855,7 @@ function importProduktCSV(event){
         if(updateDupes){produkte[idx]={...produkte[idx],...prod};updated++;}
         else skipped++;
       } else {
-        produkte.unshift(prod); added++;
+        produkte.unshift({mwstSatz:MWST_STANDARD,...prod}); added++;
       }
     }
 
@@ -5786,7 +5879,7 @@ async function syncProdukteFromSupabase(){
   if(!data||!data.length) return;
   const mapped=data.map(p=>({
     sku:p.sku, asin:p.asin||'', name:p.name||'', ek:p.ek||0,
-    versandProfilId:p.versand_profil_id||null, kategorie:p.kategorie||'', aktiv:p.aktiv!==false
+    mwstSatz:normMwstSatz(p.mwst_satz)??MWST_STANDARD, versandProfilId:p.versand_profil_id||null, kategorie:p.kategorie||'', aktiv:p.aktiv!==false
   }));
   localStorage.setItem('ec_produkte',JSON.stringify(mapped));
 }
@@ -6578,7 +6671,9 @@ function mapShopify(headers, row) {
   const bruttoRaw = parseFloat(get('Total')) || 0;
   const versandRaw = parseFloat(get('Shipping')) || 0;
   const retourRaw = parseFloat(get('Refunded Amount')) || 0;
-  const netto = parseFloat((bruttoRaw / 1.19).toFixed(2));
+  // MwSt-Satz aus dem Produkt (über die SKU der Position), sonst 19 %
+  const satzShopify = mwstSatzVonSku(get('Lineitem sku')) ?? MWST_STANDARD;
+  const netto = parseFloat((bruttoRaw / (1 + satzShopify/100)).toFixed(2));
   const provision = parseFloat((bruttoRaw * 0.04).toFixed(2));
   const dateRaw = get('Created at');
   const dateParsed = dateRaw ? dateRaw.split(' ')[0] : '';
@@ -6652,7 +6747,9 @@ function mapEbayDirect(headers, row) {
   if(brutto <= 0) return null;
 
   const versand = parseEUR(get('Verpackung und Versand'));
-  const netto = parseFloat((brutto / 1.19).toFixed(2));
+  // MwSt-Satz aus dem Produkt (über die Bestandseinheit = SKU), sonst 19 %
+  const satzEbay = mwstSatzVonSku(get('Bestandseinheit')) ?? MWST_STANDARD;
+  const netto = parseFloat((brutto / (1 + satzEbay/100)).toFixed(2));
   const provision = parseFloat((brutto * 0.12).toFixed(2));
 
   return {
@@ -7522,7 +7619,7 @@ function initRealtime(){
       if(page?.id==='page-eingabe') renderRechnungen();
     } else if(table==='products'){
       const data=await sbFetch('products','GET',null,'?select=*');
-      if(data){const mapped=data.map(p=>({sku:p.sku,asin:p.asin||'',name:p.name||'',ek:p.ek||0,versandProfilId:p.versand_profil_id||null,aktiv:p.aktiv!==false}));localStorage.setItem('ec_produkte',JSON.stringify(mapped));}
+      if(data){const mapped=data.map(p=>({sku:p.sku,asin:p.asin||'',name:p.name||'',ek:p.ek||0,mwstSatz:normMwstSatz(p.mwst_satz)??MWST_STANDARD,versandProfilId:p.versand_profil_id||null,kategorie:p.kategorie||'',aktiv:p.aktiv!==false}));localStorage.setItem('ec_produkte',JSON.stringify(mapped));}
       const page=document.querySelector('.page.active');
       if(page?.id==='page-produkte') renderProdukte();
     } else if(table==='eingangsrechnungen'){

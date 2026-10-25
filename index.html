@@ -199,6 +199,55 @@ tr:last-child td{border-bottom:none;}
 .status-item-content{flex:1;min-width:0;}
 .status-item-text{font-size:12px;color:#1a1a18;line-height:1.4;}
 .status-item-time{font-size:10px;color:#888780;margin-top:2px;}
+
+/* ── PRODUKTFENSTER & CHARGEN ── */
+.pv-modal-bg{padding:16px;box-sizing:border-box;}
+.pv-modal{max-width:860px;max-height:calc(100vh - 32px);overflow-y:auto;padding:0;}
+.pv-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px 16px;border-bottom:0.5px solid #ddddd5;}
+.pv-modal-body{padding:20px 24px;display:flex;flex-direction:column;gap:22px;}
+.pv-modal-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:14px 24px;border-top:0.5px solid #ddddd5;}
+.pv-field-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+.pv-icon-btn{width:32px;height:32px;border:0.5px solid #c8c8c0;border-radius:8px;background:#fff;color:#1a1a18;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;}
+.pv-icon-btn:disabled{border-color:#ddddd5;color:#c8c8c0;cursor:default;}
+.pv-icon-btn.danger{border-color:#e6a3a2;color:#c53a39;}
+.pv-segment{display:inline-flex;padding:3px;background:#f0f0ec;border-radius:9px;gap:2px;}
+.pv-segment button{height:30px;padding:0 14px;border:none;border-radius:7px;background:transparent;color:#6b6a64;font-size:12px;cursor:pointer;font-family:inherit;}
+.pv-segment button.active{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,0.08);color:#003265;font-weight:500;}
+.pv-prio{justify-self:center;width:28px;height:28px;border-radius:50%;background:#e6ecf3;color:#003265;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;}
+.pv-prio.aktiv{background:#003265;color:#fff;}
+.pv-prio.leer{background:transparent;border:0.5px solid #c8c8c0;color:#6b6a64;font-weight:400;font-size:12px;}
+.pv-bar{height:6px;background:#ddddd5;border-radius:99px;overflow:hidden;}
+.pv-bar > div{height:100%;background:#003265;border-radius:99px;}
+.pv-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 8px;border-radius:10px;white-space:nowrap;}
+.pv-badge.blau{background:#e6ecf3;color:#003265;}
+.pv-badge.grau{background:#f0f0ec;color:#6b6a64;}
+.pv-badge.amber{background:#fdf3e1;color:#7a4f00;}
+.pv-hinweis{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:10px;font-size:12px;line-height:1.5;}
+.pv-hinweis.blau{background:#eef5fc;color:#1a1a18;}
+.pv-hinweis.amber{background:#fdf3e1;color:#4d3200;}
+.pv-chargen{container-type:inline-size;display:flex;flex-direction:column;gap:6px;}
+.pv-row{display:grid;grid-template-columns:44px minmax(150px,1.6fr) repeat(3,minmax(78px,1fr)) minmax(130px,1.3fr) 80px;align-items:center;column-gap:12px;padding:12px 16px;text-align:center;}
+.pv-chargen.manuell .pv-row{grid-template-columns:44px minmax(150px,1.6fr) repeat(3,minmax(78px,1fr)) minmax(130px,1.3fr) 150px;}
+.pv-row.pv-head{padding-top:0;padding-bottom:0;font-size:11px;color:#6b6a64;}
+.pv-list{display:flex;flex-direction:column;border:0.5px solid #ddddd5;border-radius:10px;overflow:hidden;}
+.pv-list .pv-row{border-bottom:0.5px solid #ddddd5;background:#fff;}
+.pv-list .pv-row:last-child{border-bottom:none;}
+.pv-list .pv-row.aktiv{background:#eef5fc;}
+.pv-row.abgeschlossen{background:#f5f5f3;border-radius:10px;color:#6b6a64;}
+.pv-date{display:flex;flex-direction:column;gap:2px;}
+.pv-nums{display:contents;}
+.pv-lbl{display:none;font-size:11px;color:#6b6a64;margin-bottom:3px;}
+.pv-rest{display:flex;flex-direction:column;gap:5px;}
+.pv-act{display:flex;gap:6px;justify-content:center;}
+@container (max-width: 640px){
+  .pv-row.pv-head{display:none;}
+  .pv-row,.pv-chargen.manuell .pv-row{grid-template-columns:36px 1fr auto;row-gap:12px;text-align:left;}
+  .pv-act{grid-row:1;grid-column:3;}
+  .pv-nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;grid-column:1 / -1;text-align:center;}
+  .pv-rest{grid-column:1 / -1;}
+  .pv-lbl{display:block;}
+}
+.prod-table th,.prod-table td{text-align:center;padding:9px 8px;}
 </style>
 </head>
 <body>
@@ -1570,60 +1619,27 @@ tr:last-child td{border-bottom:none;}
       </div>
     </div>
 
-    <!-- FORMULAR -->
-    <div id="prod-form-wrap" style="display:none;margin-bottom:1.5rem">
-      <div class="form-card" style="margin-bottom:0">
-        <div class="section-title" id="prod-form-title">Neues Produkt</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1rem">
-          <div class="field"><label>SKU *</label><input type="text" id="prod-sku" placeholder="z.B. KOPFH-001"></div>
-          <div class="field"><label>ASIN / Marktplatz-ID</label><input type="text" id="prod-asin" placeholder="z.B. B08XYZ"></div>
-          <div class="field"><label>Artikelname *</label><input type="text" id="prod-name" placeholder="z.B. Kopfhörer XY Schwarz"></div>
-          <div class="field"><label>Netto EK (€)</label><input type="number" id="prod-ek" min="0" step="0.01" placeholder="0.00"></div>
-          <div class="field"><label>MwSt.-Satz</label>
-            <select id="prod-mwst" style="width:100%">
-              <option value="19">19 % (Regelsatz)</option>
-              <option value="7">7 % (ermäßigt)</option>
-              <option value="0">0 % (steuerfrei)</option>
-            </select>
-          </div>
-          <div class="field"><label>Versandprofil</label>
-            <select id="prod-versand-profil" style="width:100%">
-              <option value="">Kein Profil</option>
-            </select>
-          </div>
-          <div class="field"><label>Status</label>
-            <select id="prod-aktiv" style="width:100%">
-              <option value="true">Aktiv</option>
-              <option value="false">Inaktiv</option>
-            </select>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn primary" onclick="saveProdForm()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
-          <button class="btn" onclick="closeProdForm()">Abbrechen</button>
-          <span id="prod-save-msg" style="font-size:12px;color:#1D9E75;display:none">✓ Gespeichert</span>
-          <span id="prod-err-msg" style="font-size:12px;color:#E24B4A;display:none"></span>
-        </div>
-      </div>
-    </div>
+    <!-- Produkt anlegen/bearbeiten: eigenes Fenster (siehe PRODUKT-FENSTER weiter unten) -->
 
     <!-- IMPORT STATUS -->
     <div id="prod-import-status" style="display:none;margin-bottom:1rem"></div>
 
     <!-- TABELLE -->
-    <div class="form-card" style="padding:0;overflow:hidden">
-      <table style="width:100%;border-collapse:collapse">
+    <div class="form-card" style="padding:0;overflow-x:auto">
+      <table class="prod-table" style="width:100%;min-width:960px;border-collapse:collapse">
         <thead><tr style="border-bottom:0.5px solid #ddddd5">
-          <th style="padding:10px 12px;text-align:center;color:#888780;font-weight:400">SKU</th>
-          <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400">ASIN</th>
-          <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400">Artikelname</th>
-          <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400">Netto EK</th>
-          <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400">MwSt.</th>
-          <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400">Versandprofil</th>
-          <th style="padding:10px 8px;text-align:center;color:#888780;font-weight:400">Status</th>
-          <th style="padding:10px 12px"></th>
+          <th style="color:#888780;font-weight:400">SKU</th>
+          <th style="color:#888780;font-weight:400">ASIN</th>
+          <th style="color:#888780;font-weight:400">Artikelname</th>
+          <th style="color:#888780;font-weight:400">Einstandspreis</th>
+          <th style="color:#888780;font-weight:400">Quelle</th>
+          <th style="color:#888780;font-weight:400">Buchbestand</th>
+          <th style="color:#888780;font-weight:400">MwSt.</th>
+          <th style="color:#888780;font-weight:400">Versandprofil</th>
+          <th style="color:#888780;font-weight:400">Status</th>
+          <th></th>
         </tr></thead>
-        <tbody id="prod-tbody"><tr><td colspan="8" class="empty">Noch keine Produkte angelegt</td></tr></tbody>
+        <tbody id="prod-tbody"><tr><td colspan="10" class="empty">Noch keine Produkte angelegt</td></tr></tbody>
       </table>
     </div>
     <div id="prod-count" style="font-size:12px;color:#888780;margin-top:8px;text-align:right"></div>
@@ -1727,6 +1743,37 @@ async function sbFetch(table, method='GET', body=null, params=''){
 var dbSynced=false;
 var _suppressRealtime=false; // Verhindert Realtime-Reload bei eigenen Änderungen
 
+// Positionen einer Bestellung aus Supabase ins Frontend-Format. EINE Stelle für alle Ladewege:
+// Vorher fehlten beim Realtime-Nachladen `id` und `preis` — eine danach bearbeitete Bestellung
+// galt dann als "alles neu", die Datenbank löschte alle Positionen und legte sie neu an (Verlust
+// der Otto-/Shopify-IDs, mit Chargen zusätzlich unnötiges Hin- und Herbuchen von Bestand).
+function mapOrderItemFromDb(it){
+  return {
+    sku:it.sku||'', name:it.name||'',
+    menge:it.menge||1, ek:Number(it.ek)||0,
+    ek_manuell:it.ek_manuell||false,
+    ek_quelle:it.ek_quelle||null,
+    position:it.position||0,
+    id:it.id,
+    preis:it.preis||0,
+  };
+}
+function baueOrdersMitItems(orders, orderItems){
+  const itemsByOrder={};
+  (orderItems||[]).forEach(it=>{
+    if(!itemsByOrder[it.order_id]) itemsByOrder[it.order_id]=[];
+    itemsByOrder[it.order_id].push(mapOrderItemFromDb(it));
+  });
+  return orders.map(o=>({...o,items:(itemsByOrder[o.id]||[]).sort((a,b)=>a.position-b.position)}));
+}
+async function ladeOrdersAusSupabase(){
+  const [orderData,itemData]=await Promise.all([
+    sbFetch('orders','GET',null,'?select=*&deleted=is.false&order=id.desc'),
+    sbFetch('order_items','GET',null,'?select=*'),
+  ]);
+  if(orderData) localStorage.setItem('ec_orders',JSON.stringify(baueOrdersMitItems(orderData,itemData)));
+}
+
 async function syncFromSupabase(){
   try{
     const [orders,orderItems,fixkosten,marketing,mpg,rechnungen,versand,settings,products,retouren]=await Promise.all([
@@ -1742,24 +1789,7 @@ async function syncFromSupabase(){
       sbFetch('retouren','GET',null,'?select=*&order=id.desc'),
     ]);
     if(orders){
-      // Items den Orders zuordnen
-      const itemsByOrder={};
-      (orderItems||[]).forEach(it=>{
-        if(!itemsByOrder[it.order_id]) itemsByOrder[it.order_id]=[];
-        itemsByOrder[it.order_id].push({
-          sku:it.sku||'',name:it.name||'',
-          menge:it.menge||1,ek:it.ek||0,
-          ek_manuell:it.ek_manuell||false,
-          position:it.position||0,
-          id:it.id,
-          preis:it.preis||0,
-        });
-      });
-      const enriched=orders.map(o=>({
-        ...o,
-        items:(itemsByOrder[o.id]||[]).sort((a,b)=>a.position-b.position),
-      }));
-      localStorage.setItem('ec_orders',JSON.stringify(enriched));
+      localStorage.setItem('ec_orders',JSON.stringify(baueOrdersMitItems(orders,orderItems)));
     }
     if(fixkosten) localStorage.setItem('ec_fixkosten_v2',JSON.stringify(fixkosten));
     if(marketing) localStorage.setItem('ec_marketing',JSON.stringify(marketing));
@@ -1799,12 +1829,9 @@ async function syncFromSupabase(){
       });
     }
     if(products&&products.length){
-      const mapped=products.map(p=>({
-        sku:p.sku, asin:p.asin||'', name:p.name||'', ek:p.ek||0,
-        mwstSatz:normMwstSatz(p.mwst_satz)??MWST_STANDARD, versandProfilId:p.versand_profil_id||null, kategorie:p.kategorie||'', aktiv:p.aktiv!==false
-      }));
-      localStorage.setItem('ec_produkte',JSON.stringify(mapped));
+      localStorage.setItem('ec_produkte',JSON.stringify(products.map(mapProduktFromDb)));
     }
+    await ladeChargen();
     dbSynced=true;
     console.log('✓ Supabase sync complete');
   }catch(e){
@@ -3882,9 +3909,10 @@ function autofillEdItemRow(idx){
     item.name=p.name;
     if(row) row.querySelectorAll('input')[1].value=p.name;
   }
-  if(!item.ek_manuell&&p.ek){
-    item.ek=p.ek;
-    if(row) row.querySelectorAll('input')[3].value=p.ek;
+  const einstand=aktuellerEinstand(p);
+  if(!item.ek_manuell&&einstand){
+    item.ek=einstand;
+    if(row) row.querySelectorAll('input')[3].value=einstand;
   }
   if(row){
     const skuInput=row.querySelectorAll('input')[0];
@@ -4013,6 +4041,8 @@ async function saveEdit(){
   saveOrders(orders);
   // Update per ID — verhindert Duplikate bei Marktplatz-Änderung
   await updateOrderWithItems(orders[idx].id, orders[idx], _edItems);
+  // Menge/SKU geändert? Dann hat die Datenbank die Chargen neu zugeordnet -> aktuellen Stand holen
+  await ladeOrdersAusSupabase(); await ladeChargen();
   // Datenqualitäts-Zustand neu prüfen — löst eine frühere Ampel-Warnung automatisch auf,
   // falls z.B. gerade der fehlende EK nachgetragen wurde. Prüft die eingegebenen Werte direkt,
   // nicht ob die SKU in der Produkttabelle steht (das wäre bei manueller Erfassung normal).
@@ -4223,7 +4253,7 @@ function autofillFromSku(){
 
   // EK — nur befüllen wenn leer
   const warenEl=document.getElementById('f-waren');
-  if(warenEl&&(!warenEl.value||parseFloat(warenEl.value)===0)) warenEl.value=p.ek||'';
+  if(warenEl&&(!warenEl.value||parseFloat(warenEl.value)===0)) warenEl.value=aktuellerEinstand(p)||'';
 
   // Versandprofil — nur setzen wenn vorhanden
   if(p.versandProfilId){
@@ -4400,6 +4430,8 @@ async function saveOrder(){
     const all=getOrders();
     const idx=all.findIndex(o=>o.id===order.id);
     if(idx>=0){ all[idx].id=supabaseId; saveOrders(all); }
+    // Die Datenbank kann den EK der Positionen aus Chargen gesetzt haben -> aktuellen Stand holen
+    ladeOrdersAusSupabase().then(()=>ladeChargen()).then(()=>{renderOrders(); renderDashboard(); renderDay();});
 
     // Datenqualitäts-Check im Backend anstoßen — prüft die TATSÄCHLICH EINGEGEBENEN Werte
     // (Artikelname, EK, Versandprofil), NICHT ob die SKU in der Produkttabelle steht. Das ist
@@ -4517,12 +4549,14 @@ function autofillItemRow(idx){
     const row=tbody?.querySelector(`tr[data-idx="${idx}"]`);
     if(row) row.querySelectorAll('input')[1].value=p.name;
   }
-  // EK befüllen wenn noch nicht manuell gesetzt
-  if(!item.ek_manuell&&p.ek){
-    item.ek=p.ek;
+  // EK befüllen wenn noch nicht manuell gesetzt: Einstandspreis der aktiven Charge, sonst
+  // Standard-Einstandspreis. Den endgültigen Wert setzt die Datenbank beim Speichern.
+  const einstand=aktuellerEinstand(p);
+  if(!item.ek_manuell&&einstand){
+    item.ek=einstand;
     const tbody=document.getElementById('f-items-tbody');
     const row=tbody?.querySelector(`tr[data-idx="${idx}"]`);
-    if(row) row.querySelectorAll('input')[3].value=p.ek;
+    if(row) row.querySelectorAll('input')[3].value=einstand;
   }
   // Versandprofil setzen wenn noch keins gewählt
   if(p.versandProfilId&&!document.getElementById('f-versand-profil')?.value){
@@ -4603,6 +4637,7 @@ async function deleteOrder(id){
   }
   saveOrders(getOrders().filter(o=>String(o.id)!==String(id)));
   renderOrders(); renderDashboard();
+  setTimeout(()=>ladeChargen(),1500); // Bestand kommt in die Charge zurück
   // Falls die Bestellung eine offene Ampel-Warnung hatte, jetzt auflösen
   if(_o?.id){
     fetch(`${BACKEND_URL}/orders/check-quality`,{
@@ -5616,6 +5651,20 @@ function _startCSVDownload(){
   setTimeout(()=>{document.body.removeChild(a);window.URL.revokeObjectURL(url);},100);
 }
 
+/* ── PRODUKTE & CHARGEN ── */
+function escHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+// Einheitliche Umwandlung Supabase-Zeile -> Produkt im Frontend (vorher an vier Stellen kopiert)
+function mapProduktFromDb(p){
+  return {
+    sku:p.sku, asin:p.asin||'', name:p.name||'', ek:Number(p.ek)||0,
+    nebenkosten:Number(p.nebenkosten)||0,
+    verbrauchsfolge:p.verbrauchsfolge==='manuell'?'manuell':'fifo',
+    mwstSatz:normMwstSatz(p.mwst_satz)??MWST_STANDARD,
+    versandProfilId:p.versand_profil_id||null, kategorie:p.kategorie||'', aktiv:p.aktiv!==false
+  };
+}
+
 function getProdukte(){try{return JSON.parse(localStorage.getItem('ec_produkte')||'[]');}catch{return[];}}
 function saveProdukte(arr){
   localStorage.setItem('ec_produkte',JSON.stringify(arr));
@@ -5631,6 +5680,8 @@ async function saveProdukteToSupabase(arr){
       'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
     body:JSON.stringify(arr.map(p=>({
       sku:p.sku, asin:p.asin||'', name:p.name||'', ek:p.ek||0,
+      nebenkosten:p.nebenkosten||0,
+      verbrauchsfolge:p.verbrauchsfolge==='manuell'?'manuell':'fifo',
       mwst_satz:normMwstSatz(p.mwstSatz)??MWST_STANDARD,
       versand_profil_id:p.versandProfilId||null, kategorie:p.kategorie||'', aktiv:p.aktiv!==false
     })))
@@ -5645,76 +5696,214 @@ async function deleteProdukteFromSupabase(sku){
   });
 }
 
+// Schreibzugriff mit echter Fehlerrückgabe (sbFetch liefert bei Erfolg ohne Inhalt und bei
+// Fehlern beide Male null — für Chargen müssen wir das unterscheiden können)
+async function sbWrite(path, method, body){
+  try{
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{
+      method,
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},
+      body:body?JSON.stringify(body):null,
+    });
+    const text=await res.text();
+    let data=null; try{data=text?JSON.parse(text):null;}catch{data=text;}
+    if(!res.ok) return {ok:false,error:(data&&data.message)||text||('HTTP '+res.status),data};
+    return {ok:true,data};
+  }catch(e){return {ok:false,error:e.message};}
+}
+function sbRpc(name, payload){ return sbWrite(`rpc/${name}`,'POST',payload||{}); }
+
+// ── Chargen (Daten) ──
+function getChargen(){try{return JSON.parse(localStorage.getItem('ec_chargen')||'[]');}catch{return[];}}
+async function ladeChargen(){
+  const data=await sbFetch('product_batches_ueberblick','GET',null,'?select=*&order=eingangsdatum.asc,id.asc');
+  if(Array.isArray(data)) localStorage.setItem('ec_chargen',JSON.stringify(data));
+  return getChargen();
+}
+// Reihenfolge des Verbrauchs: FIFO nach Eingangsdatum, bei "manuell" nach Prio
+function sortiereChargen(liste, verbrauchsfolge){
+  return [...liste].sort((a,b)=>{
+    if(verbrauchsfolge==='manuell'&&a.prio!==b.prio) return (a.prio||0)-(b.prio||0);
+    if(a.eingangsdatum!==b.eingangsdatum) return a.eingangsdatum<b.eingangsdatum?-1:1;
+    return a.id-b.id;
+  });
+}
+function chargenFuerSku(sku){
+  const p=getProdukte().find(x=>x.sku===sku);
+  return sortiereChargen(getChargen().filter(c=>c.sku===sku), p?.verbrauchsfolge||'fifo');
+}
+function standardEinstand(p){ return Math.round(((Number(p?.ek)||0)+(Number(p?.nebenkosten)||0))*10000)/10000; }
+// Einstandspreis, mit dem der nächste Verkauf gerechnet würde (für Vorschau und Autofill).
+// Den tatsächlichen Wert setzt die Datenbank beim Speichern der Bestellung.
+function aktuellerEinstand(p){
+  if(!p) return 0;
+  const aktiv=chargenFuerSku(p.sku).find(c=>c.menge_rest>0);
+  const wert=aktiv?Number(aktiv.einstand)||0:standardEinstand(p);
+  return Math.round(wert*10000)/10000;
+}
+function buchbestand(sku){ return getChargen().filter(c=>c.sku===sku).reduce((s,c)=>s+(c.menge_rest||0),0); }
+const BALD_LEER_AB=5;
+function fmtDatumDe(iso){ if(!iso) return '—'; const [y,m,d]=String(iso).split('-'); return `${d}.${m}.${y}`; }
+
 function populateProdVersandDropdown(){
   const sel=document.getElementById('prod-versand-profil');
   if(!sel) return;
   const profiles=getVersandProfile();
   const cur=sel.value;
   sel.innerHTML='<option value="">Kein Profil</option>';
-  profiles.forEach(p=>sel.innerHTML+=`<option value="${p.id}">${p.name||p.carrier}</option>`);
+  profiles.forEach(p=>sel.innerHTML+=`<option value="${p.id}">${escHtml(p.name||p.carrier)}</option>`);
   if(cur) sel.value=cur;
 }
 
+// ── Produkt-Fenster ──
 let editProdSku=null;
 function openProdForm(sku=null){
   editProdSku=sku;
-  const wrap=document.getElementById('prod-form-wrap');
-  const title=document.getElementById('prod-form-title');
   populateProdVersandDropdown();
-  if(sku){
-    const p=getProdukte().find(p=>p.sku===sku);
-    if(!p) return;
-    title.textContent='Produkt bearbeiten';
-    document.getElementById('prod-sku').value=p.sku;
-    document.getElementById('prod-sku').disabled=true;
-    document.getElementById('prod-asin').value=p.asin||'';
-    document.getElementById('prod-name').value=p.name||'';
-    document.getElementById('prod-ek').value=p.ek||'';
-    document.getElementById('prod-mwst').value=String(normMwstSatz(p.mwstSatz)??MWST_STANDARD);
-    document.getElementById('prod-versand-profil').value=p.versandProfilId||'';
-    document.getElementById('prod-aktiv').value=String(p.aktiv!==false);
-  } else {
-    title.textContent='Neues Produkt';
-    document.getElementById('prod-sku').value='';
-    document.getElementById('prod-sku').disabled=false;
-    document.getElementById('prod-asin').value='';
-    document.getElementById('prod-name').value='';
-    document.getElementById('prod-ek').value='';
-    document.getElementById('prod-mwst').value=String(MWST_STANDARD);
-    document.getElementById('prod-versand-profil').value='';
-    document.getElementById('prod-aktiv').value='true';
-  }
+  const p=sku?getProdukte().find(x=>x.sku===sku):null;
+  if(sku&&!p) return;
+  document.getElementById('prod-form-title').textContent=p?'Produkt bearbeiten':'Neues Produkt';
+  document.getElementById('prod-form-sub').textContent=p?`${p.sku} · ${p.name||''}`:'';
+  document.getElementById('prod-sku').value=p?p.sku:'';
+  document.getElementById('prod-sku').disabled=!!p;
+  document.getElementById('prod-asin').value=p?.asin||'';
+  document.getElementById('prod-name').value=p?.name||'';
+  document.getElementById('prod-ek').value=p&&p.ek?p.ek:'';
+  document.getElementById('prod-nebenkosten').value=p&&p.nebenkosten?p.nebenkosten:'';
+  document.getElementById('prod-mwst').value=String(normMwstSatz(p?.mwstSatz)??MWST_STANDARD);
+  document.getElementById('prod-versand-profil').value=p?.versandProfilId||'';
+  document.getElementById('prod-aktiv').value=String(p?p.aktiv!==false:true);
   document.getElementById('prod-save-msg').style.display='none';
   document.getElementById('prod-err-msg').style.display='none';
-  wrap.style.display='block';
-  document.getElementById('prod-sku').focus();
+  renderProdChargen();
+  document.getElementById('prod-modal-bg').style.display='flex';
+  setTimeout(()=>document.getElementById(p?'prod-name':'prod-sku')?.focus(),50);
 }
 
 function closeProdForm(){
-  document.getElementById('prod-form-wrap').style.display='none';
+  document.getElementById('prod-modal-bg').style.display='none';
   editProdSku=null;
 }
 
-function saveProdForm(){
+function updateProdEinstandHinweis(){
+  if(!editProdSku) return;
+  renderProdBestandInfo();
+}
+
+function renderProdBestandInfo(){
+  const el=document.getElementById('prod-bestand-info');
+  if(!el) return;
+  if(!editProdSku){ el.textContent=''; return; }
+  const p=getProdukte().find(x=>x.sku===editProdSku);
+  const chargen=chargenFuerSku(editProdSku);
+  if(!chargen.length){ el.textContent='Noch keine Chargen'; return; }
+  el.innerHTML=`Buchbestand: <b style="color:#1a1a18;font-weight:600">${buchbestand(editProdSku)} Stück</b> · aktueller Einstandspreis <b style="color:#1a1a18;font-weight:600">${fmt(aktuellerEinstand(p))}</b>`;
+}
+
+function renderProdChargen(){
+  const wrap=document.getElementById('prod-chargen-wrap');
+  if(!wrap) return;
+  renderProdBestandInfo();
+  if(!editProdSku){
+    wrap.innerHTML=`<div class="pv-hinweis blau"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#003265" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>Wareneingänge kannst du buchen, sobald das Produkt gespeichert ist. Das Fenster bleibt dafür nach dem ersten Speichern offen.</span></div>`;
+    return;
+  }
+  const p=getProdukte().find(x=>x.sku===editProdSku)||{};
+  const modus=p.verbrauchsfolge==='manuell'?'manuell':'fifo';
+  const alle=chargenFuerSku(editProdSku);
+  const aktiv=alle.filter(c=>c.menge_rest>0);
+  const abgeschlossen=alle.filter(c=>c.menge_rest<=0);
+  const ico={
+    auf:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>',
+    ab:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
+    stift:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>',
+    muell:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
+  };
+  const zeile=(c,idx,istAbgeschlossen)=>{
+    const istAktiv=!istAbgeschlossen&&idx===0;
+    const verkauft=Number(c.verkauft)||0;
+    const pct=c.menge_eingang>0?Math.max(0,Math.min(100,Math.round(c.menge_rest/c.menge_eingang*100))):0;
+    const pfeile=(modus==='manuell'&&!istAbgeschlossen)?`
+      <button type="button" class="pv-icon-btn" aria-label="Prio nach oben" ${idx===0?'disabled':''} onclick="moveCharge(${c.id},-1)">${ico.auf}</button>
+      <button type="button" class="pv-icon-btn" aria-label="Prio nach unten" ${idx===aktiv.length-1?'disabled':''} onclick="moveCharge(${c.id},1)">${ico.ab}</button>`:'';
+    const loeschen=verkauft>0
+      ?`<button type="button" class="pv-icon-btn" disabled aria-label="Löschen nicht möglich, aus dieser Charge wurde schon verkauft" title="Aus dieser Charge wurde schon verkauft">${ico.muell}</button>`
+      :`<button type="button" class="pv-icon-btn danger" aria-label="Charge löschen" onclick="deleteCharge(${c.id})">${ico.muell}</button>`;
+    const nk=Number(c.nebenkosten)||0;
+    return `<div class="pv-row${istAktiv?' aktiv':''}${istAbgeschlossen?' abgeschlossen':''}">
+      <span class="pv-prio${istAktiv?' aktiv':''}${istAbgeschlossen?' leer':''}">${istAbgeschlossen?'–':idx+1}</span>
+      <div class="pv-date">
+        <span style="font-size:13px">${fmtDatumDe(c.eingangsdatum)}</span>
+        <span style="font-size:11px;color:#6b6a64">${escHtml(c.beleg||'')}${c.beleg&&istAktiv?' · ':''}${istAktiv?'<b style="font-weight:500;color:#003265">Aktive Charge</b>':''}</span>
+      </div>
+      <div class="pv-nums">
+        <div><span class="pv-lbl">Einkaufspreis</span><span style="font-size:13px">${fmt(c.ek_netto)}</span></div>
+        <div><span class="pv-lbl">Bezugsnebenk.</span><span style="font-size:13px;color:#6b6a64">${nk?fmt(nk):'—'}</span></div>
+        <div><span class="pv-lbl">Einstandspreis</span><span style="font-size:13px;font-weight:600">${fmt(c.einstand)}</span></div>
+      </div>
+      <div class="pv-rest">
+        <span class="pv-lbl">Restbestand der Charge</span>
+        <span style="font-size:12px"><b style="font-weight:600">${c.menge_rest}</b> <span style="color:#6b6a64">von ${c.menge_eingang}</span></span>
+        ${istAbgeschlossen?'':`<div class="pv-bar"><div style="width:${pct}%"></div></div>`}
+      </div>
+      <div class="pv-act">${pfeile}
+        <button type="button" class="pv-icon-btn" aria-label="Charge bearbeiten" onclick="openChargeForm(${c.id})">${ico.stift}</button>
+        ${loeschen}
+      </div>
+    </div>`;
+  };
+  wrap.innerHTML=`
+    <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin-bottom:12px">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px">
+        <span style="font-size:12px;color:#6b6a64">Verbrauchsfolge</span>
+        <div class="pv-segment" role="radiogroup" aria-label="Verbrauchsfolge">
+          <button type="button" role="radio" aria-checked="${modus==='fifo'}" class="${modus==='fifo'?'active':''}" onclick="setVerbrauchsfolge('fifo')">FIFO</button>
+          <button type="button" role="radio" aria-checked="${modus==='manuell'}" class="${modus==='manuell'?'active':''}" onclick="setVerbrauchsfolge('manuell')">Manuelle Reihenfolge</button>
+        </div>
+      </div>
+      <span style="font-size:11px;color:#6b6a64">${modus==='fifo'?'Älteste Charge wird zuerst verkauft':'Prio 1 wird zuerst verkauft, Reihenfolge mit ▲▼'}</span>
+    </div>
+    <div class="pv-chargen${modus==='manuell'?' manuell':''}">
+      ${aktiv.length?`<div class="pv-row pv-head">
+        <span>Prio</span><span>Eingangsdatum / Beleg</span><span>Einkaufspreis (netto)</span><span>Bezugsneben&shy;kosten</span><span>Einstands&shy;preis</span><span>Restbestand der Charge</span><span>Aktionen</span>
+      </div>
+      <div class="pv-list">${aktiv.map((c,i)=>zeile(c,i,false)).join('')}</div>`
+      :`<div class="pv-hinweis ${alle.length?'amber':'blau'}"><span>${alle.length?'Alle Chargen sind aufgebraucht. Verkäufe werden zum Standard-Einstandspreis gerechnet.':'Noch keine Chargen. Verkäufe werden zum Standard-Einstandspreis gerechnet.'}</span></div>`}
+      <button type="button" onclick="openChargeForm(null)" style="align-self:flex-start;margin-top:6px;height:36px;padding:0 16px;border:0.5px dashed #003265;border-radius:8px;background:#fff;color:#003265;font-family:inherit;font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px;cursor:pointer">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        Wareneingang buchen
+      </button>
+      ${abgeschlossen.length?`<span style="margin-top:10px;font-size:11px;color:#6b6a64;text-transform:uppercase;letter-spacing:0.05em">Abgeschlossene Chargen (${abgeschlossen.length})</span>
+      ${abgeschlossen.map((c,i)=>zeile(c,i,true)).join('')}`:''}
+    </div>`;
+}
+
+async function saveProdForm(){
   const sku=document.getElementById('prod-sku').value.trim();
   const name=document.getElementById('prod-name').value.trim();
   const errEl=document.getElementById('prod-err-msg');
   if(!sku){errEl.textContent='SKU ist Pflichtfeld';errEl.style.display='inline';return;}
   if(!name){errEl.textContent='Artikelname ist Pflichtfeld';errEl.style.display='inline';return;}
+  const ek=parseFloat(document.getElementById('prod-ek').value)||0;
+  const nebenkosten=parseFloat(document.getElementById('prod-nebenkosten').value)||0;
+  if(ek<0||nebenkosten<0){errEl.textContent='Preise dürfen nicht negativ sein';errEl.style.display='inline';return;}
   errEl.style.display='none';
 
   const produkte=getProdukte();
   const existing=produkte.findIndex(p=>p.sku===sku);
+  const vorher=existing>=0?produkte[existing]:null;
   const prod={
     sku, asin:document.getElementById('prod-asin').value.trim(),
-    name, ek:parseFloat(document.getElementById('prod-ek').value)||0,
+    name, ek, nebenkosten,
+    verbrauchsfolge:vorher?.verbrauchsfolge||'fifo',
     mwstSatz:normMwstSatz(document.getElementById('prod-mwst').value)??MWST_STANDARD,
     versandProfilId:document.getElementById('prod-versand-profil').value||null,
     aktiv:document.getElementById('prod-aktiv').value==='true',
   };
   // Felder, die das Formular nicht kennt (z. B. kategorie), beim Bearbeiten nicht verlieren
-  if(editProdSku&&existing>=0) Object.keys(produkte[existing]).forEach(k=>{if(!(k in prod)) prod[k]=produkte[existing][k];});
+  if(editProdSku&&vorher) Object.keys(vorher).forEach(k=>{if(!(k in prod)) prod[k]=vorher[k];});
 
+  const warNeu=!editProdSku;
   if(editProdSku){
     if(existing>=0) produkte[existing]=prod;
   } else {
@@ -5722,14 +5911,207 @@ function saveProdForm(){
     produkte.unshift(prod);
   }
   saveProdukte(produkte);
-  document.getElementById('prod-save-msg').style.display='inline';
-  setTimeout(()=>{document.getElementById('prod-save-msg').style.display='none';},1800);
   renderProdukte();
-  if(!editProdSku) closeProdForm();
+  if(warNeu){
+    // Neues Produkt: Fenster offen lassen, damit direkt Wareneingänge gebucht werden können
+    editProdSku=sku;
+    document.getElementById('prod-sku').disabled=true;
+    document.getElementById('prod-form-title').textContent='Produkt bearbeiten';
+    document.getElementById('prod-form-sub').textContent=`${sku} · ${name}`;
+    renderProdChargen();
+    const msg=document.getElementById('prod-save-msg');
+    msg.textContent='✓ Gespeichert, jetzt kannst du Wareneingänge buchen';
+    msg.style.display='inline';
+    setTimeout(()=>{msg.style.display='none';msg.textContent='✓ Gespeichert';},3500);
+  } else {
+    closeProdForm();
+  }
+}
+
+async function setVerbrauchsfolge(modus){
+  if(!editProdSku) return;
+  const produkte=getProdukte();
+  const idx=produkte.findIndex(p=>p.sku===editProdSku);
+  if(idx<0||produkte[idx].verbrauchsfolge===modus) return;
+  if(modus==='manuell'){
+    // Beim Wechsel die bisherige FIFO-Reihenfolge als Startreihenfolge übernehmen
+    const aktiv=sortiereChargen(getChargen().filter(c=>c.sku===editProdSku&&c.menge_rest>0),'fifo');
+    for(let i=0;i<aktiv.length;i++){
+      if(aktiv[i].prio!==i+1) await sbWrite(`product_batches?id=eq.${aktiv[i].id}`,'PATCH',{prio:i+1});
+    }
+    await ladeChargen();
+  }
+  produkte[idx]={...produkte[idx],verbrauchsfolge:modus};
+  saveProdukte(produkte);
+  renderProdChargen(); renderProdukte();
+}
+
+async function moveCharge(id, richtung){
+  const aktiv=chargenFuerSku(editProdSku).filter(c=>c.menge_rest>0);
+  const i=aktiv.findIndex(c=>c.id===id);
+  const j=i+richtung;
+  if(i<0||j<0||j>=aktiv.length) return;
+  // Reihenfolge neu durchnummerieren und nur geänderte Zeilen speichern
+  const neu=[...aktiv]; [neu[i],neu[j]]=[neu[j],neu[i]];
+  for(let k=0;k<neu.length;k++){
+    if(neu[k].prio!==k+1){
+      const r=await sbWrite(`product_batches?id=eq.${neu[k].id}`,'PATCH',{prio:k+1});
+      if(!r.ok){showToast('Reihenfolge konnte nicht gespeichert werden.');break;}
+    }
+  }
+  await ladeChargen();
+  renderProdChargen(); renderProdukte();
+}
+
+async function deleteCharge(id){
+  const c=getChargen().find(x=>x.id===id);
+  if(!c) return;
+  if((Number(c.verkauft)||0)>0){showToast('Aus dieser Charge wurde schon verkauft, sie kann nicht gelöscht werden.');return;}
+  if(!await customConfirm(`Charge vom <strong>${fmtDatumDe(c.eingangsdatum)}</strong>${c.beleg?' ('+escHtml(c.beleg)+')':''} wirklich löschen?`,'Charge löschen')) return;
+  const r=await sbWrite(`product_batches?id=eq.${id}`,'DELETE');
+  if(!r.ok){showToast('Charge konnte nicht gelöscht werden: '+r.error);return;}
+  await ladeChargen();
+  renderProdChargen(); renderProdukte();
+}
+
+// ── Charge: Wareneingang buchen / bearbeiten ──
+let editChargeId=null;
+function openChargeForm(id){
+  if(!editProdSku) return;
+  editChargeId=id;
+  const c=id?getChargen().find(x=>x.id===id):null;
+  const p=getProdukte().find(x=>x.sku===editProdSku);
+  document.getElementById('charge-form-title').textContent=c?'Charge bearbeiten':'Wareneingang buchen';
+  document.getElementById('charge-form-sub').textContent=`${editProdSku} · ${p?.name||''}`;
+  document.getElementById('ch-beleg').value=c?.beleg||'';
+  document.getElementById('ch-datum').value=c?.eingangsdatum||new Date().toISOString().split('T')[0];
+  document.getElementById('ch-ek').value=c?Number(c.ek_netto):'';
+  document.getElementById('ch-nk').value=c&&Number(c.nebenkosten)?Number(c.nebenkosten):'';
+  document.getElementById('ch-menge').value='';
+  document.getElementById('ch-menge-wrap').style.display=c?'none':'';
+  document.getElementById('ch-bestand-box').style.display=c?'grid':'none';
+  document.getElementById('ch-notiz-wrap').style.display=c?'':'none';
+  document.getElementById('ch-notiz').value='';
+  if(c){
+    document.getElementById('ch-menge-edit').value=c.menge_eingang;
+    document.getElementById('ch-verkauft').textContent=Number(c.verkauft)||0;
+    document.getElementById('ch-rest').value=c.menge_rest;
+  }
+  document.getElementById('ch-save-btn').textContent=c?'Speichern':'Wareneingang buchen';
+  document.getElementById('ch-err').style.display='none';
+  updateChargeEinstand(); updateChargeRestHinweis();
+  document.getElementById('charge-modal-bg').style.display='flex';
+  setTimeout(()=>document.getElementById(c?'ch-ek':'ch-beleg')?.focus(),50);
+}
+function closeChargeForm(){
+  document.getElementById('charge-modal-bg').style.display='none';
+  editChargeId=null;
+}
+function updateChargeEinstand(){
+  const ek=parseFloat(document.getElementById('ch-ek').value);
+  const nk=parseFloat(document.getElementById('ch-nk').value)||0;
+  document.getElementById('ch-einstand').textContent=isNaN(ek)?'—':fmt(ek+nk);
+}
+function updateChargeRestHinweis(){
+  const el=document.getElementById('ch-hinweis-text');
+  if(!editChargeId){
+    const p=getProdukte().find(x=>x.sku===editProdSku);
+    el.textContent=p?.verbrauchsfolge==='manuell'
+      ?'Die Charge wird ans Ende der Reihenfolge gesetzt. Mit den Pfeilen ▲▼ kannst du sie danach verschieben.'
+      :'Die Charge wird nach Eingangsdatum einsortiert (FIFO).';
+    return;
+  }
+  const c=getChargen().find(x=>x.id===editChargeId);
+  const neu=parseInt(document.getElementById('ch-rest').value);
+  if(c&&!isNaN(neu)&&neu!==c.menge_rest){
+    el.textContent=`Restbestand ${c.menge_rest} → ${neu}. Die Änderung wird mit Datum protokolliert, Kosten werden nicht gebucht.`;
+  } else {
+    el.textContent='Den Restbestand kannst du direkt korrigieren, z. B. nach einer Inventur. Änderungen werden protokolliert.';
+  }
+}
+
+// Rückfrage, ob ein geänderter Preis auch für bereits verkaufte Stück gelten soll
+let _preisScopeResolve=null;
+function askPreisScope(c, ekNeu, nkNeu){
+  return new Promise(resolve=>{
+    _preisScopeResolve=resolve;
+    const einstandAlt=Number(c.einstand)||0, einstandNeu=ekNeu+nkNeu;
+    document.getElementById('cp-text1').innerHTML=`Du änderst den Einstandspreis der Charge vom <b style="font-weight:600">${fmtDatumDe(c.eingangsdatum)}</b> von <b style="font-weight:600">${fmt(einstandAlt)}</b> auf <b style="font-weight:600">${fmt(einstandNeu)}</b>.`;
+    document.getElementById('cp-text2').innerHTML=`Aus dieser Charge wurden schon <b style="font-weight:600">${Number(c.verkauft)||0} Stück</b> verkauft. Für welche Verkäufe soll der neue Preis gelten?`;
+    document.getElementById('cp-opt1').textContent=`Die verkauften Stück behalten ${fmt(einstandAlt)}`;
+    const def=document.querySelector('input[name=cp-scope][value=kuenftig]'); if(def) def.checked=true;
+    document.getElementById('charge-preis-modal-bg').style.display='flex';
+  });
+}
+function resolvePreisScope(val){
+  document.getElementById('charge-preis-modal-bg').style.display='none';
+  if(_preisScopeResolve){_preisScopeResolve(val);_preisScopeResolve=null;}
+}
+
+async function saveChargeForm(){
+  const errEl=document.getElementById('ch-err');
+  const fehler=t=>{errEl.textContent=t;errEl.style.display='block';};
+  errEl.style.display='none';
+  const beleg=document.getElementById('ch-beleg').value.trim();
+  const datum=document.getElementById('ch-datum').value;
+  const ek=parseFloat(document.getElementById('ch-ek').value);
+  const nk=parseFloat(document.getElementById('ch-nk').value)||0;
+  if(!datum) return fehler('Bitte ein Eingangsdatum eintragen.');
+  if(isNaN(ek)||ek<0) return fehler('Bitte einen gültigen Einkaufspreis eintragen.');
+  if(nk<0) return fehler('Bezugsnebenkosten dürfen nicht negativ sein.');
+  const btn=document.getElementById('ch-save-btn'); btn.disabled=true;
+  try{
+    if(!editChargeId){
+      const menge=parseInt(document.getElementById('ch-menge').value);
+      if(!(menge>0)) return fehler('Bitte eine Anzahl größer 0 eintragen.');
+      const p=getProdukte().find(x=>x.sku===editProdSku);
+      const vorhandene=getChargen().filter(c=>c.sku===editProdSku);
+      const prio=p?.verbrauchsfolge==='manuell'?Math.max(0,...vorhandene.filter(c=>c.menge_rest>0).map(c=>c.prio||0))+1:0;
+      const r=await sbWrite('product_batches','POST',{sku:editProdSku,beleg:beleg||null,eingangsdatum:datum,ek_netto:ek,nebenkosten:nk,menge_eingang:menge,menge_rest:menge,prio});
+      if(!r.ok) return fehler('Speichern fehlgeschlagen: '+r.error);
+    } else {
+      const c=getChargen().find(x=>x.id===editChargeId);
+      if(!c) return fehler('Charge nicht gefunden, bitte Fenster neu öffnen.');
+      const mengeEingang=parseInt(document.getElementById('ch-menge-edit').value);
+      const rest=parseInt(document.getElementById('ch-rest').value);
+      if(!(mengeEingang>0)) return fehler('Die Liefermenge muss größer 0 sein.');
+      if(isNaN(rest)||rest<0) return fehler('Der Restbestand muss 0 oder größer sein.');
+      // 1. Preis: bei schon verkauften Stück nachfragen, ob rückwirkend
+      const preisGeaendert=Math.abs((Number(c.ek_netto)||0)-ek)>0.00001||Math.abs((Number(c.nebenkosten)||0)-nk)>0.00001;
+      let rueckwirkend=false;
+      if(preisGeaendert){
+        if((Number(c.verkauft)||0)>0){
+          const scope=await askPreisScope(c,ek,nk);
+          if(!scope) return; // abgebrochen
+          rueckwirkend=scope==='rueckwirkend';
+        }
+        const r=await sbRpc('chargen_preis_aendern',{p_batch_id:c.id,p_ek:ek,p_nebenkosten:nk,p_rueckwirkend:rueckwirkend});
+        if(!r.ok) return fehler('Preis konnte nicht gespeichert werden: '+r.error);
+      }
+      // 2. Stammdaten der Charge
+      if((c.beleg||'')!==beleg||c.eingangsdatum!==datum||c.menge_eingang!==mengeEingang){
+        const r=await sbWrite(`product_batches?id=eq.${c.id}`,'PATCH',{beleg:beleg||null,eingangsdatum:datum,menge_eingang:mengeEingang});
+        if(!r.ok) return fehler('Speichern fehlgeschlagen: '+r.error);
+      }
+      // 3. Restbestand (mit Protokoll)
+      if(rest!==c.menge_rest){
+        const r=await sbRpc('chargen_restbestand_setzen',{p_batch_id:c.id,p_neu:rest,p_notiz:document.getElementById('ch-notiz').value.trim()||null,p_von:'Profitviewer'});
+        if(!r.ok) return fehler('Restbestand konnte nicht gespeichert werden: '+r.error);
+      }
+      if(rueckwirkend){ await ladeOrdersAusSupabase(); renderOrders(); renderDashboard(); renderDay(); }
+    }
+    await ladeChargen();
+    closeChargeForm();
+    renderProdChargen(); renderProdukte();
+  } finally { btn.disabled=false; }
 }
 
 async function deleteProdukt(sku){
-  if(!await customConfirm(`Produkt <strong>„${sku}"</strong> wirklich löschen?<br><span style="font-size:12px">Diese Aktion kann nicht rückgängig gemacht werden.</span>`,"Produkt löschen")) return;
+  if(getChargen().some(c=>c.sku===sku)){
+    await customConfirm(`Produkt <strong>„${escHtml(sku)}"</strong> hat Chargen und kann deshalb nicht gelöscht werden.<br><span style="font-size:12px">Setze es stattdessen auf „Inaktiv“. Chargen ohne Verkäufe kannst du im Produktfenster einzeln löschen.</span>`,'Löschen nicht möglich','Verstanden','#003265');
+    return;
+  }
+  if(!await customConfirm(`Produkt <strong>„${escHtml(sku)}"</strong> wirklich löschen?<br><span style="font-size:12px">Diese Aktion kann nicht rückgängig gemacht werden.</span>`,"Produkt löschen")) return;
   saveProdukte(getProdukte().filter(p=>p.sku!==sku));
   if(typeof dbSynced!=='undefined'&&dbSynced) deleteProdukteFromSupabase(sku).catch(e=>console.warn(e));
   renderProdukte();
@@ -5747,31 +6129,50 @@ function renderProdukte(){
   const tbody=document.getElementById('prod-tbody');
   if(!tbody) return;
   if(!produkte.length){
-    tbody.innerHTML=`<tr><td colspan="8" class="empty">${search?'Keine Produkte gefunden':'Noch keine Produkte angelegt'}</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="10" class="empty">${search?'Keine Produkte gefunden':'Noch keine Produkte angelegt'}</td></tr>`;
     document.getElementById('prod-count').textContent='';
     return;
   }
+  const warnIco='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>';
   tbody.innerHTML=produkte.map(p=>{
     const vp=profiles.find(v=>String(v.id)===String(p.versandProfilId));
-    return `<tr style="border-bottom:0.5px solid #f5f5f3;" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
-      <td style="padding:9px 12px;font-weight:500;text-align:center">${p.sku}</td>
-      <td style="padding:9px 8px;font-size:12px;color:#888780;text-align:center">${p.asin||'—'}</td>
-      <td style="padding:9px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center">${p.name||'—'}</td>
-      <td style="padding:9px 8px;text-align:center">${p.ek?fmt(p.ek):'—'}</td>
-      <td style="padding:9px 8px;text-align:center">${normMwstSatz(p.mwstSatz)??MWST_STANDARD} %</td>
-      <td style="padding:9px 8px;font-size:12px;color:#888780;text-align:center">${vp?(vp.name||vp.carrier):'—'}</td>
-      <td style="padding:9px 8px;text-align:center">
-        <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${p.aktiv!==false?'#e8f7f2':'#f5f5f3'};color:${p.aktiv!==false?'#1D9E75':'#888780'}">
+    const chargen=getChargen().filter(c=>c.sku===p.sku);
+    const bestand=buchbestand(p.sku);
+    let quelle, bestandHtml;
+    if(!chargen.length){
+      quelle='<span class="pv-badge grau">Standard-Einstandspreis</span>';
+      bestandHtml='<span style="color:#888780">—</span>';
+    } else if(bestand<=0){
+      quelle=`<span class="pv-badge amber">${warnIco}Chargen leer, Standard-Einstandspreis</span>`;
+      bestandHtml='0 Stück';
+    } else {
+      quelle='<span class="pv-badge blau">Aktive Charge</span>';
+      bestandHtml=bestand<=BALD_LEER_AB?`<span class="pv-badge amber">${warnIco}${bestand} Stück, bald leer</span>`:`${bestand} Stück`;
+    }
+    const sku=escHtml(p.sku);
+    return `<tr style="border-bottom:0.5px solid #f5f5f3;cursor:pointer" onclick="if(!event.target.closest('button')) openProdForm('${sku.replace(/'/g,"\\'")}')" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
+      <td style="font-weight:500">${sku}</td>
+      <td style="font-size:12px;color:#888780">${escHtml(p.asin)||'—'}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.name)||'—'}</td>
+      <td style="font-weight:500">${chargen.length||p.ek||p.nebenkosten?fmt(aktuellerEinstand(p)):'—'}</td>
+      <td>${quelle}</td>
+      <td>${bestandHtml}</td>
+      <td>${normMwstSatz(p.mwstSatz)??MWST_STANDARD} %</td>
+      <td style="font-size:12px;color:#888780">${vp?escHtml(vp.name||vp.carrier):'—'}</td>
+      <td>
+        <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${p.aktiv!==false?'#e8f7f2':'#f5f5f3'};color:${p.aktiv!==false?'#13795a':'#888780'}">
           ${p.aktiv!==false?'Aktiv':'Inaktiv'}
         </span>
       </td>
-      <td style="padding:9px 12px;text-align:right;white-space:nowrap">
-        <button class="btn" style="height:26px;padding:0 10px;font-size:12px;margin-right:4px;" onclick="openProdForm('${p.sku}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M13.94 5 19 10.06 9.062 20a2.25 2.25 0 0 1-.999.58l-5.116 1.395a.75.75 0 0 1-.92-.921l1.395-5.116a2.25 2.25 0 0 1 .58-.999L13.938 5Zm7.09-2.03a3.578 3.578 0 0 1 0 5.06l-.97.97L15 3.94l.97-.97a3.578 3.578 0 0 1 5.06 0Z"/></svg>&nbsp;Bearbeiten</button>
-        <button class="btn" style="height:26px;padding:0 10px;font-size:12px;color:#E24B4A;border-color:#E24B4A;" onclick="deleteProdukt('${p.sku}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="#E24B4A" xmlns="http://www.w3.org/2000/svg"><path d="M21.5 6a1 1 0 0 1-.883.993L20.5 7h-.845l-1.231 12.52A2.75 2.75 0 0 1 15.687 22H8.313a2.75 2.75 0 0 1-2.737-2.48L4.345 7H3.5a1 1 0 0 1 0-2h5a3.5 3.5 0 1 1 7 0h5a1 1 0 0 1 1 1Zm-7.25 3.25a.75.75 0 0 0-.743.648L13.5 10v7l.007.102a.75.75 0 0 0 1.486 0L15 17v-7l-.007-.102a.75.75 0 0 0-.743-.648Zm-4.5 0a.75.75 0 0 0-.743.648L9 10v7l.007.102a.75.75 0 0 0 1.486 0L10.5 17v-7l-.007-.102a.75.75 0 0 0-.743-.648ZM12 3.5A1.5 1.5 0 0 0 10.5 5h3A1.5 1.5 0 0 0 12 3.5Z"/></svg> Löschen</button>
+      <td style="white-space:nowrap">
+        <div style="display:inline-flex;gap:6px">
+          <button type="button" class="pv-icon-btn" aria-label="Produkt bearbeiten" title="Bearbeiten" onclick="openProdForm('${sku.replace(/'/g,"\\'")}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg></button>
+          <button type="button" class="pv-icon-btn danger" aria-label="Produkt löschen" title="Löschen" onclick="deleteProdukt('${sku.replace(/'/g,"\\'")}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+        </div>
       </td>
     </tr>`;
   }).join('');
-  document.getElementById('prod-count').textContent=`${produkte.length} Produkt${produkte.length!==1?'e':''}`;
+  document.getElementById('prod-count').textContent=`${produkte.length} Produkt${produkte.length!==1?'e':''} · Buchbestand aus Wareneingängen, Verkäufen der angebundenen Kanäle und Korrekturen. Controlling-Werte, keine Lagerbewertung für die Bilanz.`;
 }
 
 function importProduktCSV(event){
@@ -5877,11 +6278,7 @@ function getProduktBySku(sku){return getProdukte().find(p=>p.sku===sku)||null;}
 async function syncProdukteFromSupabase(){
   const data=await sbFetch('products','GET',null,'?select=*');
   if(!data||!data.length) return;
-  const mapped=data.map(p=>({
-    sku:p.sku, asin:p.asin||'', name:p.name||'', ek:p.ek||0,
-    mwstSatz:normMwstSatz(p.mwst_satz)??MWST_STANDARD, versandProfilId:p.versand_profil_id||null, kategorie:p.kategorie||'', aktiv:p.aktiv!==false
-  }));
-  localStorage.setItem('ec_produkte',JSON.stringify(mapped));
+  localStorage.setItem('ec_produkte',JSON.stringify(data.map(mapProduktFromDb)));
 }
 
 function showToast(msg, type='error'){
@@ -6637,6 +7034,7 @@ async function deleteSelected(){
 
   saveOrders(allOrders.filter(o=>!ids.has(o.id)));
   renderOrders(); renderDashboard(); renderDay();
+  ladeChargen();
 }
 
 document.addEventListener('keydown', e=>{
@@ -7531,23 +7929,13 @@ function initRealtime(){
         if(syncEl) setTimeout(()=>syncEl.style.opacity='0',500);
         return;
       }
-      const [orderData,itemData]=await Promise.all([
-        sbFetch('orders','GET',null,'?select=*&deleted=is.false&order=id.desc'),
-        sbFetch('order_items','GET',null,'?select=*'),
-      ]);
-      if(orderData){
-        const itemsByOrder={};
-        (itemData||[]).forEach(it=>{
-          if(!itemsByOrder[it.order_id]) itemsByOrder[it.order_id]=[];
-          itemsByOrder[it.order_id].push({sku:it.sku||'',name:it.name||'',menge:it.menge||1,ek:it.ek||0,ek_manuell:it.ek_manuell||false,position:it.position||0});
-        });
-        const enriched=orderData.map(o=>({...o,items:(itemsByOrder[o.id]||[]).sort((a,b)=>a.position-b.position)}));
-        localStorage.setItem('ec_orders',JSON.stringify(enriched));
-      }
+      // Neue/geänderte Bestellungen (Shopify, Otto) verbrauchen Chargen-Bestand -> beides nachladen
+      await Promise.all([ladeOrdersAusSupabase(), ladeChargen()]);
       renderDashboard(); renderDay();
       const page=document.querySelector('.page.active');
       if(page?.id==='page-bestellungen') renderOrders();
       if(page?.id==='page-retouren') renderRetouren();
+      if(page?.id==='page-produkte') renderProdukte();
     } else if(table==='fixkosten'){
       const data=await sbFetch('fixkosten','GET',null,'?select=*');
       if(data) localStorage.setItem('ec_fixkosten_v2',JSON.stringify(data));
@@ -7619,9 +8007,14 @@ function initRealtime(){
       if(page?.id==='page-eingabe') renderRechnungen();
     } else if(table==='products'){
       const data=await sbFetch('products','GET',null,'?select=*');
-      if(data){const mapped=data.map(p=>({sku:p.sku,asin:p.asin||'',name:p.name||'',ek:p.ek||0,mwstSatz:normMwstSatz(p.mwst_satz)??MWST_STANDARD,versandProfilId:p.versand_profil_id||null,kategorie:p.kategorie||'',aktiv:p.aktiv!==false}));localStorage.setItem('ec_produkte',JSON.stringify(mapped));}
+      if(data) localStorage.setItem('ec_produkte',JSON.stringify(data.map(mapProduktFromDb)));
       const page=document.querySelector('.page.active');
       if(page?.id==='page-produkte') renderProdukte();
+    } else if(table==='product_batches'){
+      await ladeChargen();
+      const page=document.querySelector('.page.active');
+      if(page?.id==='page-produkte') renderProdukte();
+      if(editProdSku&&document.getElementById('prod-modal-bg')?.style.display==='flex') renderProdChargen();
     } else if(table==='eingangsrechnungen'){
       const data=await sbFetch('eingangsrechnungen','GET',null,'?select=*&order=id.desc');
       if(data) localStorage.setItem('ec_eingangsrechnungen',JSON.stringify(data));
@@ -7633,7 +8026,7 @@ function initRealtime(){
     if(syncEl){syncEl.textContent='✓ Aktualisiert';setTimeout(()=>syncEl.style.opacity='0',2000);}
   }
 
-  const tables=['orders','order_items','fixkosten','marketing','mpg','versand','settings','rechnungen','products','eingangsrechnungen'];
+  const tables=['orders','order_items','fixkosten','marketing','mpg','versand','settings','rechnungen','products','product_batches','eingangsrechnungen'];
   tables.forEach(table=>{
     supabaseClient
       .channel(`realtime:${table}`)
@@ -7868,6 +8261,139 @@ async function initApp(){
           <button class="btn" onclick="closeFkEdit()">Abbrechen</button>
           <button class="btn primary" onclick="saveFkEdit()"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRODUKT-FENSTER (anlegen / bearbeiten, inkl. Chargen) -->
+  <div class="edit-modal-bg pv-modal-bg" id="prod-modal-bg" style="display:none;" onclick="if(event.target===this) closeProdForm()">
+    <div class="edit-modal pv-modal" role="dialog" aria-modal="true" aria-labelledby="prod-form-title">
+      <div class="pv-modal-head">
+        <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+          <div class="edit-modal-title" id="prod-form-title" style="margin:0">Produkt bearbeiten</div>
+          <span id="prod-form-sub" style="font-size:12px;color:#6b6a64"></span>
+        </div>
+        <button type="button" class="pv-icon-btn" style="width:36px;height:36px;flex-shrink:0" onclick="closeProdForm()" aria-label="Fenster schließen">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="pv-modal-body">
+        <div class="pv-field-grid">
+          <div class="field"><label for="prod-sku">SKU *</label><input type="text" id="prod-sku" placeholder="z.B. KOPFH-001"></div>
+          <div class="field"><label for="prod-asin">ASIN / Marktplatz-ID</label><input type="text" id="prod-asin" placeholder="z.B. B08XYZ"></div>
+          <div class="field"><label for="prod-name">Artikelname *</label><input type="text" id="prod-name" placeholder="z.B. Kopfhörer XY Schwarz"></div>
+          <div class="field"><label for="prod-mwst">MwSt.-Satz</label>
+            <select id="prod-mwst" style="width:100%">
+              <option value="19">19 % (Regelsatz)</option>
+              <option value="7">7 % (ermäßigt)</option>
+              <option value="0">0 % (steuerfrei)</option>
+            </select>
+          </div>
+          <div class="field"><label for="prod-versand-profil">Versandprofil</label>
+            <select id="prod-versand-profil" style="width:100%"><option value="">Kein Profil</option></select>
+          </div>
+          <div class="field"><label for="prod-aktiv">Status</label>
+            <select id="prod-aktiv" style="width:100%"><option value="true">Aktiv</option><option value="false">Inaktiv</option></select>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 16px">
+            <div class="section-title" style="margin:0">Einkaufspreise</div>
+            <span id="prod-bestand-info" style="font-size:12px;color:#6b6a64"></span>
+          </div>
+
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;padding:14px 16px;background:#f5f5f3;border-radius:10px">
+            <div style="display:flex;flex-direction:column;gap:2px;flex:1 1 200px">
+              <span style="font-size:13px;font-weight:500">Standard-Einstandspreis</span>
+              <span style="font-size:12px;color:#6b6a64">Wird genutzt, wenn alle Chargen leer sind oder keine angelegt sind</span>
+            </div>
+            <label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:#6b6a64;text-align:center">Einkaufspreis (netto)
+              <input type="number" id="prod-ek" min="0" step="0.01" placeholder="0,00" style="width:120px;height:36px;box-sizing:border-box;padding:8px 10px;border:0.5px solid #c8c8c0;border-radius:8px;text-align:center" oninput="updateProdEinstandHinweis()">
+            </label>
+            <label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:#6b6a64;text-align:center">Bezugsnebenkosten
+              <input type="number" id="prod-nebenkosten" min="0" step="0.01" placeholder="0,00" style="width:120px;height:36px;box-sizing:border-box;padding:8px 10px;border:0.5px solid #c8c8c0;border-radius:8px;text-align:center" oninput="updateProdEinstandHinweis()">
+            </label>
+          </div>
+
+          <div id="prod-chargen-wrap"></div>
+        </div>
+      </div>
+      <div class="pv-modal-foot">
+        <span style="flex:1 1 260px;font-size:12px;color:#6b6a64" id="prod-foot-hint">Einstandspreis = Einkaufspreis (netto) + Bezugsnebenkosten</span>
+        <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
+          <span id="prod-save-msg" style="font-size:12px;color:#1D9E75;display:none">✓ Gespeichert</span>
+          <span id="prod-err-msg" style="font-size:12px;color:#E24B4A;display:none"></span>
+          <button type="button" class="btn" onclick="closeProdForm()">Abbrechen</button>
+          <button type="button" class="btn primary" onclick="saveProdForm()">Speichern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARGE: WARENEINGANG BUCHEN / CHARGE BEARBEITEN -->
+  <div class="edit-modal-bg pv-modal-bg" id="charge-modal-bg" style="display:none;z-index:1100" onclick="if(event.target===this) closeChargeForm()">
+    <div class="edit-modal pv-modal" role="dialog" aria-modal="true" aria-labelledby="charge-form-title" style="max-width:480px">
+      <div class="pv-modal-head">
+        <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+          <div class="edit-modal-title" id="charge-form-title" style="margin:0">Wareneingang buchen</div>
+          <span id="charge-form-sub" style="font-size:12px;color:#6b6a64"></span>
+        </div>
+      </div>
+      <div class="pv-modal-body" style="gap:16px">
+        <div class="field"><label for="ch-beleg">Chargen-Nr. / Beleg (optional)</label><input type="text" id="ch-beleg" placeholder="z.B. Lieferanten-Rechnungsnummer"></div>
+        <div class="pv-field-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+          <div class="field"><label for="ch-datum">Eingangsdatum</label><input type="date" id="ch-datum"></div>
+          <div class="field" id="ch-menge-wrap"><label for="ch-menge">Anzahl (Stück)</label><input type="number" id="ch-menge" min="1" step="1" style="text-align:center"></div>
+          <div class="field"><label for="ch-ek">Einkaufspreis netto / Stk. (€)</label><input type="number" id="ch-ek" min="0" step="0.01" style="text-align:center" oninput="updateChargeEinstand()"></div>
+          <div class="field"><label for="ch-nk">Bezugsnebenkosten / Stk. (€)</label><input type="number" id="ch-nk" min="0" step="0.01" placeholder="0,00" style="text-align:center" oninput="updateChargeEinstand()"></div>
+        </div>
+        <span style="font-size:11px;color:#6b6a64;margin-top:-6px">Bezugsnebenkosten optional, z. B. Fracht, Zoll, Verpackung</span>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:0.5px solid #ddddd5;border-radius:10px">
+          <span style="font-size:12px;color:#6b6a64">Einstandspreis pro Stück</span>
+          <span id="ch-einstand" style="font-size:15px;font-weight:600">—</span>
+        </div>
+
+        <div id="ch-bestand-box" style="display:none;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:14px;background:#f5f5f3;border-radius:10px;text-align:center">
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:11px;color:#6b6a64">Liefermenge</span><input type="number" id="ch-menge-edit" min="1" step="1" aria-label="Liefermenge" style="width:72px;height:32px;box-sizing:border-box;margin:0 auto;padding:4px 8px;border:0.5px solid #c8c8c0;border-radius:8px;font-size:15px;font-weight:600;text-align:center"></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:11px;color:#6b6a64">Verkauft</span><span id="ch-verkauft" style="font-size:15px;font-weight:600;line-height:32px">0</span></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:11px;color:#6b6a64">Restbestand</span><input type="number" id="ch-rest" min="0" step="1" aria-label="Restbestand" oninput="updateChargeRestHinweis()" style="width:72px;height:32px;box-sizing:border-box;margin:0 auto;padding:4px 8px;border:1px solid #003265;border-radius:8px;font-size:15px;font-weight:600;text-align:center"></div>
+        </div>
+        <div class="field" id="ch-notiz-wrap" style="display:none"><label for="ch-notiz">Notiz zur Änderung (optional)</label><input type="text" id="ch-notiz" placeholder="z.B. Inventur"></div>
+
+        <div class="pv-hinweis blau" id="ch-hinweis">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#003265" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+          <span id="ch-hinweis-text"></span>
+        </div>
+        <span id="ch-err" style="font-size:12px;color:#c53a39;display:none"></span>
+      </div>
+      <div class="pv-modal-foot" style="justify-content:flex-end">
+        <button type="button" class="btn" onclick="closeChargeForm()">Abbrechen</button>
+        <button type="button" class="btn primary" id="ch-save-btn" onclick="saveChargeForm()">Wareneingang buchen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RÜCKFRAGE: PREIS EINER CHARGE MIT VERKÄUFEN ÄNDERN -->
+  <div class="edit-modal-bg pv-modal-bg" id="charge-preis-modal-bg" style="display:none;z-index:1200">
+    <div class="edit-modal pv-modal" role="dialog" aria-modal="true" aria-labelledby="cp-title" style="max-width:480px">
+      <div class="pv-modal-head"><div class="edit-modal-title" id="cp-title" style="margin:0">Einkaufspreis der Charge ändern?</div></div>
+      <div class="pv-modal-body" style="gap:14px">
+        <p id="cp-text1" style="margin:0;font-size:13px;line-height:1.55"></p>
+        <p id="cp-text2" style="margin:0;font-size:13px;line-height:1.55"></p>
+        <label style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:0.5px solid #c8c8c0;border-radius:10px;cursor:pointer">
+          <input type="radio" name="cp-scope" value="kuenftig" checked style="margin:2px 0 0 0;accent-color:#003265">
+          <span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:500">Nur künftige Verkäufe</span><span id="cp-opt1" style="font-size:12px;color:#6b6a64"></span></span>
+        </label>
+        <label style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:0.5px solid #c8c8c0;border-radius:10px;cursor:pointer">
+          <input type="radio" name="cp-scope" value="rueckwirkend" style="margin:2px 0 0 0;accent-color:#003265">
+          <span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:500">Auch bisherige Verkäufe anpassen</span><span style="font-size:12px;color:#6b6a64">Für Tippfehler: ändert Warenkosten und Deckungsbeitrag der betroffenen Bestellungen</span></span>
+        </label>
+      </div>
+      <div class="pv-modal-foot" style="justify-content:flex-end">
+        <button type="button" class="btn" onclick="resolvePreisScope(null)">Abbrechen</button>
+        <button type="button" class="btn primary" onclick="resolvePreisScope(document.querySelector('input[name=cp-scope]:checked')?.value||'kuenftig')">Preis übernehmen</button>
       </div>
     </div>
   </div>

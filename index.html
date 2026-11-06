@@ -190,6 +190,26 @@ tr:last-child td{border-bottom:none;}
 #status-connection-dot{width:7px;height:7px;border-radius:50%;background:#1D9E75;flex-shrink:0;}
 #status-connection-dot.red{background:#E24B4A;}
 #status-panel-body{overflow-y:auto;flex:1;}
+/* Offene Punkte: gleiche Probleme zusammengefasst, Klick öffnet die Liste */
+.status-section-title{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#888780;padding:10px 16px 4px;}
+.status-group{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:0.5px solid #f5f5f3;cursor:pointer;}
+.status-group:hover{background:#fafaf8;}
+.status-group .status-item-dot{margin-top:0;}
+.status-group-text{flex:1;min-width:0;font-size:12px;color:#1a1a18;line-height:1.4;}
+.status-group-text b{font-weight:600;}
+.status-group-chev{color:#b4b2a9;font-size:16px;line-height:1;}
+#ampel-liste-bg .edit-modal{max-width:780px;max-height:86vh;display:flex;flex-direction:column;container-type:inline-size;}
+.ampel-tab{width:100%;border-collapse:collapse;font-size:12px;}
+.ampel-tab th{font-size:10.5px;font-weight:600;color:#888780;text-align:left;padding:6px 8px;border-bottom:0.5px solid #ddddd5;position:sticky;top:0;background:#fff;white-space:nowrap;}
+.ampel-tab td{padding:8px;border-bottom:0.5px solid #f5f5f3;vertical-align:top;}
+.ampel-tab tbody tr{cursor:pointer;}
+.ampel-tab tbody tr:hover td{background:#fafaf8;}
+.ampel-tab .c-datum{white-space:nowrap;color:#5f5e5a;}
+.ampel-tab .c-nr{white-space:nowrap;font-weight:500;}
+.ampel-tab .c-art{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#5f5e5a;}
+.ampel-tab .c-det{color:#5f5e5a;word-break:break-word;}
+.ampel-tab .c-go{text-align:right;color:#b4b2a9;white-space:nowrap;}
+@container (max-width:560px){ .ampel-tab .c-art, .ampel-tab .c-kanal{display:none;} }
 #status-panel-list{display:flex;flex-direction:column;}
 .status-item{display:flex;gap:10px;padding:10px 16px;border-bottom:0.5px solid #f5f5f3;}
 .status-item:last-child{border-bottom:none;}
@@ -2337,14 +2357,17 @@ let statusCurrentlyConnected=true; // aktueller Live-Status, unabhängig vom Ver
 // Prüfung überschrieben (Anlegen, Bearbeiten, Löschen) — dadurch löst sich eine Ampel-Warnung
 // automatisch auf, sobald der EK nachgetragen oder die Bestellung gelöscht wird, ohne dass
 // der Feed selbst (das Protokoll "was ist passiert") rückwirkend verändert werden muss.
+// Wert: {state:'amber'|'ok', text:'…'} — der Text wird für die Gruppierung im Panel gebraucht
+// ("EK fehlt bei 15 Bestellungen").
 let orderQualityMap=new Map();
+function qState(v){ return typeof v==='string'?v:v?.state; }
 
 // Aktueller Bearbeitet-Zustand PRO RETOURE (retoureId -> 'amber'|'ok') — genau wie
 // orderQualityMap, nur für Retouren. Eigene Map (nicht orderQualityMap mitbenutzt), weil
 // Retouren- und Bestellungs-IDs unterschiedliche ID-Räume sind und sich sonst überschreiben
 // könnten. Retouren werden direkt gegen Supabase geschrieben (kein Umweg über den Server),
 // deshalb meldet das Frontend den Zustand selbst per Fire-and-Forget an /retouren/check-status.
-let retoureQualityMap=new Map();
+let retoureQualityMap=new Map(); // Wert: {state, bestellnr}
 
 // Live-Zustand PRO CONNECTOR (z.B. 'Shopify', später 'Otto') — 'red' wenn die Anbindung
 // gerade gestört ist (z.B. Zugriffstoken ungültig), sonst kein Eintrag. Löst sich automatisch
@@ -2401,13 +2424,12 @@ function connectStatusStream(){
     if(event.type==='order_incomplete' || event.type==='order_quality'){
       const isOk=event.type==='order_quality' && event.ok;
       const key=event.orderId!==undefined&&event.orderId!==null?String(event.orderId):undefined;
-      const prev=key!==undefined?orderQualityMap.get(key):undefined;
-      if(key!==undefined) orderQualityMap.set(key, isOk?'ok':'amber');
-      if(isOk && prev!=='amber'){
-        renderStatusWidget(); // war schon ok / unbekannt — nur Ampel aktualisieren, kein Feed-Spam
-        return;
-      }
-      addStatusEvent(event);
+      const prev=key!==undefined?qState(orderQualityMap.get(key)):undefined;
+      if(key!==undefined) orderQualityMap.set(key, {state:isOk?'ok':'amber', text:isOk?'':(event.text||'')});
+      // Keine Einzelmeldung im Verlauf mehr: offene Probleme erscheinen zusammengefasst unter
+      // "Offene Punkte" und verschwinden dort von selbst, sobald sie behoben sind.
+      if(!isOk && prev!=='amber' && !statusPanelOpen) statusUnread++;
+      renderStatusWidget();
       return;
     }
 
@@ -2416,13 +2438,10 @@ function connectStatusStream(){
     if(event.type==='retoure_status'){
       const isOk=event.ok;
       const key=event.retoureId!==undefined&&event.retoureId!==null?String(event.retoureId):undefined;
-      const prev=key!==undefined?retoureQualityMap.get(key):undefined;
-      if(key!==undefined) retoureQualityMap.set(key, isOk?'ok':'amber');
-      if(isOk && prev!=='amber'){
-        renderStatusWidget();
-        return;
-      }
-      addStatusEvent(event);
+      const prev=key!==undefined?qState(retoureQualityMap.get(key)):undefined;
+      if(key!==undefined) retoureQualityMap.set(key, {state:isOk?'ok':'amber', bestellnr:event.bestellnr||''});
+      if(!isOk && prev!=='amber' && !statusPanelOpen) statusUnread++;
+      renderStatusWidget();
       return;
     }
 
@@ -2449,12 +2468,12 @@ function getOverallSeverity(){
   // Live-Zustand pro Bestellung (fehlender EK/Versandprofil etc.) — löst sich automatisch,
   // sobald die Bestellung bearbeitet oder gelöscht wird, ohne den Feed selbst zu verändern.
   for(const v of orderQualityMap.values()){
-    if(v==='amber') max=Math.max(max,1);
+    if(qState(v)==='amber') max=Math.max(max,1);
   }
   // Live-Zustand pro Retoure (unbearbeitet) — löst sich automatisch auf, sobald die Retoure
   // bearbeitet oder gelöscht wird.
   for(const v of retoureQualityMap.values()){
-    if(v==='amber') max=Math.max(max,1);
+    if(qState(v)==='amber') max=Math.max(max,1);
   }
   // Live-Zustand pro externer Anbindung (Shopify, künftig weitere) — löst sich automatisch,
   // sobald ein API-Aufruf wieder erfolgreich durchläuft.
@@ -2508,16 +2527,35 @@ function renderStatusWidget(){
 
   const list=document.getElementById('status-panel-list');
   const empty=document.getElementById('status-panel-empty');
+  const offenEl=document.getElementById('status-panel-offen');
+  const verlaufTitel=document.getElementById('status-panel-verlauf-titel');
   if(!list) return;
 
-  if(statusEvents.length===0){
-    if(empty) empty.style.display='block';
+  const gruppen=ampelGruppen();
+  if(offenEl){
+    offenEl.innerHTML=gruppen.length?`<div class="status-section-title">Offene Punkte</div>`+gruppen.map(g=>`
+      <div class="status-group" onclick="openAmpelListe('${g.key}')">
+        <span class="status-item-dot amber"></span>
+        <div class="status-group-text">${ampelGruppenText(g)}</div>
+        <span class="status-group-chev">›</span>
+      </div>`).join(''):'';
+  }
+  if(document.getElementById('ampel-liste-bg')?.style.display==='flex') renderAmpelListe();
+
+  // Bestellungs-/Retourenhinweise stehen oben gesammelt, im Verlauf nur noch alles andere
+  const verlauf=statusEvents.filter(e=>!['order_incomplete','order_quality','retoure_status'].includes(e.type));
+  if(verlaufTitel) verlaufTitel.style.display=(gruppen.length&&verlauf.length)?'block':'none';
+  if(verlauf.length===0){
+    if(empty){
+      empty.style.display=gruppen.length?'none':'block';
+      empty.textContent='Keine offenen Punkte.';
+    }
     list.innerHTML='';
     return;
   }
   if(empty) empty.style.display='none';
 
-  list.innerHTML=statusEvents.map(e=>{
+  list.innerHTML=verlauf.map(e=>{
     const itemSev=SEVERITY_RANK[e.severity]??0;
     const itemCls=severityClass(itemSev);
     const time=e.timestamp?new Date(e.timestamp).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'';
@@ -2533,6 +2571,131 @@ function renderStatusWidget(){
       </div>
     </div>`;
   }).join('');
+}
+
+// ── Offene Punkte: gleiche Probleme zusammenfassen ──
+// Die Hinweistexte kommen aus dem Backend bzw. der Datenbank (orders.datenproblem_text), z. B.
+// "Bestellung X unvollständig: kein EK hinterlegt für 123; kein Versandprofil für 123".
+// Sie werden hier in Einzelprobleme zerlegt und nach Art sortiert. Was keiner Art zugeordnet
+// werden kann, landet unter "Sonstige Hinweise" — es geht also nichts verloren.
+const AMPEL_KATEGORIEN=[
+  {key:'ek',          label:'EK fehlt',                         re:/kein EK hinterlegt/i,      det:/für\s+(.+)$/i},
+  {key:'charge_leer', label:'Charge leer, Standard-EK verwendet', re:/Charge für .+ leer/i,    det:/Charge für\s+(.+?)\s+leer/i},
+  {key:'versand',     label:'Versandprofil fehlt',              re:/kein Versandprofil/i,      det:/für\s+(.+)$/i},
+  {key:'provision',   label:'Provision nicht ermittelt',        re:/^Provision für/i,          det:/^Provision für\s+(.+?)\s+konnte/i},
+  {key:'sku',         label:'SKU fehlt',                        re:/Artikel ohne SKU/i},
+  {key:'name',        label:'Artikelname fehlt',                re:/ohne Artikelname/i},
+  {key:'storno',      label:'Storno nach Versand',              re:/storniert/i},
+  {key:'zuordnung',   label:'Artikel nicht eindeutig zugeordnet', re:/nicht eindeutig/i},
+];
+const AMPEL_SONSTIGES={key:'sonstiges',label:'Sonstige Hinweise'};
+const AMPEL_RETOURE={key:'retoure',label:'Retoure nicht bearbeitet'};
+
+function zerlegeProblemText(text){
+  let t=String(text||'').trim();
+  const iUnv=t.indexOf(' unvollständig: ');
+  if(/^Bestellung\s/.test(t)&&iUnv>0) t=t.slice(iUnv+' unvollständig: '.length);
+  else t=t.replace(/^Bestellung\s+[^\s:]*:\s*/,'');
+  return t.split(/;\s*/).map(x=>x.trim()).filter(Boolean).map(teil=>{
+    const k=AMPEL_KATEGORIEN.find(k=>k.re.test(teil));
+    if(!k) return {key:AMPEL_SONSTIGES.key,detail:teil};
+    const m=k.det?teil.match(k.det):null;
+    return {key:k.key,detail:m?m[1]:(k.key==='storno'||k.key==='zuordnung'?'':teil)};
+  });
+}
+
+function ampelGruppen(){
+  const map=new Map();
+  const add=(key,eintrag)=>{ if(!map.has(key)) map.set(key,[]); map.get(key).push(eintrag); };
+  for(const [id,v] of orderQualityMap){
+    if(qState(v)!=='amber') continue;
+    const teile=zerlegeProblemText(v?.text);
+    if(!teile.length) teile.push({key:AMPEL_SONSTIGES.key,detail:'Offenes Datenproblem'});
+    const jeKey=new Map();
+    teile.forEach(t=>{ jeKey.set(t.key,[...(jeKey.get(t.key)||[]),t.detail].filter(Boolean)); });
+    for(const [key,details] of jeKey) add(key,{typ:'order',id,detail:[...new Set(details)].join(', ')});
+  }
+  for(const [id,v] of retoureQualityMap){
+    if(qState(v)!=='amber') continue;
+    add(AMPEL_RETOURE.key,{typ:'retoure',id,bestellnr:v?.bestellnr||''});
+  }
+  return [...AMPEL_KATEGORIEN,AMPEL_SONSTIGES,AMPEL_RETOURE]
+    .filter(k=>map.has(k.key))
+    .map(k=>({key:k.key,label:k.label,eintraege:map.get(k.key)}));
+}
+
+function ampelGruppenText(g){
+  const n=g.eintraege.length;
+  if(g.key==='retoure') return `<b>${n} ${n===1?'Retoure':'Retouren'}</b> nicht bearbeitet`;
+  return `<b>${escHtml(g.label)}</b> bei ${n} ${n===1?'Bestellung':'Bestellungen'}`;
+}
+
+let ampelListeKey=null;
+let ampelZurueckZurListe=null; // nach Bearbeiten/Schließen wieder zur Liste zurückkehren
+
+function openAmpelListe(key){
+  ampelListeKey=key;
+  if(statusPanelOpen) toggleStatusPanel();
+  document.getElementById('ampel-liste-bg').style.display='flex';
+  renderAmpelListe();
+}
+function closeAmpelListe(){
+  document.getElementById('ampel-liste-bg').style.display='none';
+  ampelListeKey=null; ampelZurueckZurListe=null;
+}
+
+function renderAmpelListe(){
+  if(!ampelListeKey) return;
+  const g=ampelGruppen().find(x=>x.key===ampelListeKey);
+  const kat=[...AMPEL_KATEGORIEN,AMPEL_SONSTIGES,AMPEL_RETOURE].find(k=>k.key===ampelListeKey);
+  const eintraege=g?g.eintraege:[];
+  const istRetoure=ampelListeKey==='retoure';
+  document.getElementById('ampel-liste-titel').textContent=kat?kat.label:'Hinweise';
+  document.getElementById('ampel-liste-hinweis').textContent=eintraege.length
+    ?`${eintraege.length} ${istRetoure?(eintraege.length===1?'Retoure':'Retouren'):(eintraege.length===1?'Bestellung':'Bestellungen')} · Klick öffnet ${istRetoure?'die Retoure':'die Bestellung'}. Nach dem Speichern verschwindet sie aus der Liste.`
+    :'';
+  const detailKopf={ek:'SKU / Artikel',charge_leer:'SKU',versand:'SKU',provision:'SKU'}[ampelListeKey]||'Hinweis';
+  document.getElementById('ampel-liste-head').innerHTML=`<tr>
+    <th class="c-datum">Datum</th><th class="c-nr">Bestellnr.</th><th class="c-kanal">Kanal</th>
+    ${istRetoure?'<th class="c-art">Artikel</th><th class="c-det">Grund</th>':`<th class="c-art">Artikel</th><th class="c-det">${detailKopf}</th>`}<th class="c-go"></th></tr>`;
+
+  const orders=getOrders();
+  const retouren=istRetoure?getRetouren():[];
+  const zeilen=eintraege.map(e=>{
+    if(e.typ==='retoure'){
+      const r=retouren.find(x=>String(x.id)===String(e.id))||{};
+      const o=orders.find(x=>String(x.id)===String(r.order_id))||{};
+      return {datum:r.datum||o.datum||'',nr:r.bestellnr||e.bestellnr||o.bestellnr||'',kanal:r.kanal||o.kanal||'',
+        artikel:r.artikel||r.sku||o.artikel||'',detail:'noch nicht bearbeitet',
+        onclick:`ampelOeffne('retoure','${e.id}')`};
+    }
+    const o=orders.find(x=>String(x.id)===String(e.id))||{};
+    return {datum:o.datum||'',nr:o.bestellnr||'',kanal:o.kanal||'',artikel:o.artikel||'',detail:e.detail||'',
+      onclick:`ampelOeffne('order','${e.id}')`};
+  }).sort((a,b)=>String(b.datum).localeCompare(String(a.datum)));
+
+  document.getElementById('ampel-liste-body').innerHTML=zeilen.map(z=>`
+    <tr onclick="${z.onclick}">
+      <td class="c-datum">${fmtDatumDe(z.datum)}</td>
+      <td class="c-nr">${escHtml(z.nr||'—')}</td>
+      <td class="c-kanal">${escHtml(z.kanal||'—')}</td>
+      <td class="c-art" title="${escHtml(z.artikel)}">${escHtml(z.artikel||'—')}</td>
+      <td class="c-det">${escHtml(z.detail||'—')}</td>
+      <td class="c-go">Öffnen ›</td>
+    </tr>`).join('');
+  document.getElementById('ampel-liste-leer').style.display=zeilen.length?'none':'block';
+}
+
+function ampelOeffne(typ,id){
+  ampelZurueckZurListe=ampelListeKey;
+  document.getElementById('ampel-liste-bg').style.display='none';
+  if(typ==='retoure') openRetEdit(Number(id)); else editOrder(id);
+}
+// Nach dem Schließen von Bestellung/Retoure zurück zur Liste, damit man sie nacheinander abarbeiten kann
+function ampelNachBearbeiten(){
+  if(!ampelZurueckZurListe) return;
+  const key=ampelZurueckZurListe;
+  setTimeout(()=>{ if(ampelZurueckZurListe===key){ ampelListeKey=key; document.getElementById('ampel-liste-bg').style.display='flex'; renderAmpelListe(); } },60);
 }
 
 function toggleStatusPanel(){
@@ -2554,16 +2717,7 @@ async function loadOpenQualityIssues(){
     if(!res.ok) return;
     const data=await res.json();
     (data.issues||[]).forEach(o=>{
-      orderQualityMap.set(String(o.id),'amber');
-      addStatusEvent({
-        type:'order_quality',
-        severity:'amber',
-        ok:false,
-        orderId:o.id,
-        bestellnr:o.bestellnr,
-        text:o.datenproblem_text||`Bestellung ${o.bestellnr} hat weiterhin ein offenes Datenproblem`,
-        timestamp:new Date().toISOString(),
-      });
+      orderQualityMap.set(String(o.id),{state:'amber',text:o.datenproblem_text||''});
     });
     renderStatusWidget();
   }catch(err){
@@ -2605,16 +2759,7 @@ async function loadOpenRetouren(){
     if(!res.ok) return;
     const data=await res.json();
     (data.issues||[]).forEach(r=>{
-      retoureQualityMap.set(String(r.id),'amber');
-      addStatusEvent({
-        type:'retoure_status',
-        severity:'amber',
-        ok:false,
-        retoureId:r.id,
-        bestellnr:r.bestellnr,
-        text:`Retoure zu Bestellung ${r.bestellnr} noch nicht bearbeitet`,
-        timestamp:new Date().toISOString(),
-      });
+      retoureQualityMap.set(String(r.id),{state:'amber',bestellnr:r.bestellnr||''});
     });
     renderStatusWidget();
   }catch(err){
@@ -4147,6 +4292,7 @@ async function saveEdit(){
 function closeEdit(){
   document.getElementById('edit-modal-bg').style.display='none';
   editId=null; edManual=false;
+  ampelNachBearbeiten();
 }
 
 document.getElementById('header-date').textContent=new Date().toLocaleDateString('de-DE',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
@@ -5259,6 +5405,7 @@ function closeRetEdit(){
   document.getElementById('ret-edit-modal-bg').style.display='none';
   document.getElementById('ret-menge-wrap').style.display='block';
   retSelectedOrder=null; retSelectedItem=null;
+  ampelNachBearbeiten();
 }
 
 
@@ -8868,8 +9015,29 @@ async function initApp(){
       <span id="status-connection-text">Serververbindung: Verbunden</span>
     </div>
     <div id="status-panel-body">
+      <div id="status-panel-offen"></div>
       <div id="status-panel-empty" class="empty" style="padding:1.5rem;">Noch keine Meldungen in dieser Sitzung.</div>
+      <div id="status-panel-verlauf-titel" class="status-section-title" style="display:none;">Verlauf</div>
       <div id="status-panel-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- AMPEL: Liste der Bestellungen/Retouren zu einem Hinweis -->
+<div class="edit-modal-bg" id="ampel-liste-bg" style="display:none;" onclick="if(event.target===this) closeAmpelListe()">
+  <div class="edit-modal">
+    <div class="edit-modal-title" id="ampel-liste-titel" style="margin-bottom:.35rem;"></div>
+    <div id="ampel-liste-hinweis" style="font-size:12px;color:#888780;margin-bottom:.9rem;"></div>
+    <div style="overflow:auto;flex:1;min-height:0;">
+      <table class="ampel-tab">
+        <thead id="ampel-liste-head"></thead>
+        <tbody id="ampel-liste-body"></tbody>
+      </table>
+      <div id="ampel-liste-leer" class="empty" style="display:none;padding:1.5rem;">Alles erledigt.</div>
+    </div>
+    <div class="edit-modal-footer">
+      <span></span>
+      <button class="btn" onclick="closeAmpelListe()">Schließen</button>
     </div>
   </div>
 </div>

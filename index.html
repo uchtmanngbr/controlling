@@ -1804,6 +1804,7 @@ async function syncFromSupabase(){
     if(settings&&settings.length){
       settings.forEach(s=>{
         if(s.key==='verkaufsprovision') localStorage.setItem('ec_verkaufsprovision',s.value);
+        if(s.key==='chargen_start') localStorage.setItem('ec_chargen_start',s.value);
         if(s.key==='ret_zustaende') localStorage.setItem('ec_ret_zustaende',s.value);
         if(s.key==='dash_channels') localStorage.setItem('ec_dash_channels',s.value);
         if(s.key==='sync_interval_minutes') localStorage.setItem('ec_sync_interval',s.value);
@@ -3864,12 +3865,14 @@ function addEdItemRow(item=null){
     <td style="padding:3px 6px;">
       <input type="number" value="${it.ek||''}" min="0" step="0.01" placeholder="0.00"
         style="width:100%;font-size:12px;padding:3px 6px;border:0.5px solid #c8c8c0;border-radius:6px;outline:none;text-align:right;-moz-appearance:textfield;"
-        oninput="_edItems[${idx}].ek=parseFloat(this.value)||0;_edItems[${idx}].ek_manuell=true;updateEdItemsTotal()">
+        oninput="_edItems[${idx}].ek=parseFloat(this.value)||0;_edItems[${idx}].ek_manuell=true;_edItems[${idx}]._ausCharge=null;edChargeHinweis(${idx});updateEdItemsTotal()">
+      <div class="ed-charge-hint" style="display:none;font-size:10.5px;line-height:1.3;color:#0F6E56;margin-top:2px;text-align:right;"></div>
     </td>
     <td style="padding:3px 0 3px 4px;text-align:center;">
       <button type="button" onclick="removeEdItemRow(${idx})" style="background:none;border:none;cursor:pointer;padding:2px 4px;" title="Entfernen"><svg width="13" height="13" viewBox="0 0 24 24" fill="#E24B4A" xmlns="http://www.w3.org/2000/svg"><path d="M21.5 6a1 1 0 0 1-.883.993L20.5 7h-.845l-1.231 12.52A2.75 2.75 0 0 1 15.687 22H8.313a2.75 2.75 0 0 1-2.737-2.48L4.345 7H3.5a1 1 0 0 1 0-2h5a3.5 3.5 0 1 1 7 0h5a1 1 0 0 1 1 1Zm-7.25 3.25a.75.75 0 0 0-.743.648L13.5 10v7l.007.102a.75.75 0 0 0 1.486 0L15 17v-7l-.007-.102a.75.75 0 0 0-.743-.648Zm-4.5 0a.75.75 0 0 0-.743.648L9 10v7l.007.102a.75.75 0 0 0 1.486 0L10.5 17v-7l-.007-.102a.75.75 0 0 0-.743-.648ZM12 3.5A1.5 1.5 0 0 0 10.5 5h3A1.5 1.5 0 0 0 12 3.5Z"/></svg></button>
     </td>`;
   tbody.appendChild(tr);
+  if(it._ausCharge) edChargeHinweis(idx);
 }
 
 function removeEdItemRow(idx){
@@ -3895,24 +3898,84 @@ function updateEdItemsTotal(){
   edUpdatePreview();
 }
 
+// Bestehende Position, deren SKU im Dialog nicht geändert wurde? Dann ist ihr EK "gebucht" und
+// wird beim Verlassen des SKU-Felds nicht überschrieben (06.11.: vorher wurde hier still der
+// Chargen-Preis eingesetzt, ohne Bestand abzubuchen — der nächste Otto-Sync setzte ihn wieder auf 0).
+function edIstBestehend(item){ return !!item?.id && (item._origSku||'').toLowerCase()===(item.sku||'').toLowerCase(); }
+
+function edProduktFuer(sku){
+  if(!sku) return null;
+  const s=sku.toLowerCase();
+  return getProdukte().find(p=>p.sku.toLowerCase()===s||(p.asin&&p.asin.toLowerCase()===s))||null;
+}
+
+// Position ohne EK, deren Produkt inzwischen eine Charge mit Bestand hat (z. B. Bestellung wurde
+// importiert, bevor die Charge gebucht war): EK aus der aktiven Charge vorschlagen. Abgebucht wird
+// erst beim Speichern (RPC chargen_position_nachtragen) — Abbrechen bleibt folgenlos.
+function edChargeVorschlag(idx){
+  const item=_edItems[idx];
+  if(!item) return;
+  item._ausCharge=null;
+  const datum=document.getElementById('ed-datum')?.value||'';
+  const stichtag=localStorage.getItem('ec_chargen_start')||'';
+  const p=edProduktFuer(item.sku);
+  const aktiv=p?chargenFuerSku(p.sku).find(c=>c.menge_rest>0):null;
+  const passt=edIstBestehend(item) && !item.ek_manuell && !item.ek_quelle && !(Number(item.ek)>0)
+    && !!aktiv && !!stichtag && datum>=stichtag;
+  if(passt){
+    item._ausCharge={beleg:aktiv.beleg||'',einstand:Math.round((Number(aktiv.einstand)||0)*10000)/10000};
+    item.ek=item._ausCharge.einstand;
+    const row=document.getElementById('ed-items-tbody')?.querySelector(`tr[data-idx="${idx}"]`);
+    if(row) row.querySelectorAll('input')[3].value=item.ek;
+  }
+  edChargeHinweis(idx);
+}
+
+function edChargeHinweis(idx){
+  const item=_edItems[idx];
+  const row=document.getElementById('ed-items-tbody')?.querySelector(`tr[data-idx="${idx}"]`);
+  const el=row?.querySelector('.ed-charge-hint');
+  if(!el) return;
+  if(item?._ausCharge){
+    const beleg=item._ausCharge.beleg?` „${escHtml(item._ausCharge.beleg)}“`:'';
+    el.innerHTML=`aus Charge${beleg} · wird beim Speichern abgebucht`;
+    el.style.display='block';
+  } else {
+    el.innerHTML=''; el.style.display='none';
+  }
+}
+
 function autofillEdItemRow(idx){
   const item=_edItems[idx];
   if(!item?.sku) return;
-  const p=getProdukte().find(p=>
-    p.sku.toLowerCase()===item.sku.toLowerCase()||
-    (p.asin&&p.asin.toLowerCase()===item.sku.toLowerCase())
-  );
-  if(!p){ edUpdatePreview(); return; } // MwSt-Satz kann sich mit der SKU geändert haben
+  const p=edProduktFuer(item.sku);
+  if(!p){ item._ausCharge=null; edChargeHinweis(idx); edUpdatePreview(); return; } // MwSt-Satz kann sich mit der SKU geändert haben
   const tbody=document.getElementById('ed-items-tbody');
   const row=tbody?.querySelector(`tr[data-idx="${idx}"]`);
   if(!item.name&&p.name){
     item.name=p.name;
     if(row) row.querySelectorAll('input')[1].value=p.name;
   }
-  const einstand=aktuellerEinstand(p);
-  if(!item.ek_manuell&&einstand){
-    item.ek=einstand;
-    if(row) row.querySelectorAll('input')[3].value=einstand;
+  if(edIstBestehend(item)){
+    // Bestehende Position: einen vorhandenen EK nie anfassen. Ohne EK -> Vorschlag aus Charge,
+    // sonst (keine Charge) der Standard-Einstandspreis, sofern einer gepflegt ist.
+    if(!(Number(item.ek)>0) || item._ausCharge){
+      if(item._ausCharge){ item.ek=0; }
+      edChargeVorschlag(idx);
+      if(!item._ausCharge && !item.ek_manuell){
+        const std=standardEinstand(p);
+        if(std>0){ item.ek=std; if(row) row.querySelectorAll('input')[3].value=std; }
+      }
+    }
+  } else {
+    // Neue Position oder SKU geändert: die Datenbank ordnet beim Speichern selbst zu,
+    // hier nur die Vorschau.
+    item._ausCharge=null; edChargeHinweis(idx);
+    const einstand=aktuellerEinstand(p);
+    if(!item.ek_manuell&&einstand){
+      item.ek=einstand;
+      if(row) row.querySelectorAll('input')[3].value=einstand;
+    }
   }
   if(row){
     const skuInput=row.querySelectorAll('input')[0];
@@ -3947,7 +4010,8 @@ function editOrder(id){
   // Items laden
   clearEdItems();
   if(o.items&&o.items.length>0){
-    o.items.forEach(it=>addEdItemRow(it));
+    o.items.forEach(it=>addEdItemRow({...it,_origSku:it.sku||'',_ausCharge:null}));
+    _edItems.forEach((_,i)=>edChargeVorschlag(i));
   } else {
     // Alte Bestellung ohne Items → eine Zeile mit bestehendem Artikel/SKU/EK
     addEdItemRow({sku:o.sku||'',name:o.artikel||'',menge:1,ek:o.waren||0,ek_manuell:true});
@@ -4018,13 +4082,18 @@ async function saveEdit(){
   if(idx===-1) return;
   const brutto=parseFloat(document.getElementById('ed-brutto').value)||0;
   const versand=parseFloat(document.getElementById('ed-versand').value)||0;
-  const waren=_edItems.reduce((s,it)=>s+(it.ek*(it.menge||1)),0);
+  // Positionen mit Chargen-Vorschlag gehen mit EK 0 an die Datenbank; den echten EK setzt danach
+  // chargen_position_nachtragen zusammen mit der Bestandsbuchung. Klappt das nicht, bleibt der EK 0
+  // und die Ampel meldet es — statt eines EK ohne abgebuchten Bestand.
+  const nachtragen=_edItems.filter(it=>it._ausCharge&&it.id).map(it=>it.id);
+  const _edSpeichern=_edItems.map(it=>it._ausCharge?{...it,ek:0}:it);
+  const waren=_edSpeichern.reduce((s,it)=>s+(it.ek*(it.menge||1)),0);
   orders[idx]={
     ...orders[idx],
     datum: document.getElementById('ed-datum').value,
     kanal: document.getElementById('ed-kanal').value,
     bestellnr: document.getElementById('ed-bestellnr').value.trim().replace(/^#+/, ''),
-    items: [..._edItems],
+    items: [..._edSpeichern],
     artikel: itemsToNameString(_edItems),
     sku: itemsToSkuString(_edItems),
     umsatzBrutto: brutto,
@@ -4040,9 +4109,20 @@ async function saveEdit(){
   };
   saveOrders(orders);
   // Update per ID — verhindert Duplikate bei Marktplatz-Änderung
-  await updateOrderWithItems(orders[idx].id, orders[idx], _edItems);
-  // Menge/SKU geändert? Dann hat die Datenbank die Chargen neu zugeordnet -> aktuellen Stand holen
+  await updateOrderWithItems(orders[idx].id, orders[idx], _edSpeichern);
+  let nichtGebucht=0;
+  for(const itemId of nachtragen){
+    const r=await sbRpc('chargen_position_nachtragen',{p_item_id:Math.round(itemId)});
+    const status=r.ok?String(r.data):'fehler';
+    if(status!=='charge'&&status!=='charge_standard'){
+      nichtGebucht++;
+      console.warn('Chargen-Nachtrag nicht gebucht:',itemId,r.ok?status:r.error);
+    }
+  }
+  // Menge/SKU geändert oder Charge nachgetragen? Dann hat die Datenbank zugeordnet -> aktuellen Stand holen
   await ladeOrdersAusSupabase(); await ladeChargen();
+  const frisch=getOrders().find(o=>String(o.id)===String(orders[idx].id));
+  if(frisch) orders[idx]=frisch;
   // Datenqualitäts-Zustand neu prüfen — löst eine frühere Ampel-Warnung automatisch auf,
   // falls z.B. gerade der fehlende EK nachgetragen wurde. Prüft die eingegebenen Werte direkt,
   // nicht ob die SKU in der Produkttabelle steht (das wäre bei manueller Erfassung normal).
@@ -4055,7 +4135,11 @@ async function saveEdit(){
     }).catch(err=>console.error('Datenqualitäts-Check fehlgeschlagen:',err));
   }
   const syncEl2=document.getElementById('sync-indicator');
-  if(syncEl2){syncEl2.textContent='✓ Gespeichert';setTimeout(()=>syncEl2.style.opacity='0',2000);}
+  if(syncEl2){
+    syncEl2.style.opacity='1';
+    syncEl2.textContent=nichtGebucht?`⚠ Gespeichert – ${nichtGebucht} Position(en) nicht aus Charge gebucht`:'✓ Gespeichert';
+    setTimeout(()=>syncEl2.style.opacity='0',nichtGebucht?6000:2000);
+  }
   closeEdit();
   renderOrders(); renderDashboard(); renderDay();
 }
@@ -7958,6 +8042,7 @@ function initRealtime(){
       const data=await sbFetch('settings','GET',null,'?select=*');
       if(data) data.forEach(s=>{
         if(s.key==='verkaufsprovision') localStorage.setItem('ec_verkaufsprovision',s.value);
+        if(s.key==='chargen_start') localStorage.setItem('ec_chargen_start',s.value);
         if(s.key==='ret_zustaende') localStorage.setItem('ec_ret_zustaende',s.value);
         if(s.key==='dash_channels'){
           localStorage.setItem('ec_dash_channels',s.value);

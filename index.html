@@ -1821,7 +1821,7 @@ async function pvAnmelden(ev){
     // Zweite Sicherung: angemeldet heißt noch nicht berechtigt (Tabelle app_mitglieder)
     const {data:mitglied}=await pvSupabase.from('app_mitglieder').select('user_id').eq('user_id',data.session.user.id).maybeSingle();
     if(!mitglied){
-      await pvSupabase.auth.signOut();
+      await pvSupabase.auth.signOut({scope:'local'});
       pvZeigeLogin('Dieses Konto hat keinen Zugriff.');
       return;
     }
@@ -1842,7 +1842,9 @@ function pvDatenAusBrowserLoeschen(){
 }
 async function pvAbmelden(){
   pvDatenAusBrowserLoeschen();
-  try{ await pvSupabase.auth.signOut(); }catch(e){}
+  // scope 'local': nur DIESES Gerät abmelden. Standard wäre 'global' — das würde alle anderen
+  // Geräte mit demselben Konto (z. B. den zweiten Rechner) ebenfalls hinauswerfen.
+  try{ await pvSupabase.auth.signOut({scope:'local'}); }catch(e){}
   location.reload();
 }
 

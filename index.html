@@ -190,6 +190,22 @@ tr:last-child td{border-bottom:none;}
 #status-connection-dot{width:7px;height:7px;border-radius:50%;background:#1D9E75;flex-shrink:0;}
 #status-connection-dot.red{background:#E24B4A;}
 #status-panel-body{overflow-y:auto;flex:1;}
+/* Anmeldung */
+#pv-login{position:fixed;inset:0;z-index:5000;background:#f5f5f3;display:none;align-items:center;justify-content:center;padding:16px;}
+#pv-login.offen{display:flex;}
+#pv-login .box{width:100%;max-width:360px;background:#fff;border:0.5px solid #ddddd5;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.08);padding:28px 24px;}
+#pv-login h1{font-size:17px;font-weight:600;color:#003265;margin:0 0 4px;}
+#pv-login p.sub{font-size:12px;color:#888780;margin:0 0 20px;}
+#pv-login label{display:block;font-size:11px;color:#5f5e5a;margin:0 0 4px;}
+#pv-login input{width:100%;box-sizing:border-box;font-size:14px;padding:9px 11px;border:0.5px solid #c8c8c0;border-radius:8px;outline:none;margin-bottom:12px;}
+#pv-login input:focus{border-color:#003265;}
+#pv-login button{width:100%;height:40px;border:none;border-radius:8px;background:#003265;color:#fff;font-size:14px;font-weight:500;cursor:pointer;}
+#pv-login button:disabled{opacity:.6;cursor:default;}
+#pv-login .fehler{display:none;font-size:12px;color:#A32D2D;background:#fcebeb;border-radius:8px;padding:8px 10px;margin-bottom:12px;}
+#pv-nutzer{display:none;align-items:center;gap:10px;}
+#pv-nutzer span{font-size:11px;color:#888780;}
+#pv-nutzer button{font-size:11px;color:#5f5e5a;background:none;border:0.5px solid #c8c8c0;border-radius:6px;padding:3px 8px;cursor:pointer;}
+#pv-nutzer button:hover{border-color:#003265;color:#003265;}
 /* Offene Punkte: gleiche Probleme zusammengefasst, Klick öffnet die Liste */
 .status-section-title{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#888780;padding:10px 16px 4px;}
 .status-group{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:0.5px solid #f5f5f3;cursor:pointer;}
@@ -269,8 +285,25 @@ tr:last-child td{border-bottom:none;}
 }
 .prod-table th,.prod-table td{text-align:center;padding:9px 8px;}
 </style>
+<!-- Supabase-Bibliothek (Anmeldung + Live-Aktualisierung). Feste Version statt "@2": eine neue
+     Version kann nicht unbemerkt eingespielt werden. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 </head>
 <body>
+
+<!-- ANMELDUNG: liegt über der ganzen App, bis eine gültige Anmeldung besteht -->
+<div id="pv-login" aria-modal="true" role="dialog">
+  <form class="box" onsubmit="pvAnmelden(event)">
+    <h1>Profitviewer</h1>
+    <p class="sub">Bitte melde dich an.</p>
+    <div class="fehler" id="pv-login-fehler"></div>
+    <label for="pv-login-email">E-Mail</label>
+    <input type="email" id="pv-login-email" autocomplete="username" required>
+    <label for="pv-login-pw">Passwort</label>
+    <input type="password" id="pv-login-pw" autocomplete="current-password" required>
+    <button type="submit" id="pv-login-btn">Anmelden</button>
+  </form>
+</div>
 
 <div class="header">
   <div style="display:flex;align-items:center;min-width:120px">
@@ -279,8 +312,9 @@ tr:last-child td{border-bottom:none;}
   <div style="position:absolute;left:50%;transform:translateX(-50%);padding:12px 0">
     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="auto" zoomAndPan="magnify" viewBox="0 0 2400 449.999984" height="50px" preserveAspectRatio="xMidYMid meet" overflow="visible" version="1.0"><defs/><g><g transform="matrix(1, 0, 0, 1, 13, 31)"><g><path fill="#000000" d="M 138.703125 118.746094 C 139.25 119.285156 139.871094 119.765625 140.570312 120.164062 C 144.765625 122.546875 150.101562 121.078125 152.484375 116.882812 C 156.347656 110.085938 161.140625 103.804688 166.726562 98.21875 C 170.140625 94.804688 170.140625 89.273438 166.726562 85.859375 C 163.316406 82.449219 157.785156 82.449219 154.371094 85.859375 C 147.675781 92.554688 141.929688 100.085938 137.292969 108.25 C 135.304688 111.746094 135.992188 116.03125 138.703125 118.746094 " fill-opacity="1" fill-rule="nonzero"/><path fill="#000000" d="M 182.394531 78.722656 C 184.898438 81.226562 188.792969 82.050781 192.203125 80.488281 C 212.589844 71.179688 236.433594 70.101562 257.617188 77.539062 C 262.171875 79.136719 267.160156 76.742188 268.757812 72.191406 C 270.355469 67.636719 267.957031 62.652344 263.40625 61.054688 C 237.625 52 209.757812 53.257812 184.941406 64.597656 C 180.554688 66.601562 178.621094 71.785156 180.628906 76.171875 C 181.074219 77.148438 181.679688 78.007812 182.394531 78.722656 " fill-opacity="1" fill-rule="nonzero"/><path fill="#000000" d="M 228.570312 276.550781 C 259.6875 276.550781 288.941406 264.433594 310.941406 242.433594 C 332.945312 220.429688 345.0625 191.175781 345.0625 160.0625 C 345.0625 128.945312 332.945312 99.691406 310.941406 77.691406 C 288.941406 55.6875 259.6875 43.570312 228.570312 43.570312 C 197.457031 43.570312 168.203125 55.6875 146.199219 77.691406 C 124.199219 99.691406 112.082031 128.945312 112.082031 160.0625 C 112.082031 191.175781 124.199219 220.429688 146.199219 242.433594 C 168.203125 264.433594 197.457031 276.550781 228.570312 276.550781 Z M 12.707031 337.792969 L 112.769531 248.355469 C 69.132812 191.269531 73.40625 109.296875 125.605469 57.097656 C 182.472656 0.230469 274.667969 0.230469 331.535156 57.097656 C 388.402344 113.964844 388.402344 206.160156 331.535156 263.027344 C 279.335938 315.226562 197.363281 319.5 140.277344 275.863281 L 50.839844 375.925781 C 40.503906 387.484375 22.574219 387.988281 11.609375 377.023438 C 0.644531 366.058594 1.144531 348.128906 12.707031 337.792969 " fill-opacity="1" fill-rule="nonzero"/></g></g></g><g fill="#000000" fill-opacity="1"><g transform="translate(401.42011, 297.487762)"><g><path d="M 117.03125 4.15625 C 107.320312 4.15625 98.3125 2.722656 90 -0.140625 C 81.6875 -3.015625 74.257812 -7.023438 67.71875 -12.171875 L 67.71875 59.40625 L 22.578125 59.40625 L 22.578125 -155.9375 L 56.140625 -155.9375 L 61.1875 -138.125 C 68.113281 -145.050781 76.328125 -150.441406 85.828125 -154.296875 C 95.335938 -158.160156 105.738281 -160.09375 117.03125 -160.09375 C 132.675781 -160.09375 146.4375 -156.578125 158.3125 -149.546875 C 170.195312 -142.523438 179.554688 -132.875 186.390625 -120.59375 C 193.222656 -108.3125 196.640625 -94.15625 196.640625 -78.125 C 196.640625 -62.082031 193.222656 -47.875 186.390625 -35.5 C 179.554688 -23.125 170.195312 -13.421875 158.3125 -6.390625 C 146.4375 0.640625 132.675781 4.15625 117.03125 4.15625 Z M 65.9375 -78.125 C 65.9375 -65.445312 69.945312 -55.046875 77.96875 -46.921875 C 85.988281 -38.804688 96.335938 -34.75 109.015625 -34.75 C 121.878906 -34.75 132.269531 -38.804688 140.1875 -46.921875 C 148.113281 -55.046875 152.078125 -65.445312 152.078125 -78.125 C 152.078125 -90.789062 148.113281 -101.179688 140.1875 -109.296875 C 132.269531 -117.421875 121.878906 -121.484375 109.015625 -121.484375 C 96.335938 -121.484375 85.988281 -117.421875 77.96875 -109.296875 C 69.945312 -101.179688 65.9375 -90.789062 65.9375 -78.125 Z M 65.9375 -78.125 "/></g></g></g><g fill="#000000" fill-opacity="1"><g transform="translate(609.637771, 297.487762)"><g><path d="M 22.578125 0 L 22.578125 -155.9375 L 56.140625 -155.9375 L 62.078125 -135.15625 C 67.222656 -142.476562 73.554688 -147.769531 81.078125 -151.03125 C 88.609375 -154.300781 98.117188 -155.9375 109.609375 -155.9375 L 126.53125 -155.9375 L 126.53125 -114.953125 L 109.3125 -114.953125 C 96.4375 -114.953125 86.285156 -111.484375 78.859375 -104.546875 C 71.429688 -97.617188 67.71875 -85.738281 67.71875 -68.90625 L 67.71875 0 Z M 22.578125 0 "/></g></g></g><g fill="#000000" fill-opacity="1"><g transform="translate(736.766399, 297.487762)"><g><path d="M 99.203125 4.15625 C 81.972656 4.15625 66.773438 0.691406 53.609375 -6.234375 C 40.441406 -13.171875 30.144531 -22.828125 22.71875 -35.203125 C 15.289062 -47.578125 11.578125 -61.882812 11.578125 -78.125 C 11.578125 -94.351562 15.289062 -108.609375 22.71875 -120.890625 C 30.144531 -133.171875 40.441406 -142.773438 53.609375 -149.703125 C 66.773438 -156.628906 81.972656 -160.09375 99.203125 -160.09375 C 116.429688 -160.09375 131.628906 -156.628906 144.796875 -149.703125 C 157.972656 -142.773438 168.222656 -133.171875 175.546875 -120.890625 C 182.867188 -108.609375 186.53125 -94.351562 186.53125 -78.125 C 186.53125 -61.882812 182.867188 -47.578125 175.546875 -35.203125 C 168.222656 -22.828125 157.972656 -13.171875 144.796875 -6.234375 C 131.628906 0.691406 116.429688 4.15625 99.203125 4.15625 Z M 56.140625 -78.125 C 56.140625 -65.445312 60.148438 -55.046875 68.171875 -46.921875 C 76.191406 -38.804688 86.535156 -34.75 99.203125 -34.75 C 111.878906 -34.75 122.175781 -38.804688 130.09375 -46.921875 C 138.019531 -55.046875 141.984375 -65.445312 141.984375 -78.125 C 141.984375 -90.988281 138.019531 -101.429688 130.09375 -109.453125 C 122.175781 -117.472656 111.878906 -121.484375 99.203125 -121.484375 C 86.535156 -121.484375 76.191406 -117.472656 68.171875 -109.453125 C 60.148438 -101.429688 56.140625 -90.988281 56.140625 -78.125 Z M 56.140625 -78.125 "/></g></g></g><g fill="#000000" fill-opacity="1"><g transform="translate(930.726621, 297.487762)"><g><path d="M 38.015625 -168.421875 C 38.015625 -186.835938 43.015625 -200.945312 53.015625 -210.75 C 63.015625 -220.550781 77.320312 -225.453125 95.9375 -225.453125 L 130.390625 -225.453125 L 130.390625 -189.796875 L 105.75 -189.796875 C 97.625 -189.796875 91.679688 -187.863281 87.921875 -184 C 84.160156 -180.144531 82.28125 -174.160156 82.28125 -166.046875 L 82.28125 -155.9375 L 128.90625 -155.9375 L 128.90625 -119.109375 L 83.171875 -119.109375 L 83.171875 0 L 38.015625 0 L 38.015625 -119.109375 L 6.828125 -119.109375 L 6.828125 -155.9375 L 38.015625 -155.9375 Z M 38.015625 -168.421875 "/></g></g></g><g fill="#000000" fill-opacity="1"><g transform="translate(1064.092856, 297.487762)"><g><path d="M 22.578125 0 L 22.578125 -155.9375 L 67.71875 -155.9375 L 67.71875 0 Z M 16.046875 -206.4375 C 16.046875 -214.75 18.765625 -221.53125 24.203125 -226.78125 C 29.648438 -232.03125 36.632812 -234.65625 45.15625 -234.65625 C 53.863281 -234.65625 60.890625 -232.03125 66.234375 -226.78125 C 71.578125 -221.53125 74.25 -214.75 74.25 -206.4375 C 74.25 -198.125 71.578125 -191.34375 66.234375 -186.09375 C 60.890625 -180.84375 53.863281 -178.21875 45.15625 -178.21875 C 36.632812 -178.21875 29.648438 -180.84375 24.203125 -186.09375 C 18.765625 -191.34375 16.046875 -198.125 16.046875 -206.4375 Z M 16.046875 -206.4375 "/></g></g></g><g fill="#000000" fill-opacity="1"><g transform="translate(1154.3898, 297.487762)"><g><path d="M 97.71875 0 C 77.914062 0 62.71875 -5.097656 52.125 -15.296875 C 41.53125 -25.492188 36.234375 -40.097656 36.234375 -59.109375 L 36.234375 -119.109375 L 5.9375 -119.109375 L 5.9375 -155.9375 L 19.90625 -155.9375 C 28.414062 -155.9375 34.203125 -157.320312 37.265625 -160.09375 C 40.335938 -162.875 42.46875 -168.222656 43.65625 -176.140625 L 46.34375 -196.34375 L 81.390625 -196.34375 L 81.390625 -155.9375 L 124.15625 -155.9375 L 124.15625 -119.109375 L 81.390625 -119.109375 L 81.390625 -65.9375 C 81.390625 -48.113281 90.101562 -39.203125 107.53125 -39.203125 L 126.234375 -39.203125 L 126.234375 0 Z M 97.71875 0 "/></g></g></g><g fill="#003265" fill-opacity="1"><g transform="translate(1291.025513, 297.487762)"><g><path d="M 67.421875 0 L 2.671875 -155.9375 L 51.984375 -155.9375 L 69.5 -106.9375 L 90.296875 -54.0625 L 110.796875 -106.9375 L 128.609375 -155.9375 L 177.625 -155.9375 L 112.578125 0 Z M 67.421875 0 "/></g></g></g><g fill="#003265" fill-opacity="1"><g transform="translate(1471.322394, 297.487762)"><g><path d="M 22.578125 0 L 22.578125 -155.9375 L 67.71875 -155.9375 L 67.71875 0 Z M 16.046875 -206.4375 C 16.046875 -214.75 18.765625 -221.53125 24.203125 -226.78125 C 29.648438 -232.03125 36.632812 -234.65625 45.15625 -234.65625 C 53.863281 -234.65625 60.890625 -232.03125 66.234375 -226.78125 C 71.578125 -221.53125 74.25 -214.75 74.25 -206.4375 C 74.25 -198.125 71.578125 -191.34375 66.234375 -186.09375 C 60.890625 -180.84375 53.863281 -178.21875 45.15625 -178.21875 C 36.632812 -178.21875 29.648438 -180.84375 24.203125 -186.09375 C 18.765625 -191.34375 16.046875 -198.125 16.046875 -206.4375 Z M 16.046875 -206.4375 "/></g></g></g><g fill="#003265" fill-opacity="1"><g transform="translate(1561.619349, 297.487762)"><g><path d="M 96.234375 4.15625 C 79.597656 4.15625 64.894531 0.691406 52.125 -6.234375 C 39.351562 -13.171875 29.398438 -22.828125 22.265625 -35.203125 C 15.140625 -47.578125 11.578125 -61.882812 11.578125 -78.125 C 11.578125 -94.351562 15.191406 -108.609375 22.421875 -120.890625 C 29.648438 -133.171875 39.648438 -142.773438 52.421875 -149.703125 C 65.191406 -156.628906 79.992188 -160.09375 96.828125 -160.09375 C 114.648438 -160.09375 130.046875 -156.132812 143.015625 -148.21875 C 155.984375 -140.300781 165.882812 -129.210938 172.71875 -114.953125 C 179.550781 -100.691406 182.472656 -84.054688 181.484375 -65.046875 L 56.4375 -65.046875 C 58.613281 -54.359375 63.363281 -46.191406 70.6875 -40.546875 C 78.019531 -34.898438 86.832031 -32.078125 97.125 -32.078125 C 104.65625 -32.078125 111.535156 -33.507812 117.765625 -36.375 C 124.003906 -39.25 129.003906 -43.265625 132.765625 -48.421875 L 178.515625 -48.421875 C 171.785156 -31.984375 161.191406 -19.109375 146.734375 -9.796875 C 132.273438 -0.492188 115.441406 4.15625 96.234375 4.15625 Z M 56.734375 -93.5625 L 137.828125 -93.5625 C 135.253906 -103.070312 130.453125 -110.546875 123.421875 -115.984375 C 116.390625 -121.429688 107.625 -124.15625 97.125 -124.15625 C 87.226562 -124.15625 78.664062 -121.429688 71.4375 -115.984375 C 64.207031 -110.546875 59.304688 -103.070312 56.734375 -93.5625 Z M 56.734375 -93.5625 "/></g></g></g><g fill="#003265" fill-opacity="1"><g transform="translate(1746.96574, 297.487762)"><g><path d="M 60.296875 0 L 2.671875 -155.9375 L 50.5 -155.9375 L 68.609375 -104.265625 L 84.0625 -60.59375 L 100.09375 -104.265625 L 119.40625 -155.9375 L 155.9375 -155.9375 L 175.25 -104.265625 L 191.28125 -60.296875 L 206.734375 -104.265625 L 225.15625 -155.9375 L 272.671875 -155.9375 L 215.046875 0 L 173.171875 0 L 137.828125 -95.046875 L 102.171875 0 Z M 60.296875 0 "/></g></g></g><g fill="#003265" fill-opacity="1"><g transform="translate(2014.886329, 297.487762)"><g><path d="M 96.234375 4.15625 C 79.597656 4.15625 64.894531 0.691406 52.125 -6.234375 C 39.351562 -13.171875 29.398438 -22.828125 22.265625 -35.203125 C 15.140625 -47.578125 11.578125 -61.882812 11.578125 -78.125 C 11.578125 -94.351562 15.191406 -108.609375 22.421875 -120.890625 C 29.648438 -133.171875 39.648438 -142.773438 52.421875 -149.703125 C 65.191406 -156.628906 79.992188 -160.09375 96.828125 -160.09375 C 114.648438 -160.09375 130.046875 -156.132812 143.015625 -148.21875 C 155.984375 -140.300781 165.882812 -129.210938 172.71875 -114.953125 C 179.550781 -100.691406 182.472656 -84.054688 181.484375 -65.046875 L 56.4375 -65.046875 C 58.613281 -54.359375 63.363281 -46.191406 70.6875 -40.546875 C 78.019531 -34.898438 86.832031 -32.078125 97.125 -32.078125 C 104.65625 -32.078125 111.535156 -33.507812 117.765625 -36.375 C 124.003906 -39.25 129.003906 -43.265625 132.765625 -48.421875 L 178.515625 -48.421875 C 171.785156 -31.984375 161.191406 -19.109375 146.734375 -9.796875 C 132.273438 -0.492188 115.441406 4.15625 96.234375 4.15625 Z M 56.734375 -93.5625 L 137.828125 -93.5625 C 135.253906 -103.070312 130.453125 -110.546875 123.421875 -115.984375 C 116.390625 -121.429688 107.625 -124.15625 97.125 -124.15625 C 87.226562 -124.15625 78.664062 -121.429688 71.4375 -115.984375 C 64.207031 -110.546875 59.304688 -103.070312 56.734375 -93.5625 Z M 56.734375 -93.5625 "/></g></g></g><g fill="#003265" fill-opacity="1"><g transform="translate(2207.658469, 297.487762)"><g><path d="M 22.578125 0 L 22.578125 -155.9375 L 56.140625 -155.9375 L 62.078125 -135.15625 C 67.222656 -142.476562 73.554688 -147.769531 81.078125 -151.03125 C 88.609375 -154.300781 98.117188 -155.9375 109.609375 -155.9375 L 126.53125 -155.9375 L 126.53125 -114.953125 L 109.3125 -114.953125 C 96.4375 -114.953125 86.285156 -111.484375 78.859375 -104.546875 C 71.429688 -97.617188 67.71875 -85.738281 67.71875 -68.90625 L 67.71875 0 Z M 22.578125 0 "/></g></g></g><g transform="matrix(1, 0, 0, 1, 136, 139)"><g><g fill="#4caf50" fill-opacity="1"><g transform="translate(0.990433, 83.035885)"><g><path d="M 6.125 -20.484375 L 6.125 -30.640625 L 16.984375 -30.640625 L 16.984375 -41.734375 L 27.625 -41.734375 L 27.625 -30.640625 L 38.484375 -30.640625 L 38.484375 -20.484375 L 27.625 -20.484375 L 27.625 -9.390625 L 16.984375 -9.390625 L 16.984375 -20.484375 Z M 6.125 -20.484375 "/></g></g></g><g fill="#4caf50" fill-opacity="1"><g transform="translate(45.59506, 83.035885)"><g><path d="M 2.09375 -9.9375 L 2.09375 -18.546875 L 19.625 -54.296875 L 33.046875 -54.296875 L 16.375 -20.40625 L 29.875 -20.40625 L 31.734375 -35.53125 L 41.34375 -35.53125 L 41.34375 -20.640625 L 48.171875 -20.640625 L 48.171875 -9.9375 L 41.34375 -9.9375 L 41.34375 0 L 29.25 0 L 29.25 -9.9375 Z M 2.09375 -9.9375 "/></g></g></g><g fill="#4caf50" fill-opacity="1"><g transform="translate(94.233413, 83.035885)"><g><path d="M 9.46875 0 L 27.3125 -43.515625 L 2.796875 -43.515625 L 2.796875 -54.296875 L 40.96875 -54.296875 L 40.96875 -45.609375 L 22.34375 0 Z M 9.46875 0 "/></g></g></g><g fill="#4caf50" fill-opacity="1"><g transform="translate(138.139877, 83.035885)"><g><path d="M 13.5 0 L 46 -54.296875 L 58.34375 -54.296875 L 25.75 0 Z M 3.03125 -43.0625 C 3.03125 -45.382812 3.582031 -47.472656 4.6875 -49.328125 C 5.800781 -51.191406 7.363281 -52.664062 9.375 -53.75 C 11.394531 -54.84375 13.78125 -55.390625 16.53125 -55.390625 C 19.269531 -55.390625 21.632812 -54.84375 23.625 -53.75 C 25.613281 -52.664062 27.160156 -51.191406 28.265625 -49.328125 C 29.378906 -47.472656 29.9375 -45.382812 29.9375 -43.0625 C 29.9375 -40.726562 29.378906 -38.644531 28.265625 -36.8125 C 27.160156 -34.976562 25.613281 -33.515625 23.625 -32.421875 C 21.632812 -31.335938 19.269531 -30.796875 16.53125 -30.796875 C 13.78125 -30.796875 11.394531 -31.335938 9.375 -32.421875 C 7.363281 -33.515625 5.800781 -34.976562 4.6875 -36.8125 C 3.582031 -38.644531 3.03125 -40.726562 3.03125 -43.0625 Z M 12.1875 -43.0625 C 12.1875 -41.863281 12.582031 -40.835938 13.375 -39.984375 C 14.175781 -39.140625 15.226562 -38.71875 16.53125 -38.71875 C 17.875 -38.71875 18.929688 -39.140625 19.703125 -39.984375 C 20.484375 -40.835938 20.875 -41.863281 20.875 -43.0625 C 20.875 -44.25 20.484375 -45.269531 19.703125 -46.125 C 18.929688 -46.976562 17.875 -47.40625 16.53125 -47.40625 C 15.226562 -47.40625 14.175781 -46.976562 13.375 -46.125 C 12.582031 -45.269531 12.1875 -44.25 12.1875 -43.0625 Z M 41.8125 -11.25 C 41.8125 -13.570312 42.367188 -15.664062 43.484375 -17.53125 C 44.597656 -19.394531 46.175781 -20.851562 48.21875 -21.90625 C 50.257812 -22.96875 52.625 -23.5 55.3125 -23.5 C 58.050781 -23.5 60.425781 -22.96875 62.4375 -21.90625 C 64.457031 -20.851562 66.023438 -19.394531 67.140625 -17.53125 C 68.253906 -15.664062 68.8125 -13.570312 68.8125 -11.25 C 68.8125 -8.914062 68.253906 -6.816406 67.140625 -4.953125 C 66.023438 -3.097656 64.457031 -1.625 62.4375 -0.53125 C 60.425781 0.550781 58.050781 1.09375 55.3125 1.09375 C 52.625 1.09375 50.257812 0.550781 48.21875 -0.53125 C 46.175781 -1.625 44.597656 -3.097656 43.484375 -4.953125 C 42.367188 -6.816406 41.8125 -8.914062 41.8125 -11.25 Z M 50.96875 -11.25 C 50.96875 -10.0625 51.367188 -9.039062 52.171875 -8.1875 C 52.972656 -7.332031 54.019531 -6.90625 55.3125 -6.90625 C 56.65625 -6.90625 57.710938 -7.332031 58.484375 -8.1875 C 59.265625 -9.039062 59.65625 -10.0625 59.65625 -11.25 C 59.65625 -12.4375 59.265625 -13.457031 58.484375 -14.3125 C 57.710938 -15.164062 56.65625 -15.59375 55.3125 -15.59375 C 54.019531 -15.59375 52.972656 -15.164062 52.171875 -14.3125 C 51.367188 -13.457031 50.96875 -12.4375 50.96875 -11.25 Z M 50.96875 -11.25 "/></g></g></g></g></g></svg>
   </div>
-  <div style="min-width:120px;display:flex;justify-content:flex-end">
+  <div style="min-width:120px;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
     <div class="text-sm" id="header-date"></div>
+    <div id="pv-nutzer"><span id="pv-nutzer-email"></span><button type="button" onclick="pvAbmelden()">Abmelden</button></div>
   </div>
 </div>
 
@@ -1743,6 +1777,113 @@ tr:last-child td{border-bottom:none;}
 const SUPABASE_URL='https://byazoaixpovvtfmmphin.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5YXpvYWl4cG92dnRmbW1waGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3OTk0NjEsImV4cCI6MjA5NTM3NTQ2MX0.R0VTjHfJWdxVttqJAT8VMR39QxRhfiG9h04bhkbJ1jo';
 
+/* ── ANMELDUNG (Sicherheit, 09.11.2026) ──
+   Die Datenbank gibt nur noch angemeldeten Mitgliedern Daten heraus. Ablauf:
+   - Beim Start prüft die Supabase-Bibliothek, ob im Browser eine gültige Anmeldung liegt.
+     Ja: App startet normal. Nein: Anmeldemaske.
+   - Jede Anfrage an Supabase und an unser Backend bekommt das Zugangstoken der Anmeldung
+     (Authorization: Bearer …). Das Token gilt ca. 1 Stunde und wird automatisch erneuert.
+   - Der öffentliche SUPABASE_KEY bleibt als "apikey" nötig; er allein gibt keinen Zugriff mehr. */
+const pvSupabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+  auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false},
+});
+let _pvSessionBereit;
+const pvSessionBereit=new Promise(r=>{_pvSessionBereit=r;});
+
+// Liefert das aktuelle Zugangstoken. Ohne Anmeldung wartet der Aufruf, bis angemeldet wurde
+// (nach der Anmeldung lädt die Seite neu, wartende Aufrufe entfallen dann).
+async function pvAccessToken(){
+  await pvSessionBereit;
+  const {data}=await pvSupabase.auth.getSession(); // erneuert ein abgelaufenes Token automatisch
+  if(!data?.session){ pvZeigeLogin(); return new Promise(()=>{}); }
+  return data.session.access_token;
+}
+
+function pvZeigeLogin(meldung){
+  document.getElementById('pv-login')?.classList.add('offen');
+  const f=document.getElementById('pv-login-fehler');
+  if(f){ f.textContent=meldung||''; f.style.display=meldung?'block':'none'; }
+  setTimeout(()=>document.getElementById('pv-login-email')?.focus(),50);
+}
+
+async function pvAnmelden(ev){
+  ev.preventDefault();
+  const btn=document.getElementById('pv-login-btn');
+  const email=document.getElementById('pv-login-email').value.trim();
+  const pw=document.getElementById('pv-login-pw').value;
+  btn.disabled=true; btn.textContent='Anmelden …';
+  try{
+    const {data,error}=await pvSupabase.auth.signInWithPassword({email,password:pw});
+    if(error||!data?.session){
+      pvZeigeLogin('E-Mail oder Passwort ist falsch.');
+      return;
+    }
+    // Zweite Sicherung: angemeldet heißt noch nicht berechtigt (Tabelle app_mitglieder)
+    const {data:mitglied}=await pvSupabase.from('app_mitglieder').select('user_id').eq('user_id',data.session.user.id).maybeSingle();
+    if(!mitglied){
+      await pvSupabase.auth.signOut();
+      pvZeigeLogin('Dieses Konto hat keinen Zugriff.');
+      return;
+    }
+    location.reload();
+  }catch(err){
+    pvZeigeLogin('Anmeldung fehlgeschlagen: '+err.message);
+  }finally{
+    btn.disabled=false; btn.textContent='Anmelden';
+  }
+}
+
+// Beim Abmelden die zwischengespeicherten Geschäftsdaten aus dem Browser entfernen, damit
+// auf einem fremden/geteilten Rechner nichts zurückbleibt.
+function pvDatenAusBrowserLoeschen(){
+  try{
+    Object.keys(localStorage).filter(k=>k.startsWith('ec_')).forEach(k=>localStorage.removeItem(k));
+  }catch(e){}
+}
+async function pvAbmelden(){
+  pvDatenAusBrowserLoeschen();
+  try{ await pvSupabase.auth.signOut(); }catch(e){}
+  location.reload();
+}
+
+pvSupabase.auth.onAuthStateChange((event)=>{
+  // Abgemeldet (auch in einem anderen Tab) oder Erneuerung fehlgeschlagen -> zurück zur Anmeldung
+  if(event==='SIGNED_OUT'){ pvDatenAusBrowserLoeschen(); location.reload(); }
+});
+
+(async()=>{
+  const {data}=await pvSupabase.auth.getSession();
+  if(data?.session){
+    const el=document.getElementById('pv-nutzer');
+    if(el){ el.style.display='flex'; document.getElementById('pv-nutzer-email').textContent=data.session.user.email||''; }
+    _pvSessionBereit();
+  } else {
+    pvZeigeLogin();
+  }
+})();
+
+// Alle fetch-Aufrufe an unser Backend und an die Supabase-Datenbank bekommen das Zugangstoken.
+// Eine Stelle für alles: Die vielen bestehenden Aufrufe im Code müssen dafür nicht geändert
+// werden. Aufrufe, die die Supabase-Bibliothek selbst macht, setzen ihr Token selbst und
+// bleiben unberührt.
+const BACKEND_URL='https://profitviewer-backend-production.up.railway.app';
+const _originalFetch=window.fetch.bind(window);
+window.fetch=async function(url, options={}){
+  const u=typeof url==='string'?url:(url&&url.url)||'';
+  const anBackend=u.startsWith(BACKEND_URL);
+  const anDatenbank=u.startsWith(SUPABASE_URL+'/rest/v1/');
+  if(anBackend||anDatenbank){
+    const headers={...(options.headers||{})};
+    const altesAuth=headers['Authorization']||headers['authorization']||'';
+    if(anBackend || altesAuth==='Bearer '+SUPABASE_KEY){
+      delete headers['authorization'];
+      headers['Authorization']='Bearer '+(await pvAccessToken());
+      options={...options,headers};
+    }
+  }
+  return _originalFetch(url, options);
+};
+
 async function sbFetch(table, method='GET', body=null, params=''){
   const url=`${SUPABASE_URL}/rest/v1/${table}${params}`;
   const res=await fetch(url,{
@@ -2329,21 +2470,7 @@ function showConnResult(mp, ok, msg){
     ${msg}</span>`;
 }
 
-const BACKEND_URL='https://profitviewer-backend-production.up.railway.app';
-
-// WICHTIG: hier den echten Key aus Railway (INTERNAL_API_KEY) eintragen, bevor du deployst.
-// Nur dieser eine Platzhalter muss noch ersetzt werden.
-const INTERNAL_API_KEY='e18cecadf1d4b1fe7ccfdab27700fbb0c745c9e4790fb15e232988567290f22c';
-
-// Schickt bei jedem fetch() an unser eigenes Backend automatisch den Authorization-Header mit.
-// Aufrufe an SUPABASE_URL bleiben davon unberührt (andere Absicherung, siehe Supabase RLS).
-const _originalFetch=window.fetch;
-window.fetch=function(url, options={}){
-  if(typeof url==='string' && url.startsWith(BACKEND_URL)){
-    options={...options, headers:{...(options.headers||{}), 'Authorization':`Bearer ${INTERNAL_API_KEY}`}};
-  }
-  return _originalFetch(url, options);
-};
+// BACKEND_URL und der fetch-Wrapper mit Anmeldung stehen jetzt ganz oben (Abschnitt ANMELDUNG).
 
 /* ── STATUS-PANEL (Ampel) ── */
 // Alle Meldungen nur für diese Sitzung (kein Speichern, verschwindet bei Reload)
@@ -2386,11 +2513,23 @@ const SEVERITY_RANK={green:0,amber:1,red:2};
 // Feed-Einträge mehr (siehe unten), sondern nur noch die feste Statuszeile im Panel.
 const STATUS_TRANSIENT_TYPES=new Set(['order_incomplete','order_quality','retoure_status','connector_status']);
 
-function connectStatusStream(){
+let statusStreamRetry=null;
+async function connectStatusStream(){
+  if(statusStreamRetry){ clearTimeout(statusStreamRetry); statusStreamRetry=null; }
   if(statusEventSource) statusEventSource.close();
-  // EventSource kann keine eigenen Header mitschicken -> Key hier als Query-Parameter,
-  // die Middleware im Backend akzeptiert beides (Header ODER ?apiKey=...).
-  statusEventSource=new EventSource(`${BACKEND_URL}/events/stream?apiKey=${encodeURIComponent(INTERNAL_API_KEY)}`);
+  // EventSource kann keine eigenen Header mitschicken. Statt eines Schlüssels in der URL holen wir
+  // uns (angemeldet) ein Ticket, das 30 Sekunden gilt und nur für den Live-Feed taugt.
+  let ticket=null;
+  try{
+    const res=await fetch(`${BACKEND_URL}/events/ticket`,{method:'POST'});
+    if(res.ok) ticket=(await res.json()).ticket;
+  }catch(e){}
+  if(!ticket){
+    statusCurrentlyConnected=false; renderStatusWidget();
+    statusStreamRetry=setTimeout(connectStatusStream,10000);
+    return;
+  }
+  statusEventSource=new EventSource(`${BACKEND_URL}/events/stream?ticket=${encodeURIComponent(ticket)}`);
 
   statusEventSource.onmessage=function(msg){
     const event=JSON.parse(msg.data);
@@ -2451,7 +2590,10 @@ function connectStatusStream(){
   statusEventSource.onerror=function(){
     statusCurrentlyConnected=false;
     renderStatusWidget(); // nur die feste Verbindungszeile + Ampel aktualisieren, kein Feed-Eintrag
-    // EventSource verbindet automatisch neu, kein manueller Reconnect nötig
+    // Der Browser würde mit dem alten (inzwischen abgelaufenen) Ticket neu verbinden und abgewiesen.
+    // Deshalb selbst neu verbinden — mit frischem Ticket, nach kurzer Pause.
+    if(statusEventSource) statusEventSource.close();
+    if(!statusStreamRetry) statusStreamRetry=setTimeout(connectStatusStream,5000);
   };
 }
 
@@ -2856,7 +2998,14 @@ function connectShopify(){
   const domain=document.getElementById('conn-shopify-domain')?.value.trim();
   if(!domain){showConnResult('shopify',false,'Bitte Shop-Domain eingeben.');return;}
   if(!domain.includes('.myshopify.com')){showConnResult('shopify',false,'Bitte eine gültige *.myshopify.com Domain eingeben.');return;}
-  window.location.href=`${BACKEND_URL}/shopify/auth?shop=${encodeURIComponent(domain)}`;
+  // Angemeldet eine Start-Adresse anfordern (enthält ein 2 Minuten gültiges Ticket), dann weiter zu Shopify
+  fetch(`${BACKEND_URL}/shopify/auth-start`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({shop:domain})})
+    .then(async res=>{
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok||!data.url){ showConnResult('shopify',false,data.error||'Verbindung konnte nicht gestartet werden.'); return; }
+      window.location.href=data.url;
+    })
+    .catch(err=>showConnResult('shopify',false,'Backend nicht erreichbar: '+err.message));
 }
 
 async function saveConn(mp){
@@ -8146,7 +8295,9 @@ let supabaseClient=null;
 function initRealtime(){
   if(!window.supabase){console.warn('Supabase JS nicht geladen');return;}
 
-  supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  // Derselbe Client wie für die Anmeldung: Live-Aktualisierungen laufen damit als angemeldeter
+  // Nutzer und unterliegen denselben Zugriffsregeln (RLS).
+  supabaseClient=pvSupabase;
 
   async function handleChange(table){
     const syncEl=document.getElementById('sync-indicator');
@@ -8306,7 +8457,6 @@ async function initApp(){
 
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/de.js"></script>
 <script>

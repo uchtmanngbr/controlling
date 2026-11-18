@@ -291,6 +291,9 @@ tr:last-child td{border-bottom:none;}
 </head>
 <body>
 
+<!-- Hinweis Testumgebung (wird nur außerhalb der Produktionsadresse eingeblendet) -->
+<div id="pv-test-banner" style="display:none;position:sticky;top:0;z-index:6000;background:#E8890C;color:#fff;font-size:12px;font-weight:600;letter-spacing:.06em;text-align:center;padding:6px 12px;">TESTUMGEBUNG – keine echten Daten, Änderungen wirken nicht auf die Produktion</div>
+
 <!-- ANMELDUNG: liegt über der ganzen App, bis eine gültige Anmeldung besteht -->
 <div id="pv-login" aria-modal="true" role="dialog">
   <form class="box" onsubmit="pvAnmelden(event)">
@@ -1773,9 +1776,33 @@ tr:last-child td{border-bottom:none;}
 
 <script>
 
+/* ── UMGEBUNG: Produktion oder Testumgebung (18.11.2026) ──
+   Dieselbe Datei läuft in beiden Umgebungen. Entscheidend ist die Adresse im Browser:
+   Nur unter der Produktionsadresse spricht die Seite mit Produktions-Datenbank und -Backend.
+   Jede andere Adresse (Vercel-Vorschau, lokal geöffnet …) nutzt die TESTUMGEBUNG. So kann eine
+   Testversion nie versehentlich echte Daten verändern. */
+const PV_PRODUKTIONS_HOSTS=['controlling-taupe.vercel.app'];
+const PV_UMGEBUNGEN={
+  produktion:{
+    SUPABASE_URL:'https://byazoaixpovvtfmmphin.supabase.co',
+    SUPABASE_KEY:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5YXpvYWl4cG92dnRmbW1waGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3OTk0NjEsImV4cCI6MjA5NTM3NTQ2MX0.R0VTjHfJWdxVttqJAT8VMR39QxRhfiG9h04bhkbJ1jo',
+    BACKEND_URL:'https://profitviewer-backend-production.up.railway.app',
+  },
+  staging:{
+    SUPABASE_URL:'https://sqrkubrlkqevxrgcyodr.supabase.co',
+    SUPABASE_KEY:'sb_publishable_IYrv35NmjDoh1Jbe1TllDQ_HlCRQ-go',
+    BACKEND_URL:'https://profitviewer-backend-staging.up.railway.app',
+  },
+};
+const PV_UMGEBUNG=PV_PRODUKTIONS_HOSTS.includes(location.hostname)?'produktion':'staging';
+
 /* ── SUPABASE CONFIG ── */
-const SUPABASE_URL='https://byazoaixpovvtfmmphin.supabase.co';
-const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5YXpvYWl4cG92dnRmbW1waGluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3OTk0NjEsImV4cCI6MjA5NTM3NTQ2MX0.R0VTjHfJWdxVttqJAT8VMR39QxRhfiG9h04bhkbJ1jo';
+const SUPABASE_URL=PV_UMGEBUNGEN[PV_UMGEBUNG].SUPABASE_URL;
+const SUPABASE_KEY=PV_UMGEBUNGEN[PV_UMGEBUNG].SUPABASE_KEY;
+if(PV_UMGEBUNG!=='produktion'){
+  const b=document.getElementById('pv-test-banner'); if(b) b.style.display='block';
+  document.title='[TEST] '+document.title;
+}
 
 /* ── ANMELDUNG (Sicherheit, 09.11.2026) ──
    Die Datenbank gibt nur noch angemeldeten Mitgliedern Daten heraus. Ablauf:
@@ -1868,7 +1895,7 @@ pvSupabase.auth.onAuthStateChange((event)=>{
 // Eine Stelle für alles: Die vielen bestehenden Aufrufe im Code müssen dafür nicht geändert
 // werden. Aufrufe, die die Supabase-Bibliothek selbst macht, setzen ihr Token selbst und
 // bleiben unberührt.
-const BACKEND_URL='https://profitviewer-backend-production.up.railway.app';
+const BACKEND_URL=PV_UMGEBUNGEN[PV_UMGEBUNG].BACKEND_URL;
 const _originalFetch=window.fetch.bind(window);
 window.fetch=async function(url, options={}){
   const u=typeof url==='string'?url:(url&&url.url)||'';

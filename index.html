@@ -1966,7 +1966,7 @@ async function ladeOrdersAusSupabase(){
 
 async function syncFromSupabase(){
   try{
-    const [orders,orderItems,fixkosten,marketing,mpg,rechnungen,versand,settings,products,retouren]=await Promise.all([
+    const [orders,orderItems,fixkosten,marketing,mpg,rechnungen,versand,settings,products,retouren,eingangsrechnungen]=await Promise.all([
       sbFetch('orders','GET',null,'?select=*&deleted=is.false&order=id.desc'),
       sbFetch('order_items','GET',null,'?select=*'),
       sbFetch('fixkosten','GET',null,'?select=*'),
@@ -1977,7 +1977,11 @@ async function syncFromSupabase(){
       sbFetch('settings','GET',null,'?select=*'),
       sbFetch('products','GET',null,'?select=*'),
       sbFetch('retouren','GET',null,'?select=*&order=id.desc'),
+      // 18.11.: fehlte bisher — Eingangsrechnungen kamen nur über die Live-Aktualisierung in den
+      // Browser. Jeder Rechner hatte dadurch einen anderen Stand (andere Monatskosten).
+      sbFetch('eingangsrechnungen','GET',null,'?select=*&order=id.desc'),
     ]);
+    if(eingangsrechnungen) localStorage.setItem('ec_eingangsrechnungen',JSON.stringify(eingangsrechnungen));
     if(orders){
       localStorage.setItem('ec_orders',JSON.stringify(baueOrdersMitItems(orders,orderItems)));
     }
@@ -1996,6 +2000,7 @@ async function syncFromSupabase(){
         if(s.key==='verkaufsprovision') localStorage.setItem('ec_verkaufsprovision',s.value);
         if(s.key==='chargen_start') localStorage.setItem('ec_chargen_start',s.value);
         if(s.key==='ret_zustaende') localStorage.setItem('ec_ret_zustaende',s.value);
+        if(s.key==='ret_settings') localStorage.setItem('ec_ret_settings',s.value);
         if(s.key==='dash_channels') localStorage.setItem('ec_dash_channels',s.value);
         if(s.key==='sync_interval_minutes') localStorage.setItem('ec_sync_interval',s.value);
         if(s.key==='otto_sync_interval_minutes') localStorage.setItem('ec_otto_sync_interval',s.value);
@@ -2019,7 +2024,7 @@ async function syncFromSupabase(){
         }
       });
     }
-    if(products&&products.length){
+    if(Array.isArray(products)){
       localStorage.setItem('ec_produkte',JSON.stringify(products.map(mapProduktFromDb)));
     }
     await ladeChargen();
@@ -5066,7 +5071,11 @@ async function deleteAll(){
 
 /* ── RETOUREN ── */
 function getRetSettings(){try{return JSON.parse(localStorage.getItem('ec_ret_settings')||'{}')}catch{return{}}}
-function setRetSettings(d){localStorage.setItem('ec_ret_settings',JSON.stringify(d))}
+function setRetSettings(d){
+  localStorage.setItem('ec_ret_settings',JSON.stringify(d));
+  // 18.11.: vorher nur im Browser gespeichert — jeder Rechner hatte eigene Standard-Labelkosten
+  if(dbSynced) saveSettingToSupabase('ret_settings',d).catch(e=>console.warn('Supabase ret_settings sync:',e));
+}
 
 
 
@@ -8371,6 +8380,7 @@ function initRealtime(){
         if(s.key==='verkaufsprovision') localStorage.setItem('ec_verkaufsprovision',s.value);
         if(s.key==='chargen_start') localStorage.setItem('ec_chargen_start',s.value);
         if(s.key==='ret_zustaende') localStorage.setItem('ec_ret_zustaende',s.value);
+        if(s.key==='ret_settings') localStorage.setItem('ec_ret_settings',s.value);
         if(s.key==='dash_channels'){
           localStorage.setItem('ec_dash_channels',s.value);
           renderDashboard();

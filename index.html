@@ -5355,7 +5355,7 @@ function renderRetouren(){
     {label:'Retourenquote (Stück)',val:`${quoteStk}%`,sub:`${mengeRetour} von ${mengeVerkauft} verkauften Stück`},
     {label:'Retourenquote (Umsatz)',val:`${quoteUmsatz}%`,sub:`${fmt(retUmsatz)} von ${fmt(umsatzGesamt)}`},
     {label:'Anzahl Retouren',val:retouren.length,sub:unbearbeitet>0?`${unbearbeitet} noch zu bearbeiten`:'im gewählten Zeitraum'},
-    {label:'Abschreibungswert',val:fmt(abschreibung),sub:`+ ${fmt(labelKosten)} Label + ${fmt(versandKosten)} Versand`,color:'#E24B4A'},
+    {label:'Abschreibungswert',val:fmt(abschreibung),sub:`+ ${fmt(labelKosten)} Rücksendung${versandKosten>0?' + '+fmt(versandKosten)+' weitere Versandkosten':''}`,color:'#E24B4A'},
   ].map(k=>`<div class="metric" style="text-align:center">
     <div class="metric-label">${k.label}</div>
     <div class="metric-value neu" style="${k.color?'color:'+k.color:''}">${k.val}</div>
@@ -5377,9 +5377,10 @@ function renderRetouren(){
       <th style="text-align:left;color:#888780;font-weight:400;padding:10px 8px">Bestellung / Artikel</th>
       <th style="text-align:center;color:#888780;font-weight:400;padding:10px 8px">Menge</th>
       <th style="text-align:left;color:#888780;font-weight:400;padding:10px 8px">Zustand</th>
-      <th style="text-align:right;color:#888780;font-weight:400;padding:10px 8px">Versand</th>
+      <th style="text-align:right;color:#888780;font-weight:400;padding:10px 8px" title="Versand der Bestellung (Hinweg), plus ggf. weitere Versandkosten der Retoure">Versand</th>
+      <th style="text-align:right;color:#888780;font-weight:400;padding:10px 8px" title="Marktplatzgebühr, die nach der Erstattung beim Händler bleibt">Gebühr</th>
+      <th style="text-align:right;color:#888780;font-weight:400;padding:10px 8px">Rücksendung</th>
       <th style="text-align:right;color:#888780;font-weight:400;padding:10px 8px">Abschreibung</th>
-      <th style="text-align:right;color:#888780;font-weight:400;padding:10px 8px">Label</th>
       <th style="text-align:right;color:#888780;font-weight:400;padding:10px 12px">Gesamtwirkung</th>
       <th style="padding:10px 12px"></th>
     </tr></thead>
@@ -5388,7 +5389,8 @@ function renderRetouren(){
       const label=retLabelKosten(r);
       const versandK=r.versand||0;
       const order=allOrders.find(o=>o.id===r.order_id);
-      const verlust=retoureWirkung(r,order).gesamt;
+      const w=retoureWirkung(r,order);
+      const verlust=w.gesamt;
       const zustandLabel=!r.bearbeitet?'<span style="font-size:10px;padding:1px 6px;border-radius:99px;background:#FAEEDA;color:#854F0B">⚠ Zu bearbeiten</span>':(r.zustand==='custom'?`Individuell (${r.abschreibung_pct||0}%)`:((z=>z?z.label:'—')(getRetZustaende().find(z=>z.id===r.zustand))));
       return `<tr style="border-bottom:0.5px solid #f5f5f3;" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
         <td style="padding:10px 12px;color:#888780;white-space:nowrap">${r.datum?r.datum.split('-').reverse().join('.'):'—'}</td>
@@ -5396,9 +5398,10 @@ function renderRetouren(){
         <td style="padding:10px 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.bestellnr||'—'} · ${r.artikel||r.sku||'—'}</td>
         <td style="padding:10px 8px;text-align:center">${r.menge||1}</td>
         <td style="padding:10px 8px;font-size:12px;color:#888780">${zustandLabel}</td>
-        <td style="padding:10px 8px;text-align:right;color:${versandK>0?'#E24B4A':'#888780'}">${versandK>0?fmt(versandK):'—'}</td>
-        <td style="padding:10px 8px;text-align:right;color:${abschr>0?'#E24B4A':'#888780'}">${abschr>0?fmt(abschr):'—'}</td>
+        <td style="padding:10px 8px;text-align:right;color:${(w.hin+versandK)>0?'#E24B4A':'#888780'}">${(w.hin+versandK)>0?fmt(w.hin+versandK):'—'}</td>
+        <td style="padding:10px 8px;text-align:right;color:${w.provRest>0?'#E24B4A':'#888780'}" title="${w.provErst>0?fmt(w.provErst)+' erstattet':''}">${w.provRest>0?fmt(w.provRest):'—'}</td>
         <td style="padding:10px 8px;text-align:right;color:${label>0?'#E24B4A':'#888780'}">${label>0?fmt(label):'—'}</td>
+        <td style="padding:10px 8px;text-align:right;color:${abschr>0?'#E24B4A':'#888780'}">${abschr>0?fmt(abschr):'—'}</td>
         <td style="padding:10px 12px;text-align:right;font-weight:600;color:${verlust>0?'#E24B4A':'#888780'}">${verlust>0?fmt(verlust):'—'}</td>
         <td style="padding:10px 12px;display:flex;gap:4px">
           <button class="btn" style="height:28px;padding:0 10px;font-size:12px;" onclick="openRetEdit(${r.id})">✎</button>
@@ -5626,6 +5629,8 @@ function openRetEdit(id){
   populateRetZustandSelect();
   document.getElementById('ret-ek').value=r.ek||'';
   document.getElementById('ret-versand').value=r.versand||0;
+  // Das frühere Feld "Versandkosten" nur noch zeigen, wenn dort ein alter Wert steht
+  document.getElementById('ret-versand-wrap').style.display=(r.versand||0)>0?'':'none';
   // Automatisch angelegte Retouren haben noch keinen Zustand (Otto: 'unbekannt', Shopify: leer)
   const zSel=document.getElementById('ret-zustand');
   zSel.value=[...zSel.options].some(o=>o.value===r.zustand)?r.zustand:'';
@@ -5662,6 +5667,7 @@ function updateRetAbschreibung(){
   const verlust=parseFloat((versand+abschr+label).toFixed(2));
   const el=n=>document.getElementById(n);
   if(el('ret-verlust-versand')) el('ret-verlust-versand').textContent=versand>0?fmt(versand):'—';
+  if(el('ret-verlust-versand-zeile')) el('ret-verlust-versand-zeile').style.display=versand>0?'flex':'none';
   if(el('ret-verlust-label')) el('ret-verlust-label').textContent=label>0?fmt(label):'—';
   if(el('ret-verlust-abschr')) el('ret-verlust-abschr').textContent=abschr>0?fmt(abschr):'—';
   el('ret-verlust-preview').textContent=verlust>0?fmt(verlust):'0,00 €';
@@ -9234,16 +9240,16 @@ async function initApp(){
       <div id="ret-multi-wrap" style="display:none;background:#eef4fa;border-radius:10px;padding:14px;margin-bottom:1rem;">
         <div class="text-xs" style="margin-bottom:10px;color:#185FA5;font-weight:600;">Gilt für alle ausgewählten Artikel zusammen (eine gemeinsame Rücksendung)</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div class="field"><label>Versandkosten gesamt (€)</label><input type="number" id="ret-m-versand" min="0" step="0.01" placeholder="0.00" oninput="updateMultiPreview()"></div>
-          <div class="field"><label>Retourenlabel gesamt (€)</label><input type="number" id="ret-m-label" min="0" step="0.01" placeholder="0.00" oninput="updateMultiPreview()"></div>
+          <input type="hidden" id="ret-m-versand" value="0">
+          <div class="field" style="grid-column:1/-1"><label>Rücksendekosten / Retourenlabel gesamt (€)</label><input type="number" id="ret-m-label" min="0" step="0.01" placeholder="0.00" oninput="updateMultiPreview()"></div>
           <div class="field" style="grid-column:1/-1"><label>Notiz</label><input type="text" id="ret-m-notiz" placeholder="Optional"></div>
         </div>
         <div style="background:#f5f5f3;border-radius:8px;padding:12px;margin-top:12px">
           <div class="text-xs" style="margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Verlustrechnung</div>
           <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Versand der Bestellung (Hinweg)</span><span id="ret-m-verlust-hin">—</span></div>
           <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:0.5px solid #ddddd5;margin-bottom:3px"><span style="color:#888780">Marktplatzgebühr (nach Erstattung)</span><span id="ret-m-verlust-prov">—</span></div>
-          <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Rücksendekosten</span><span id="ret-m-verlust-versand">—</span></div>
-          <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Retourenlabel</span><span id="ret-m-verlust-label">—</span></div>
+          <span id="ret-m-verlust-versand" style="display:none">—</span>
+          <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Rücksendung (Retourenlabel)</span><span id="ret-m-verlust-label">—</span></div>
           <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:0.5px solid #ddddd5"><span style="color:#888780">Abschreibung</span><span id="ret-m-verlust-abschr">—</span></div>
           <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:4px">
             <span style="color:#888780">Zusätzliche Retourenkosten</span>
@@ -9265,10 +9271,10 @@ async function initApp(){
           <input type="number" id="ret-menge" min="1" step="1" value="1" oninput="updateRetAbschreibung()">
           <div class="text-xs" id="ret-menge-hint" style="margin-top:3px"></div>
         </div>
-        <div class="field" style="grid-column:1/-1">
-          <label>Rücksendekosten (€)</label>
+        <div class="field" style="grid-column:1/-1;display:none" id="ret-versand-wrap">
+          <label>Weitere Versandkosten (€)</label>
           <input type="number" id="ret-versand" min="0" step="0.01" placeholder="0.00" oninput="updateRetAbschreibung()">
-          <div class="text-xs" style="margin-top:3px">Kosten für den Rückversand, falls ihr ihn tragt. Bei mehreren Retouren derselben Sendung nur einmal eintragen.</div>
+          <div class="text-xs" style="margin-top:3px">Älterer Eintrag aus dem früheren Feld „Versandkosten“. Ist das dasselbe wie die Rücksendekosten, hier 0 eintragen.</div>
         </div>
         <div class="field" style="grid-column:1/-1">
           <label>Artikelzustand</label>
@@ -9293,7 +9299,7 @@ async function initApp(){
           <input type="number" id="ret-abschreibung" min="0" step="0.01" readonly style="background:#f5f5f3;color:#E24B4A;font-weight:600">
         </div>
         <div class="field" style="grid-column:1/-1">
-          <label>Retourenlabel (€)</label>
+          <label>Rücksendekosten / Retourenlabel (€)</label>
           <input type="number" id="ret-label-kosten" min="0" step="0.01" placeholder="0.00" oninput="updateRetAbschreibung();retLabelHinweis()">
           <div class="text-xs" id="ret-label-hinweis" style="margin-top:3px"></div>
         </div>
@@ -9307,8 +9313,8 @@ async function initApp(){
         <div class="text-xs" style="margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Verlustrechnung</div>
         <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Versand der Bestellung (Hinweg)</span><span id="ret-verlust-hin">—</span></div>
         <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:0.5px solid #ddddd5;margin-bottom:3px"><span style="color:#888780">Marktplatzgebühr</span><span id="ret-verlust-prov">—</span></div>
-        <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Rücksendekosten</span><span id="ret-verlust-versand">—</span></div>
-        <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Retourenlabel</span><span id="ret-verlust-label">—</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Rücksendung (Retourenlabel)</span><span id="ret-verlust-label">—</span></div>
+        <div style="display:none;justify-content:space-between;padding:3px 0" id="ret-verlust-versand-zeile"><span style="color:#888780">Weitere Versandkosten</span><span id="ret-verlust-versand">—</span></div>
         <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:0.5px solid #ddddd5"><span style="color:#888780">Abschreibung</span><span id="ret-verlust-abschr">—</span></div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;margin-top:4px">
           <span style="color:#888780">Zusätzliche Retourenkosten</span>

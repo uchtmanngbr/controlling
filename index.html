@@ -1420,16 +1420,35 @@ tr:last-child td{border-bottom:none;}
 
     <!-- RETOUREN EINSTELLUNGEN INHALT -->    <div id="praef-retouren" style="display:none">
       <div class="form-card" style="margin-bottom:1rem">
-        <div class="section-title" style="margin-bottom:12px">Retouren-Standardwerte</div>
-        <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap">
-          <div class="field" style="margin-bottom:0;min-width:220px">
-            <label>Pauschalgebühr Retourenlabel (€)</label>
-            <input type="number" id="ret-label-default" min="0" step="0.01" placeholder="z.B. 4.99" style="width:100%">
-          </div>
-          <button class="btn primary" onclick="saveRetSettings()" style="height:36px;padding:0 16px"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.75 3h-1A2.75 2.75 0 0 0 3 5.75v12.5A2.75 2.75 0 0 0 5.75 21H6v-6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 15v6h.25A2.75 2.75 0 0 0 21 18.25V8.286a3.25 3.25 0 0 0-.952-2.299l-2.035-2.035A3.25 3.25 0 0 0 15.75 3v4.5a2.25 2.25 0 0 1-2.25 2.25H9A2.25 2.25 0 0 1 6.75 7.5V3Z"/><path d="M14.25 3v4.5a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75V3h6ZM16.5 21v-6a.75.75 0 0 0-.75-.75h-7.5a.75.75 0 0 0-.75.75v6h9Z"/></svg>&nbsp;Speichern</button>
-          <span id="ret-settings-flash" style="font-size:12px;color:#1D9E75;display:none">✓ Gespeichert</span>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+          <div class="section-title" style="margin:0">Retouren-Standardwerte</div>
+          <button class="btn" id="ret-label-edit-btn" onclick="retLabelFormOeffnen()" style="height:32px;padding:0 14px;font-size:12px">Bearbeiten</button>
         </div>
-        <div class="text-xs" style="margin-top:8px">Wird automatisch bei jeder neuen Retoure als Retourenlabelkosten vorausgefüllt.</div>
+        <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+          <span style="font-size:13px;color:#5f5e5a">Pauschalgebühr Retourenlabel</span>
+          <span id="ret-label-aktuell" style="font-size:18px;font-weight:600;color:#003265">—</span>
+          <span id="ret-label-aktuell-seit" class="text-xs"></span>
+        </div>
+        <div class="text-xs" style="margin-top:6px">Gilt für jede Retoure ab dem jeweiligen Datum. Ändert sich der Preis, neuen Betrag mit Datum eintragen: Retouren ab diesem Datum rechnen automatisch mit dem neuen Betrag, ältere bleiben beim alten. Von Hand eingetragene Labelkosten einer Retoure bleiben unverändert.</div>
+
+        <div id="ret-label-form" style="display:none;margin-top:14px;padding:14px;border-radius:10px;background:#f5f5f3">
+          <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap">
+            <div class="field" style="margin-bottom:0;min-width:160px">
+              <label>Neuer Betrag (€)</label>
+              <input type="number" id="ret-label-neu-betrag" min="0" step="0.01" placeholder="z.B. 5.49" style="width:100%">
+            </div>
+            <div class="field" style="margin-bottom:0;min-width:160px">
+              <label>Gültig ab</label>
+              <input type="date" id="ret-label-neu-ab" style="width:100%">
+            </div>
+            <button class="btn" onclick="retLabelFormSchliessen()" style="height:36px;padding:0 14px">Abbrechen</button>
+            <button class="btn primary" onclick="retLabelSpeichern()" style="height:36px;padding:0 16px">Speichern</button>
+          </div>
+          <div id="ret-label-fehler" class="text-xs" style="display:none;color:#A32D2D;margin-top:8px"></div>
+        </div>
+
+        <div id="ret-label-verlauf" style="margin-top:14px"></div>
+        <span id="ret-settings-flash" style="font-size:12px;color:#1D9E75;display:none">✓ Gespeichert</span>
       </div>
 
       <div class="form-card">
@@ -4631,7 +4650,7 @@ function mwstLabel(info){
 // Wert verwenden. Bewusst OHNE Abschreibung (steckt schon in effWaren(), s.u.) und OHNE
 // Marktplatzgebühr (die wird je Marktplatz ganz oder teilweise erstattet, siehe effProvision()).
 function retoureZusatzkosten(order){
-  return getRetourenForOrder(order.id).reduce((s,r)=>s+(r.labelkosten||0)+(r.versand||0),0);
+  return getRetourenForOrder(order.id).reduce((s,r)=>s+retLabelKosten(r)+(r.versand||0),0);
 }
 // Abschreibungssumme aus der Retouren-Tabelle — NUR für die Cashflow-Aufschlüsselung
 // (renderCashflow), um sie dort sichtbar unter "− Retouren" statt versteckt in
@@ -4799,9 +4818,7 @@ function showPage(p){
   if(p==='kennzahlen'){ requestAnimationFrame(()=>showKennzahlen('berichte')); }
   if(p==='praeferenzen'){
     renderVersandProfiles();
-    const s=getRetSettings();
-    const el=document.getElementById('ret-label-default');
-    if(el) el.value=s.labelDefault||'';
+    renderRetLabelPauschalen();
   }
   if(p==='versand') { showPage('praeferenzen'); return; }
   if(p==='retouren'){ populateRetFilters(); renderRetouren(); }
@@ -5193,12 +5210,97 @@ function getRetZustandPct(id){
   return z?z.pct:0;
 }
 
-function saveRetSettings(){
+// ── Pauschalgebühr Retourenlabel mit Gültigkeit (18.11.2026) ──
+// Gespeichert in settings.ret_settings als labelPauschalen: [{betrag, gueltig_ab}].
+// Ältere Stände hatten nur labelDefault (ein Betrag ohne Datum) — der gilt dann ab 2020-01-01.
+function labelPauschalen(){
   const s=getRetSettings();
-  s.labelDefault=parseFloat(document.getElementById('ret-label-default').value)||0;
+  let liste=Array.isArray(s.labelPauschalen)?s.labelPauschalen.filter(p=>p&&p.gueltig_ab):[];
+  if(!liste.length&&s.labelDefault!=null&&s.labelDefault!=='') liste=[{betrag:Number(s.labelDefault)||0,gueltig_ab:'2020-01-01'}];
+  return [...liste].sort((a,b)=>a.gueltig_ab<b.gueltig_ab?-1:a.gueltig_ab>b.gueltig_ab?1:0);
+}
+function heuteIso(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+// Pauschale, die an einem Datum gilt (ohne Datum: heute)
+function labelPauschaleFuer(datum){
+  const d=String(datum||'').slice(0,10)||heuteIso();
+  let wert=0;
+  for(const p of labelPauschalen()) if(p.gueltig_ab<=d) wert=Number(p.betrag)||0;
+  return wert;
+}
+// Labelkosten einer Retoure:
+//  - null/leer = Pauschale laut Datum der Retoure (folgt künftigen Preisänderungen)
+//  - Zahl      = von Hand eingetragen, bleibt fest
+// Noch nicht bearbeitete, automatisch erkannte Retouren (Label 0) gelten als Pauschale.
+function retLabelKosten(r){
+  if(!r) return 0;
+  const lk=r.labelkosten;
+  if(lk===null||lk===undefined||lk===''||(!r.bearbeitet&&!Number(lk))) return labelPauschaleFuer(r.datum);
+  return Number(lk)||0;
+}
+function labelPauschalenSpeichern(liste){
+  const s=getRetSettings();
+  s.labelPauschalen=liste;
+  const aktuell=labelPauschaleFuer(heuteIso());
+  s.labelDefault=aktuell; // für ältere Versionen weiter gepflegt
   setRetSettings(s);
+}
+function renderRetLabelPauschalen(){
+  const liste=labelPauschalen();
+  const heute=heuteIso();
+  const gueltig=[...liste].reverse().find(p=>p.gueltig_ab<=heute);
+  const akt=document.getElementById('ret-label-aktuell');
+  const seit=document.getElementById('ret-label-aktuell-seit');
+  if(akt) akt.textContent=gueltig?fmt(gueltig.betrag):'nicht festgelegt';
+  if(seit) seit.textContent=gueltig?(gueltig.gueltig_ab<='2020-01-01'?'gilt seit Beginn':'gültig seit '+fmtDatumDe(gueltig.gueltig_ab)):'';
+  const v=document.getElementById('ret-label-verlauf');
+  if(!v) return;
+  if(liste.length<2&&!liste.some(p=>p.gueltig_ab>heute)){ v.innerHTML=''; return; }
+  v.innerHTML=`<div class="text-xs" style="margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Verlauf</div>`+
+    [...liste].reverse().map(p=>{
+      const istAkt=gueltig&&p===gueltig, kuenftig=p.gueltig_ab>heute;
+      return `<div style="display:flex;align-items:center;gap:12px;padding:7px 0;border-top:0.5px solid #ece9e0;font-size:13px">
+        <span style="min-width:110px;color:#5f5e5a">${p.gueltig_ab<='2020-01-01'?'seit Beginn':'ab '+fmtDatumDe(p.gueltig_ab)}</span>
+        <span style="font-weight:500;min-width:80px">${fmt(p.betrag)}</span>
+        <span class="text-xs" style="flex:1">${istAkt?'aktuell':kuenftig?'geplant':''}</span>
+        ${liste.length>1?`<button class="btn" style="height:26px;padding:0 10px;font-size:11px" onclick="retLabelEintragLoeschen('${p.gueltig_ab}')">Entfernen</button>`:''}
+      </div>`;
+    }).join('');
+}
+function retLabelFormOeffnen(){
+  document.getElementById('ret-label-form').style.display='block';
+  document.getElementById('ret-label-edit-btn').style.display='none';
+  document.getElementById('ret-label-fehler').style.display='none';
+  document.getElementById('ret-label-neu-betrag').value='';
+  document.getElementById('ret-label-neu-ab').value=labelPauschalen().length?heuteIso():'2020-01-01';
+  setTimeout(()=>document.getElementById('ret-label-neu-betrag').focus(),30);
+}
+function retLabelFormSchliessen(){
+  document.getElementById('ret-label-form').style.display='none';
+  document.getElementById('ret-label-edit-btn').style.display='';
+}
+function retLabelSpeichern(){
+  const betragRoh=document.getElementById('ret-label-neu-betrag').value;
+  const ab=document.getElementById('ret-label-neu-ab').value;
+  const fehler=document.getElementById('ret-label-fehler');
+  const betrag=parseFloat(String(betragRoh).replace(',','.'));
+  if(betragRoh===''||!(betrag>=0)){ fehler.textContent='Bitte einen Betrag eingeben.'; fehler.style.display='block'; return; }
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(ab)){ fehler.textContent='Bitte ein Datum wählen.'; fehler.style.display='block'; return; }
+  // Gleiches Datum ersetzt den bisherigen Eintrag
+  const liste=labelPauschalen().filter(p=>p.gueltig_ab!==ab);
+  liste.push({betrag:Math.round(betrag*100)/100,gueltig_ab:ab});
+  labelPauschalenSpeichern(liste);
+  retLabelFormSchliessen();
+  renderRetLabelPauschalen();
+  renderRetouren(); renderDashboard();
   const fl=document.getElementById('ret-settings-flash');
-  fl.style.display='inline'; setTimeout(()=>fl.style.display='none',1800);
+  if(fl){ fl.style.display='inline'; setTimeout(()=>fl.style.display='none',1800); }
+}
+function retLabelEintragLoeschen(ab){
+  const liste=labelPauschalen();
+  if(liste.length<=1) return;
+  labelPauschalenSpeichern(liste.filter(p=>p.gueltig_ab!==ab));
+  renderRetLabelPauschalen();
+  renderRetouren(); renderDashboard();
 }
 
 function populateRetFilters(){
@@ -5244,7 +5346,7 @@ function renderRetouren(){
   const retUmsatz=retouren.reduce((s,r)=>s+(r.umsatz_anteil_brutto||0),0);
   const quoteUmsatz=umsatzGesamt>0?((retUmsatz/umsatzGesamt)*100).toFixed(1):0;
   const abschreibung=retouren.reduce((s,r)=>s+(r.abschreibung||0),0);
-  const labelKosten=retouren.reduce((s,r)=>s+(r.labelkosten||0),0);
+  const labelKosten=retouren.reduce((s,r)=>s+retLabelKosten(r),0);
   const versandKosten=retouren.reduce((s,r)=>s+(r.versand||0),0);
   const unbearbeitet=retouren.filter(r=>!r.bearbeitet).length;
 
@@ -5283,7 +5385,7 @@ function renderRetouren(){
     </tr></thead>
     <tbody>${retouren.map(r=>{
       const abschr=r.abschreibung||0;
-      const label=r.labelkosten||0;
+      const label=retLabelKosten(r);
       const versandK=r.versand||0;
       const order=allOrders.find(o=>o.id===r.order_id);
       const verlust=retoureWirkung(r,order).gesamt;
@@ -5326,7 +5428,7 @@ function openRetCreate(){
   document.getElementById('ret-single-verlust-wrap').style.display='none';
   document.getElementById('ret-save-btn').style.display='none';
   document.getElementById('ret-m-versand').value='';
-  document.getElementById('ret-m-label').value=getRetSettings().labelDefault||'';
+  document.getElementById('ret-m-label').value=labelPauschaleFuer(heuteIso())||'';
   document.getElementById('ret-m-notiz').value='';
   document.getElementById('ret-edit-modal-bg').style.display='flex';
 }
@@ -5471,7 +5573,7 @@ function updateMultiPreview(){
 // Hinversand der Bestellung + nicht erstatteter Teil der Marktplatzgebühr + Rücksendung + Label + Abschreibung.
 function retoureWirkung(r, order, eingaben={}){
   const rueck=eingaben.versand??(r?.versand||0);
-  const label=eingaben.label??(r?.labelkosten||0);
+  const label=eingaben.label??retLabelKosten(r);
   const abschr=eingaben.abschr??(r?.abschreibung||0);
   const hin=order?.versand||0;
   const provAnteil=order&&order.umsatzBrutto?(order.provision||0)*Math.min(1,(r?.umsatz_anteil_brutto||0)/order.umsatzBrutto):0;
@@ -5488,6 +5590,18 @@ function provisionText(w,order){
   if(w.provRest<=0) return `${fmt(0)} <span style="color:#1D9E75">· ${fmt(w.provErst)} von ${mp} erstattet</span>`;
   if(w.provErst<=0) return `${fmt(w.provRest)} <span style="color:#888780">· keine Erstattung${order.kanal==='Shopify'?' (Zahlungsgebühr)':''}</span>`;
   return `${fmt(w.provRest)} <span style="color:#888780">· ${fmt(w.provErst)} von ${mp} erstattet</span>`;
+}
+
+function retLabelHinweis(){
+  const inp=document.getElementById('ret-label-kosten');
+  const el=document.getElementById('ret-label-hinweis');
+  if(!inp||!el) return;
+  const p=parseFloat(inp.dataset.pauschale);
+  if(!Number.isFinite(p)){ el.textContent=''; return; }
+  const v=parseFloat(inp.value);
+  el.innerHTML=(Number.isFinite(v)&&Math.abs(v-p)<0.005)
+    ?`Pauschale (${fmt(p)}) · ändert sich mit, wenn ihr die Pauschale ab einem früheren Datum anpasst`
+    :`Eigener Betrag · Pauschale wäre ${fmt(p)} <a href="#" onclick="event.preventDefault();const i=document.getElementById('ret-label-kosten');i.value=${p};updateRetAbschreibung();retLabelHinweis();">übernehmen</a>`;
 }
 
 function openRetEdit(id){
@@ -5516,8 +5630,11 @@ function openRetEdit(id){
   const zSel=document.getElementById('ret-zustand');
   zSel.value=[...zSel.options].some(o=>o.value===r.zustand)?r.zustand:'';
   // Noch nicht bearbeitete (automatisch erkannte) Retouren: Standard-Labelkosten vorschlagen
-  const labelStd=getRetSettings().labelDefault||'';
-  document.getElementById('ret-label-kosten').value=(!r.bearbeitet&&!r.labelkosten)?labelStd:(r.labelkosten!=null?r.labelkosten:labelStd);
+  // Labelkosten: Pauschale laut Datum der Retoure, außer es wurde ein eigener Betrag eingetragen
+  const lInp=document.getElementById('ret-label-kosten');
+  lInp.value=retLabelKosten(r);
+  lInp.dataset.pauschale=String(labelPauschaleFuer(r.datum));
+  retLabelHinweis();
   document.getElementById('ret-notiz').value=r.notiz||'';
   const isCustom=r.zustand==='custom';
   document.getElementById('ret-custom-wrap').style.display=isCustom?'block':'none';
@@ -5579,13 +5696,16 @@ async function saveRetEdit(){
     const existing=getRetouren().find(r=>r.id===parseInt(editingId));
     if(!existing) return;
     const abschr=parseFloat((ek*(existing.menge||1)*pct/100).toFixed(2));
+    // Entspricht der Betrag der Pauschale, als "Pauschale" speichern (null) — dann folgt er
+    // späteren Preisänderungen. Ein abweichender Betrag bleibt fest.
+    const labelSpeichern=Math.abs(label-labelPauschaleFuer(existing.datum))<0.005?null:label;
     await saveRetoureEntry({
       id:existing.id,
       zustand,
       abschreibung_pct:zustand==='custom'?pct:null,
       abschreibung:abschr,
       ek,
-      labelkosten:label,
+      labelkosten:labelSpeichern,
       versand,
       notiz,
       bearbeitet:true,
@@ -5604,6 +5724,9 @@ async function saveRetEdit(){
   const notiz=document.getElementById('ret-m-notiz').value;
   const versandPerItem=parseFloat((versandTotal/rows.length).toFixed(2));
   const labelPerItem=parseFloat((labelTotal/rows.length).toFixed(2));
+  // Ein einzelner Artikel mit genau der Pauschale: als Pauschale speichern (folgt Preisänderungen).
+  // Bei mehreren Artikeln wird ein gemeinsames Label aufgeteilt — das bleibt ein fester Betrag.
+  const labelAlsPauschale=(datum)=>rows.length===1&&Math.abs(labelTotal-labelPauschaleFuer(datum))<0.005;
 
   const ordersCache={};
   for(const row of rows){
@@ -5638,7 +5761,7 @@ async function saveRetEdit(){
       zustand,
       abschreibung_pct:zustand==='custom'?pct:null,
       abschreibung:abschr,
-      labelkosten:labelPerItem,
+      labelkosten:labelAlsPauschale(o.datum)?null:labelPerItem,
       versand:versandPerItem,
       umsatz_anteil_brutto:bruttoAnteil,
       umsatz_anteil_netto:nettoAnteil,
@@ -7288,7 +7411,7 @@ function openOrderDetail(id){
   // Kostenaufstellung — bei Retouren die bereinigten (effektiven) Werte zeigen,
   // damit die Zahlen hier mit dem tatsächlichen Deckungsbeitrag darunter übereinstimmen
   const effBr=effBrutto(o), effNe=effNetto(o), effWa=effWaren(o);
-  const retLossItems=getRetourenForOrder(o.id).reduce((s,r)=>s+(r.labelkosten||0)+(r.versand||0),0);
+  const retLossItems=getRetourenForOrder(o.id).reduce((s,r)=>s+retLabelKosten(r)+(r.versand||0),0);
   const rows=[
     {label:'Bruttoumsatz', val:effBr, cls:''},
     {label:'Nettoumsatz', val:effNe, cls:''},
@@ -8111,9 +8234,7 @@ function showPraef(sub){
   if(sub==='versand') renderVersandProfiles();
   if(sub==='marktplaetze') renderPraefMpg();
   if(sub==='retouren'){
-    const s=getRetSettings();
-    const el=document.getElementById('ret-label-default');
-    if(el) el.value=s.labelDefault||'';
+    renderRetLabelPauschalen();
     renderRetZustaendeList();
   }
   if(sub==='dashboard'){ loadDashChannels(); initDashKachelnGrid(); }
@@ -9173,7 +9294,8 @@ async function initApp(){
         </div>
         <div class="field" style="grid-column:1/-1">
           <label>Retourenlabel (€)</label>
-          <input type="number" id="ret-label-kosten" min="0" step="0.01" placeholder="0.00" oninput="updateRetAbschreibung()">
+          <input type="number" id="ret-label-kosten" min="0" step="0.01" placeholder="0.00" oninput="updateRetAbschreibung();retLabelHinweis()">
+          <div class="text-xs" id="ret-label-hinweis" style="margin-top:3px"></div>
         </div>
         <div class="field" style="grid-column:1/-1">
           <label>Notiz</label>

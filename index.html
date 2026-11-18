@@ -5461,7 +5461,7 @@ function updateMultiPreview(){
     orderCosts+=w.hin+w.provRest;
   });
   if(document.getElementById('ret-m-verlust-hin')) document.getElementById('ret-m-verlust-hin').textContent=hinSumme>0?fmt(hinSumme):'\u2014';
-  if(document.getElementById('ret-m-verlust-prov')) document.getElementById('ret-m-verlust-prov').textContent=provRestSumme>0?fmt(provRestSumme):'0,00 \u20ac (erstattet)';
+  if(document.getElementById('ret-m-verlust-prov')) document.getElementById('ret-m-verlust-prov').textContent=fmt(provRestSumme);
   const gesamt=parseFloat((verlust+orderCosts).toFixed(2));
   const gesamtEl=document.getElementById('ret-m-verlust-gesamt');
   if(gesamtEl) gesamtEl.textContent=fmt(gesamt);
@@ -5480,11 +5480,14 @@ function retoureWirkung(r, order, eingaben={}){
   const gesamt=parseFloat((hin+provRest+rueck+label+abschr).toFixed(2));
   return {hin,provAnteil:parseFloat(provAnteil.toFixed(2)),provErst,provRest,rueck,label,abschr,gesamt};
 }
+// Rechts steht – wie in allen Zeilen der Verlustrechnung – der Betrag, der tatsächlich als Verlust bleibt.
+// Der Hinweis dahinter erklärt, wie viel vom Marktplatz erstattet wird.
 function provisionText(w,order){
   if(!order||!w.provAnteil) return '—';
-  if(w.provRest<=0) return `${fmt(w.provAnteil)} <span style="color:#1D9E75">· wird erstattet</span>`;
-  if(w.provErst<=0) return `${fmt(w.provAnteil)} <span style="color:#888780">· keine Erstattung${order.kanal==='Shopify'?' (Zahlungsgebühr)':''}</span>`;
-  return `${fmt(w.provRest)} <span style="color:#888780">· ${fmt(w.provErst)} erstattet</span>`;
+  const mp=escHtml(order.kanal||'Marktplatz');
+  if(w.provRest<=0) return `${fmt(0)} <span style="color:#1D9E75">· ${fmt(w.provErst)} von ${mp} erstattet</span>`;
+  if(w.provErst<=0) return `${fmt(w.provRest)} <span style="color:#888780">· keine Erstattung${order.kanal==='Shopify'?' (Zahlungsgebühr)':''}</span>`;
+  return `${fmt(w.provRest)} <span style="color:#888780">· ${fmt(w.provErst)} von ${mp} erstattet</span>`;
 }
 
 function openRetEdit(id){
@@ -9117,7 +9120,7 @@ async function initApp(){
         <div style="background:#f5f5f3;border-radius:8px;padding:12px;margin-top:12px">
           <div class="text-xs" style="margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Verlustrechnung</div>
           <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Versand der Bestellung (Hinweg)</span><span id="ret-m-verlust-hin">—</span></div>
-          <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:0.5px solid #ddddd5;margin-bottom:3px"><span style="color:#888780">Marktplatzgebühr (nicht erstattet)</span><span id="ret-m-verlust-prov">—</span></div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:0.5px solid #ddddd5;margin-bottom:3px"><span style="color:#888780">Marktplatzgebühr (nach Erstattung)</span><span id="ret-m-verlust-prov">—</span></div>
           <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Rücksendekosten</span><span id="ret-m-verlust-versand">—</span></div>
           <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#888780">Retourenlabel</span><span id="ret-m-verlust-label">—</span></div>
           <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:0.5px solid #ddddd5"><span style="color:#888780">Abschreibung</span><span id="ret-m-verlust-abschr">—</span></div>

@@ -4537,7 +4537,17 @@ function effWaren(order){
 
 // Speichert eine Retoure (neu oder Update) in Supabase
 async function saveRetoureEntry(entry){
-  const res=await sbFetch('retouren', entry.id?'PATCH':'POST', entry, entry.id?`?id=eq.${entry.id}`:'');
+  // 18.11.: Beim Bearbeiten wurde die id im Inhalt mitgeschickt. retouren.id ist eine automatisch
+  // vergebene Spalte (GENERATED ALWAYS) — die Datenbank lehnte das Update deshalb jedes Mal ab,
+  // und weil der Fehler nicht ausgewertet wurde, sah es nach erfolgreichem Speichern aus.
+  // Jetzt: id nur im Filter, Fehler werden gemeldet statt verschluckt.
+  const {id,...daten}=entry;
+  const r=id
+    ? await sbWrite(`retouren?id=eq.${id}`,'PATCH',daten)
+    : await sbWrite('retouren','POST',daten);
+  if(!r.ok) throw new Error(r.error||'Speichern fehlgeschlagen');
+  if(id&&Array.isArray(r.data)&&r.data.length===0) throw new Error('Retoure nicht gefunden oder keine Berechtigung');
+  const res=r.data;
   await syncFromSupabase();
 
   // Retouren werden direkt gegen Supabase geschrieben — der Server bekommt das sonst nicht
@@ -5681,7 +5691,22 @@ function updateRetAbschreibung(){
   if(gesamtEl) gesamtEl.textContent=order?fmt(w.gesamt):'—';
 }
 
+function retFehlerZeigen(text){
+  let el=document.getElementById('ret-speichern-fehler');
+  if(!el){
+    el=document.createElement('div');
+    el.id='ret-speichern-fehler';
+    el.style.cssText='font-size:12px;color:#A32D2D;background:#fcebeb;border-radius:8px;padding:8px 10px;margin-bottom:10px';
+    const footer=document.querySelector('#ret-edit-modal-bg .edit-modal-footer');
+    footer?.parentNode.insertBefore(el,footer);
+  }
+  el.textContent='Nicht gespeichert: '+text;
+  el.style.display='block';
+}
+
 async function saveRetEdit(){
+  const altFehler=document.getElementById('ret-speichern-fehler');
+  if(altFehler) altFehler.style.display='none';
   const editingId=document.getElementById('ret-edit-id').value;
 
   if(editingId){
@@ -5705,7 +5730,7 @@ async function saveRetEdit(){
     // Entspricht der Betrag der Pauschale, als "Pauschale" speichern (null) — dann folgt er
     // späteren Preisänderungen. Ein abweichender Betrag bleibt fest.
     const labelSpeichern=Math.abs(label-labelPauschaleFuer(existing.datum))<0.005?null:label;
-    await saveRetoureEntry({
+    try{ await saveRetoureEntry({
       id:existing.id,
       zustand,
       abschreibung_pct:zustand==='custom'?pct:null,
@@ -5715,7 +5740,7 @@ async function saveRetEdit(){
       versand,
       notiz,
       bearbeitet:true,
-    });
+    }); }catch(err){ retFehlerZeigen(err.message); return; }
     closeRetEdit();
     renderRetouren();
     renderDashboard();
@@ -5755,6 +5780,7 @@ async function saveRetEdit(){
     const nettoRatio=(o.umsatzBrutto>0)?(o.umsatzNetto||0)/o.umsatzBrutto:1;
     const nettoAnteil=parseFloat((bruttoAnteil*nettoRatio).toFixed(2));
 
+    try{
     await saveRetoureEntry({
       order_id:o.id,
       order_item_id:itemId,
@@ -5776,6 +5802,7 @@ async function saveRetEdit(){
       notiz,
       bearbeitet:true,
     });
+    }catch(err){ retFehlerZeigen(err.message); return; }
   }
   closeRetEdit();
   renderRetouren();

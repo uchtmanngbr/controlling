@@ -3511,7 +3511,7 @@ function renderBerichte(){
     const d=r.datum?.split('-');
     return d&&parseInt(d[1])===month&&parseInt(d[0])===year;
   });
-  const eingangsRechTotalB=eingangsRechB.reduce((s,r)=>s+(r.brutto||0),0);
+  const eingangsRechTotalB=eingangsRechB.reduce((s,r)=>s+eingangsRechKosten(r),0);
   totalDB-=eingangsRechTotalB;
 
   const cashflow=totalDB-fix-mkTotal-totalMpg;
@@ -3692,7 +3692,7 @@ function getMonthStats(month, year){
     const d=r.datum?.split('-');
     return d&&parseInt(d[1])===month&&parseInt(d[0])===year;
   });
-  const eingangsRechTotal=eingangsRech.reduce((s,r)=>s+(r.brutto||0),0);
+  const eingangsRechTotal=eingangsRech.reduce((s,r)=>s+eingangsRechKosten(r),0);
   db-=eingangsRechTotal;
   const cashflow=db-fix-mkTotal-totalMpg;
   const roi=waren>0?((dbBestellungen/waren)*100):null;
@@ -6932,6 +6932,15 @@ function showKosten(sub){
 }
 
 /* ── EINGANGSRECHNUNGEN ── */
+// Kostenwirkung einer Eingangsrechnung: NETTO (18.11.2026). Die Vorsteuer wird vom Finanzamt
+// erstattet und ist kein Aufwand — alle anderen Kennzahlen rechnen ebenfalls netto.
+// Fehlt der Nettobetrag, wird er aus Brutto und MwSt-Satz berechnet.
+function eingangsRechKosten(r){
+  const n=Number(r?.netto);
+  if(Number.isFinite(n)&&n>0) return n;
+  const b=Number(r?.brutto)||0, satz=Number(r?.mwst);
+  return b/(1+((Number.isFinite(satz)?satz:19)/100));
+}
 function getEingangsrechnungen(){try{return JSON.parse(localStorage.getItem('ec_eingangsrechnungen')||'[]');}catch{return[];}}
 function saveEingangsrechnungen(arr){
   localStorage.setItem('ec_eingangsrechnungen',JSON.stringify(arr));
@@ -7102,7 +7111,7 @@ function _renderDashboard(){
     const d=r.datum?.split('-');
     return d&&parseInt(d[1])===month&&parseInt(d[0])===year;
   });
-  const eingangsRechDashTotal=eingangsRechDash.reduce((s,r)=>s+(r.brutto||0),0);
+  const eingangsRechDashTotal=eingangsRechDash.reduce((s,r)=>s+eingangsRechKosten(r),0);
   const gewinn=totalDB-fix-mkTotal-totalMpg-eingangsRechDashTotal;
   const gesamtkosten=fix+mkTotal+totalMpg+eingangsRechDashTotal;
   const retourenCount=getRetouren().filter(r=>r.datum&&new Date(r.datum).getMonth()+1===month&&new Date(r.datum).getFullYear()===year).length;

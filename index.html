@@ -2670,6 +2670,7 @@ function getOverallSeverity(){
   for(const v of retoureQualityMap.values()){
     if(qState(v)==='amber') max=Math.max(max,1);
   }
+  if(mwstAbweichungen().length) max=Math.max(max,1);
   // Live-Zustand pro externer Anbindung (Shopify, künftig weitere) — löst sich automatisch,
   // sobald ein API-Aufruf wieder erfolgreich durchläuft.
   for(const v of connectorStatusMap.values()){
@@ -2784,6 +2785,30 @@ const AMPEL_KATEGORIEN=[
   {key:'zuordnung',   label:'Artikel nicht eindeutig zugeordnet', re:/nicht eindeutig/i},
 ];
 const AMPEL_SONSTIGES={key:'sonstiges',label:'Sonstige Hinweise'};
+const AMPEL_MWST={key:'mwst',label:'MwSt vom Marktplatz weicht vom Produkt ab'};
+
+// Wird im Browser aus den Bestellungen und Produkten berechnet (keine Meldung vom Backend) und
+// verschwindet von selbst, sobald Marktplatz und Produkt denselben Satz haben.
+// Geprüft werden nur importierte Bestellungen, deren Positionen alle einem Produkt mit demselben
+// Satz zugeordnet sind (wie mwst_pruefen.sql).
+function mwstAbweichungen(){
+  const liste=[];
+  for(const o of getOrders()){
+    if(!istMarktplatzImport(o)) continue;
+    const brutto=Number(o.umsatzBrutto), netto=Number(o.umsatzNetto);
+    if(!(brutto>0&&netto>0)) continue;
+    const pos=(o.items||[]).filter(it=>it.sku);
+    if(!pos.length) continue;
+    const saetze=pos.map(it=>mwstSatzVonSku(it.sku));
+    if(saetze.some(x=>x===null)) continue;
+    if(new Set(saetze).size!==1) continue;
+    const faktor=brutto/netto;
+    if(Math.abs(faktor-(1+saetze[0]/100))<=0.005) continue;
+    const mp=o.otto_order_id?'Otto':'Shopify';
+    liste.push({typ:'order',id:String(o.id),detail:`${mp}: ${satzText(faktor)} · Produkt: ${saetze[0]} %`});
+  }
+  return liste;
+}
 const AMPEL_RETOURE={key:'retoure',label:'Retoure nicht bearbeitet'};
 
 function zerlegeProblemText(text){
@@ -2814,7 +2839,8 @@ function ampelGruppen(){
     if(qState(v)!=='amber') continue;
     add(AMPEL_RETOURE.key,{typ:'retoure',id,bestellnr:v?.bestellnr||''});
   }
-  return [...AMPEL_KATEGORIEN,AMPEL_SONSTIGES,AMPEL_RETOURE]
+  mwstAbweichungen().forEach(e=>add(AMPEL_MWST.key,e));
+  return [...AMPEL_KATEGORIEN,AMPEL_MWST,AMPEL_SONSTIGES,AMPEL_RETOURE]
     .filter(k=>map.has(k.key))
     .map(k=>({key:k.key,label:k.label,eintraege:map.get(k.key)}));
 }
@@ -2842,14 +2868,16 @@ function closeAmpelListe(){
 function renderAmpelListe(){
   if(!ampelListeKey) return;
   const g=ampelGruppen().find(x=>x.key===ampelListeKey);
-  const kat=[...AMPEL_KATEGORIEN,AMPEL_SONSTIGES,AMPEL_RETOURE].find(k=>k.key===ampelListeKey);
+  const kat=[...AMPEL_KATEGORIEN,AMPEL_MWST,AMPEL_SONSTIGES,AMPEL_RETOURE].find(k=>k.key===ampelListeKey);
   const eintraege=g?g.eintraege:[];
   const istRetoure=ampelListeKey==='retoure';
   document.getElementById('ampel-liste-titel').textContent=kat?kat.label:'Hinweise';
   document.getElementById('ampel-liste-hinweis').textContent=eintraege.length
-    ?`${eintraege.length} ${istRetoure?(eintraege.length===1?'Retoure':'Retouren'):(eintraege.length===1?'Bestellung':'Bestellungen')} · Klick öffnet ${istRetoure?'die Retoure':'die Bestellung'}. Nach dem Speichern verschwindet sie aus der Liste.`
+    ?`${eintraege.length} ${istRetoure?(eintraege.length===1?'Retoure':'Retouren'):(eintraege.length===1?'Bestellung':'Bestellungen')} · Klick öffnet ${istRetoure?'die Retoure':'die Bestellung'}. `+(ampelListeKey==='mwst'
+      ?'Verschwindet, sobald der Marktplatz denselben Satz liefert wie im Produkt hinterlegt (bzw. das Produkt korrigiert ist).'
+      :'Nach dem Speichern verschwindet sie aus der Liste.')
     :'';
-  const detailKopf={ek:'SKU / Artikel',charge_leer:'SKU',versand:'SKU',provision:'SKU'}[ampelListeKey]||'Hinweis';
+  const detailKopf={ek:'SKU / Artikel',charge_leer:'SKU',versand:'SKU',provision:'SKU',mwst:'Steuersatz'}[ampelListeKey]||'Hinweis';
   document.getElementById('ampel-liste-head').innerHTML=`<tr>
     <th class="c-datum">Datum</th><th class="c-nr">Bestellnr.</th><th class="c-kanal">Kanal</th>
     ${istRetoure?'<th class="c-art">Artikel</th><th class="c-det">Grund</th>':`<th class="c-art">Artikel</th><th class="c-det">${detailKopf}</th>`}<th class="c-go"></th></tr>`;
@@ -4435,9 +4463,36 @@ function edFallbackSatz(){
   }
   return MWST_STANDARD;
 }
+// Kommt die Bestellung von einem Marktplatz-Import (Otto, Shopify)? Dann hat der Marktplatz den
+// Steuersatz geliefert — er steht auf der Rechnung an den Kunden und ist maßgeblich.
+function istMarktplatzImport(o){ return !!(o&&(o.otto_order_id||o.shopify_order_id)); }
+
+// Netto beim Bearbeiten (24.11.): Bei importierten Bestellungen bleibt das Verhältnis Netto/Brutto
+// erhalten, das der Marktplatz geliefert hat — auch wenn inzwischen ein Produkt mit anderem Satz
+// angelegt ist. Vorher hat der Dialog mit dem Produktsatz gerechnet, der Otto-Sync danach wieder
+// mit dem Otto-Satz: das Netto sprang hin und her. Manuelle Bestellungen: Satz aus dem Produkt.
+function edNettoInfo(brutto){
+  const o=getOrders().find(o=>String(o.id)===String(editId));
+  if(istMarktplatzImport(o)&&Number(o.umsatzBrutto)>0&&Number(o.umsatzNetto)>0){
+    const quote=Number(o.umsatzNetto)/Number(o.umsatzBrutto);
+    return {netto:brutto*quote, text:`MwSt ${satzText(o.umsatzBrutto/o.umsatzNetto)} laut ${o.otto_order_id?'Otto':'Shopify'}`};
+  }
+  const info=mwstFuerItems(_edItems,brutto,edFallbackSatz());
+  return {netto:info.netto, text:'MwSt '+info.saetze.slice().sort((x,y)=>y-x).map(x=>x+' %').join(' / ')+(info.gemischt?' (anteilig)':'')+(info.ausProdukt?' laut Produkt':'')};
+}
+// Faktor Brutto/Netto als Steuersatz: 1,19 -> "19 %", krumme Werte (gemischte Sätze) mit Komma
+function satzText(faktor){
+  const satz=(Number(faktor)-1)*100;
+  const glatt=MWST_SAETZE.find(x=>Math.abs(x-satz)<0.5);
+  return glatt!==undefined?`${glatt} %`:`${satz.toFixed(1).replace('.',',')} %`;
+}
+
 function edUpdatePreview(){
   const brutto=parseFloat(document.getElementById('ed-brutto').value)||0;
-  const netto=mwstFuerItems(_edItems,brutto,edFallbackSatz()).netto;
+  const _ni=edNettoInfo(brutto);
+  const netto=_ni.netto;
+  const mwEl=document.getElementById('ed-mwst-hint');
+  if(mwEl) mwEl.textContent=brutto>0?`Netto ${fmt(netto)} · ${_ni.text}`:'';
   const waren=parseFloat(document.getElementById('ed-waren').value)||0;
   const versand=parseFloat(document.getElementById('ed-versand').value)||0;
   const prov=parseFloat(document.getElementById('ed-provision').value)||0;
@@ -4472,7 +4527,7 @@ async function saveEdit(){
     artikel: itemsToNameString(_edItems),
     sku: itemsToSkuString(_edItems),
     umsatzBrutto: brutto,
-    umsatzNetto: parseFloat(mwstFuerItems(_edItems,brutto,edFallbackSatz()).netto.toFixed(2)),
+    umsatzNetto: parseFloat(edNettoInfo(brutto).netto.toFixed(2)),
     waren: parseFloat(waren.toFixed(2)),
     versand,
     versandProfilId: document.getElementById('ed-versand-profil').value?parseInt(document.getElementById('ed-versand-profil').value):null,
@@ -6794,6 +6849,8 @@ async function deleteProdukt(sku){
 }
 
 function renderProdukte(){
+  // MwSt-Abweichungen in der Ampel hängen an Bestellungen und Produkten -> mit aktualisieren
+  if(typeof renderStatusWidget==='function') renderStatusWidget();
   const search=(document.getElementById('prod-search')?.value||'').toLowerCase().trim();
   const profiles=getVersandProfile();
   let produkte=getProdukte();
@@ -7538,6 +7595,8 @@ function loadOrderDetailImage(event){
 }
 
 function renderOrders(){
+  // MwSt-Abweichungen in der Ampel hängen an Bestellungen und Produkten -> mit aktualisieren
+  if(typeof renderStatusWidget==='function') renderStatusWidget();
   const kanal=document.getElementById('filter-kanal').value;
   const month=parseInt(document.getElementById('filter-month').value);
   const year=parseInt(document.getElementById('filter-year').value);
@@ -9217,6 +9276,7 @@ async function initApp(){
           <div class="text-xs" style="margin-bottom:4px">Deckungsbeitrag (live)</div>
           <div style="font-size:18px;font-weight:500;" id="ed-db-preview">—</div>
           <div class="text-xs" style="margin-top:3px;" id="ed-dbpct-preview"></div>
+          <div class="text-xs" style="margin-top:3px;color:#888780;" id="ed-mwst-hint"></div>
         </div>
       </div>
 
